@@ -43,10 +43,16 @@ npm install
 
 3. Configure environment variables:
 ```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env with your values
+# Or export directly:
 export HULY_URL=https://your-huly-instance.com
 export HULY_EMAIL=your-email@example.com
 export HULY_PASSWORD=your-password
 export HULY_WORKSPACE=your-workspace-name
+export GITHUB_TOKEN=your-github-token  # Required for @hcengineering packages
 ```
 
 ### Usage
@@ -75,6 +81,7 @@ Server will be available at `http://localhost:3000`
 | `HULY_WORKSPACE` | Workspace name | `agentspace` |
 | `PORT` | HTTP server port | `3000` |
 | `NODE_ENV` | Environment mode | `development` |
+| `GITHUB_TOKEN` | GitHub token for @hcengineering packages | Required for npm install |
 
 ### Claude Code Integration
 
@@ -98,6 +105,7 @@ docker run -d \
   -e HULY_EMAIL=your-email@example.com \
   -e HULY_PASSWORD=your-password \
   -e HULY_WORKSPACE=your-workspace \
+  -e GITHUB_TOKEN=your-github-token \
   -p 3000:3000 \
   huly-mcp-server
 ```
@@ -115,6 +123,7 @@ services:
       - HULY_EMAIL=${HULY_MCP_EMAIL}
       - HULY_PASSWORD=${HULY_MCP_PASSWORD}
       - HULY_WORKSPACE=${HULY_MCP_WORKSPACE}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
     ports:
       - "3457:3000"
     depends_on:
