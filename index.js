@@ -27,6 +27,43 @@ const tracker = trackerModule.default || trackerModule;
 const { generateId } = coreModule;
 const { makeRank } = rankModule;
 
+// Error codes for structured error responses
+const ERROR_CODES = {
+  ISSUE_NOT_FOUND: 'ISSUE_NOT_FOUND',
+  PROJECT_NOT_FOUND: 'PROJECT_NOT_FOUND',
+  COMPONENT_NOT_FOUND: 'COMPONENT_NOT_FOUND',
+  MILESTONE_NOT_FOUND: 'MILESTONE_NOT_FOUND',
+  INVALID_FIELD: 'INVALID_FIELD',
+  INVALID_VALUE: 'INVALID_VALUE',
+  DATABASE_ERROR: 'DATABASE_ERROR',
+  CONNECTION_ERROR: 'CONNECTION_ERROR',
+  PERMISSION_ERROR: 'PERMISSION_ERROR',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR'
+};
+
+// Error utility class for consistent error handling
+class HulyError extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.code = code;
+    this.details = details;
+    this.name = 'HulyError';
+  }
+
+  toMCPResponse() {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `❌ Error [${this.code}]: ${this.message}${this.details.context ? `\n\nContext: ${this.details.context}` : ''}${this.details.suggestion ? `\n\nSuggestion: ${this.details.suggestion}` : ''}`
+        }
+      ]
+    };
+  }
+}
+
 // Huly connection configuration
 const HULY_CONFIG = {
   url: process.env.HULY_URL || 'https://pm.oculair.ca',
@@ -367,11 +404,17 @@ class HulyMCPServer {
             throw new Error(`Unknown tool: ${name}`);
         }
       } catch (error) {
+        // Handle HulyError instances with structured responses
+        if (error instanceof HulyError) {
+          return error.toMCPResponse();
+        }
+        
+        // Handle generic errors
         return {
           content: [
             {
               type: 'text',
-              text: `Error: ${error.message}`
+              text: `❌ Error: ${error.message}`
             }
           ]
         };
@@ -585,72 +628,330 @@ class HulyMCPServer {
   }
 
   async updateIssue(client, issueIdentifier, field, value) {
-    const issue = await client.findOne(
-      tracker.class.Issue,
-      { identifier: issueIdentifier }
-    );
+    try {
+      // Input validation
+      if (!issueIdentifier || typeof issueIdentifier !== 'string') {
+        throw new HulyError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Invalid issue identifier provided',
+          {
+            context: 'Issue identifier must be a non-empty string (e.g., "LMP-1")',
+            suggestion: 'Use the format "PROJECT-NUMBER" where PROJECT is the project identifier'
+          }
+        );
+      }
 
-    if (!issue) {
-      throw new Error(`Issue ${issueIdentifier} not found`);
-    }
+      if (!field || typeof field !== 'string') {
+        throw new HulyError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Invalid field name provided',
+          {
+            context: 'Field name must be a non-empty string',
+            suggestion: 'Use one of: title, description, status, priority, component, milestone'
+          }
+        );
+      }
 
-    const updateData = {};
-    
-    // Handle status field with StatusManager
-    if (field === 'status') {
+      if (value === null || value === undefined) {
+        throw new HulyError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Invalid value provided',
+          {
+            context: 'Value cannot be null or undefined',
+            suggestion: 'Provide a valid value for the field being updated'
+          }
+        );
+      }
+
+      // Validate field names
+      const validFields = ['title', 'description', 'status', 'priority', 'component', 'milestone'];
+      if (!validFields.includes(field)) {
+        throw new HulyError(
+          ERROR_CODES.INVALID_FIELD,
+          `Invalid field name: ${field}`,
+          {
+            context: `Field '${field}' is not a valid updateable field`,
+            suggestion: `Use one of: ${validFields.join(', ')}`
+          }
+        );
+      }
+
+      // Find the issue with connection error handling
+      let issue;
       try {
-        updateData[field] = statusManager.toFullStatus(value);
+        issue = await client.findOne(
+          tracker.class.Issue,
+          { identifier: issueIdentifier }
+        );
       } catch (error) {
-        throw new Error(`Invalid status value: ${value}. ${error.message}`);
-      }
-    } else if (field === 'priority') {
-      const priorityMap = {
-        'NoPriority': 0,
-        'urgent': 1,
-        'high': 2,
-        'medium': 3,
-        'low': 4
-      };
-      updateData[field] = priorityMap[value] ?? 0;
-    } else if (field === 'milestone') {
-      // Handle milestone field by looking up milestone by label
-      const milestone = await client.findOne(
-        tracker.class.Milestone,
-        { label: value, space: issue.space }
-      );
-      if (!milestone) {
-        throw new Error(`Milestone "${value}" not found in project`);
-      }
-      updateData[field] = milestone._id;
-    } else if (field === 'component') {
-      // Handle component field by looking up component by label
-      const component = await client.findOne(
-        tracker.class.Component,
-        { label: value, space: issue.space }
-      );
-      if (!component) {
-        throw new Error(`Component "${value}" not found in project`);
-      }
-      updateData[field] = component._id;
-    } else {
-      updateData[field] = value;
-    }
-
-    await client.updateDoc(
-      tracker.class.Issue,
-      issue.space,
-      issue._id,
-      updateData
-    );
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `✅ Updated issue ${issueIdentifier}\n\n${field}: ${value}`
+        // Handle database connection errors
+        if (error.message.includes('connection') || error.message.includes('timeout')) {
+          throw new HulyError(
+            ERROR_CODES.DATABASE_ERROR,
+            'Database connection failed while searching for issue',
+            {
+              context: `Could not connect to database to find issue ${issueIdentifier}`,
+              suggestion: 'Check database connection and try again'
+            }
+          );
         }
-      ]
-    };
+        // Handle other database errors
+        throw new HulyError(
+          ERROR_CODES.DATABASE_ERROR,
+          'Database error while searching for issue',
+          {
+            context: `Database operation failed: ${error.message}`,
+            suggestion: 'Check database status and try again'
+          }
+        );
+      }
+
+      // Check if issue exists
+      if (!issue) {
+        throw new HulyError(
+          ERROR_CODES.ISSUE_NOT_FOUND,
+          `Issue ${issueIdentifier} not found`,
+          {
+            context: `No issue found with identifier ${issueIdentifier}`,
+            suggestion: 'Check the issue identifier and ensure it exists in the system'
+          }
+        );
+      }
+
+      const updateData = {};
+      
+      // Handle different field types with validation
+      if (field === 'priority') {
+        const priorityMap = {
+          'NoPriority': 0,
+          'urgent': 1,
+          'high': 2,
+          'medium': 3,
+          'low': 4
+        };
+        
+        if (!(value in priorityMap)) {
+          throw new HulyError(
+            ERROR_CODES.INVALID_VALUE,
+            `Invalid priority value: ${value}`,
+            {
+              context: `Priority '${value}' is not a valid priority level`,
+              suggestion: `Use one of: ${Object.keys(priorityMap).join(', ')}`
+            }
+          );
+        }
+        updateData[field] = priorityMap[value];
+        
+      } else if (field === 'milestone') {
+        // Handle milestone field by looking up milestone by label
+        if (typeof value !== 'string' || value.trim() === '') {
+          throw new HulyError(
+            ERROR_CODES.INVALID_VALUE,
+            'Invalid milestone name provided',
+            {
+              context: 'Milestone name must be a non-empty string',
+              suggestion: 'Provide a valid milestone name'
+            }
+          );
+        }
+
+        let milestone;
+        try {
+          milestone = await client.findOne(
+            tracker.class.Milestone,
+            { label: value, space: issue.space }
+          );
+        } catch (error) {
+          throw new HulyError(
+            ERROR_CODES.DATABASE_ERROR,
+            'Database error while searching for milestone',
+            {
+              context: `Could not search for milestone: ${error.message}`,
+              suggestion: 'Check database connection and try again'
+            }
+          );
+        }
+
+        if (!milestone) {
+          throw new HulyError(
+            ERROR_CODES.MILESTONE_NOT_FOUND,
+            `Milestone "${value}" not found in project`,
+            {
+              context: `No milestone with name "${value}" exists in the project`,
+              suggestion: 'Check available milestones or create the milestone first'
+            }
+          );
+        }
+        updateData[field] = milestone._id;
+        
+      } else if (field === 'component') {
+        // Handle component field by looking up component by label
+        if (typeof value !== 'string' || value.trim() === '') {
+          throw new HulyError(
+            ERROR_CODES.INVALID_VALUE,
+            'Invalid component name provided',
+            {
+              context: 'Component name must be a non-empty string',
+              suggestion: 'Provide a valid component name'
+            }
+          );
+        }
+
+        let component;
+        try {
+          component = await client.findOne(
+            tracker.class.Component,
+            { label: value, space: issue.space }
+          );
+        } catch (error) {
+          throw new HulyError(
+            ERROR_CODES.DATABASE_ERROR,
+            'Database error while searching for component',
+            {
+              context: `Could not search for component: ${error.message}`,
+              suggestion: 'Check database connection and try again'
+            }
+          );
+        }
+
+        if (!component) {
+          throw new HulyError(
+            ERROR_CODES.COMPONENT_NOT_FOUND,
+            `Component "${value}" not found in project`,
+            {
+              context: `No component with name "${value}" exists in the project`,
+              suggestion: 'Check available components or create the component first'
+            }
+          );
+        }
+        updateData[field] = component._id;
+        
+      } else if (field === 'title' || field === 'description') {
+        // Validate text fields
+        if (typeof value !== 'string') {
+          throw new HulyError(
+            ERROR_CODES.INVALID_VALUE,
+            `Invalid ${field} value provided`,
+            {
+              context: `${field} must be a string`,
+              suggestion: 'Provide a valid text value'
+            }
+          );
+        }
+        
+        if (field === 'title' && value.trim() === '') {
+          throw new HulyError(
+            ERROR_CODES.INVALID_VALUE,
+            'Title cannot be empty',
+            {
+              context: 'Issue title must contain at least one non-whitespace character',
+              suggestion: 'Provide a meaningful title for the issue'
+            }
+          );
+        }
+        
+        updateData[field] = value;
+        
+      } else if (field === 'status') {
+        // Handle status field with StatusManager
+        if (typeof value !== 'string') {
+          throw new HulyError(
+            ERROR_CODES.INVALID_VALUE,
+            'Invalid status value provided',
+            {
+              context: 'Status must be a string',
+              suggestion: `Use one of: ${statusManager.getValidStatuses().join(', ')} or full format like tracker:status:Backlog`
+            }
+          );
+        }
+        
+        try {
+          // Use StatusManager to convert and validate status
+          updateData[field] = statusManager.toFullStatus(value);
+        } catch (error) {
+          throw new HulyError(
+            ERROR_CODES.INVALID_VALUE,
+            error.message,
+            {
+              context: `Status validation failed for value: ${value}`,
+              suggestion: `Valid statuses: ${statusManager.getValidStatuses().join(', ')}`
+            }
+          );
+        }
+        
+      } else {
+        // Fallback for other fields
+        updateData[field] = value;
+      }
+
+      // Perform the update with error handling
+      try {
+        await client.updateDoc(
+          tracker.class.Issue,
+          issue.space,
+          issue._id,
+          updateData
+        );
+      } catch (error) {
+        // Handle specific update errors
+        if (error.message.includes('permission') || error.message.includes('access')) {
+          throw new HulyError(
+            ERROR_CODES.PERMISSION_ERROR,
+            'Insufficient permissions to update issue',
+            {
+              context: `User does not have permission to update issue ${issueIdentifier}`,
+              suggestion: 'Check user permissions for this project'
+            }
+          );
+        }
+        
+        if (error.message.includes('connection') || error.message.includes('timeout')) {
+          throw new HulyError(
+            ERROR_CODES.DATABASE_ERROR,
+            'Database connection failed during update',
+            {
+              context: `Could not update issue ${issueIdentifier}: connection error`,
+              suggestion: 'Check database connection and try again'
+            }
+          );
+        }
+
+        // Generic database error
+        throw new HulyError(
+          ERROR_CODES.DATABASE_ERROR,
+          'Failed to update issue in database',
+          {
+            context: `Database update failed: ${error.message}`,
+            suggestion: 'Check database status and try again'
+          }
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `✅ Updated issue ${issueIdentifier}\n\n${field}: ${value}`
+          }
+        ]
+      };
+      
+    } catch (error) {
+      // If it's already a HulyError, re-throw it
+      if (error instanceof HulyError) {
+        throw error;
+      }
+      
+      // Handle unexpected errors
+      throw new HulyError(
+        ERROR_CODES.UNKNOWN_ERROR,
+        'An unexpected error occurred while updating the issue',
+        {
+          context: `Unexpected error: ${error.message}`,
+          suggestion: 'Please try again or contact support if the problem persists'
+        }
+      );
+    }
   }
 
   async createProject(client, name, description = '', identifier) {
@@ -1458,11 +1759,27 @@ class HulyMCPServer {
         });
         
       } catch (error) {
-        res.status(500).json({
-          jsonrpc: '2.0',
-          error: { code: -32000, message: error.message },
-          id: req.body.id || null
-        });
+        // Handle HulyError instances with structured responses
+        if (error instanceof HulyError) {
+          res.status(400).json({
+            jsonrpc: '2.0',
+            error: { 
+              code: -32000, 
+              message: error.message,
+              data: {
+                errorCode: error.code,
+                details: error.details
+              }
+            },
+            id: req.body.id || null
+          });
+        } else {
+          res.status(500).json({
+            jsonrpc: '2.0',
+            error: { code: -32000, message: error.message },
+            id: req.body.id || null
+          });
+        }
       }
     });
     
@@ -1768,7 +2085,16 @@ class HulyMCPServer {
         
         res.json(result);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        // Handle HulyError instances with structured responses
+        if (error instanceof HulyError) {
+          res.status(400).json({ 
+            error: error.message,
+            errorCode: error.code,
+            details: error.details
+          });
+        } else {
+          res.status(500).json({ error: error.message });
+        }
       }
     });
     
