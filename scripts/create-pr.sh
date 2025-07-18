@@ -51,6 +51,11 @@ Closes HULLY-${ISSUE_NUMBER}"
 TITLE=${1:-$DEFAULT_TITLE}
 BODY=${2:-$DEFAULT_BODY}
 
+# Ensure title always has [HULLY-XX] prefix
+if [[ ! "$TITLE" =~ ^\[HULLY-[0-9]+\] ]]; then
+    TITLE="[HULLY-${ISSUE_NUMBER}] $TITLE"
+fi
+
 echo "Creating PR for HULLY-${ISSUE_NUMBER}..."
 echo "Title: $TITLE"
 echo ""
