@@ -352,6 +352,66 @@ class HulyMCPServer {
               },
               required: ['project_identifier', 'repository_name']
             }
+          },
+          {
+            name: 'huly_search_issues',
+            description: 'Search and filter issues with advanced capabilities',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  description: 'Search query for title and description (optional)'
+                },
+                project_identifier: {
+                  type: 'string',
+                  description: 'Project identifier to search within (optional for cross-project search)'
+                },
+                status: {
+                  type: 'string',
+                  description: 'Filter by status (e.g., "Backlog", "In Progress", "Done")'
+                },
+                priority: {
+                  type: 'string',
+                  description: 'Filter by priority (low, medium, high, urgent, NoPriority)',
+                  enum: ['low', 'medium', 'high', 'urgent', 'NoPriority']
+                },
+                assignee: {
+                  type: 'string',
+                  description: 'Filter by assignee ID or username'
+                },
+                component: {
+                  type: 'string',
+                  description: 'Filter by component name'
+                },
+                milestone: {
+                  type: 'string',
+                  description: 'Filter by milestone name'
+                },
+                created_after: {
+                  type: 'string',
+                  description: 'Filter issues created after this date (ISO 8601 format)'
+                },
+                created_before: {
+                  type: 'string',
+                  description: 'Filter issues created before this date (ISO 8601 format)'
+                },
+                modified_after: {
+                  type: 'string',
+                  description: 'Filter issues modified after this date (ISO 8601 format)'
+                },
+                modified_before: {
+                  type: 'string',
+                  description: 'Filter issues modified before this date (ISO 8601 format)'
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Maximum number of results to return (default: 50)',
+                  default: 50
+                }
+              },
+              required: []
+            }
           }
         ]
       };
@@ -399,6 +459,9 @@ class HulyMCPServer {
           
           case 'huly_assign_repository_to_project':
             return await this.assignRepositoryToProject(client, args.project_identifier, args.repository_name);
+          
+          case 'huly_search_issues':
+            return await this.searchIssues(client, args);
           
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -1394,6 +1457,248 @@ class HulyMCPServer {
     }
   }
 
+  async searchIssues(client, args) {
+    const {
+      query,
+      project_identifier,
+      status,
+      priority,
+      assignee,
+      component,
+      milestone,
+      created_after,
+      created_before,
+      modified_after,
+      modified_before,
+      limit = 50
+    } = args;
+
+    try {
+      // Build the query object
+      const searchQuery = {};
+      
+      // Project-specific or cross-project search
+      if (project_identifier) {
+        const project = await client.findOne(
+          tracker.class.Project,
+          { identifier: project_identifier }
+        );
+        if (!project) {
+          throw new Error(`Project ${project_identifier} not found`);
+        }
+        searchQuery.space = project._id;
+      }
+
+      // Status filter
+      if (status) {
+        searchQuery.status = status;
+      }
+
+      // Priority filter
+      if (priority) {
+        const priorityMap = {
+          'NoPriority': 0,
+          'urgent': 1,
+          'high': 2,
+          'medium': 3,
+          'low': 4
+        };
+        searchQuery.priority = priorityMap[priority] ?? 0;
+      }
+
+      // Assignee filter
+      if (assignee) {
+        searchQuery.assignee = assignee;
+      }
+
+      // Component filter
+      if (component) {
+        // Find component by name if project is specified
+        if (project_identifier) {
+          const project = await client.findOne(
+            tracker.class.Project,
+            { identifier: project_identifier }
+          );
+          const comp = await client.findOne(
+            tracker.class.Component,
+            { label: component, space: project._id }
+          );
+          if (comp) {
+            searchQuery.component = comp._id;
+          }
+        } else {
+          // For cross-project search, find all components with this name
+          const components = await client.findAll(
+            tracker.class.Component,
+            { label: component }
+          );
+          if (components.length > 0) {
+            searchQuery.component = { $in: components.map(c => c._id) };
+          }
+        }
+      }
+
+      // Milestone filter
+      if (milestone) {
+        // Find milestone by name if project is specified
+        if (project_identifier) {
+          const project = await client.findOne(
+            tracker.class.Project,
+            { identifier: project_identifier }
+          );
+          const ms = await client.findOne(
+            tracker.class.Milestone,
+            { label: milestone, space: project._id }
+          );
+          if (ms) {
+            searchQuery.milestone = ms._id;
+          }
+        } else {
+          // For cross-project search, find all milestones with this name
+          const milestones = await client.findAll(
+            tracker.class.Milestone,
+            { label: milestone }
+          );
+          if (milestones.length > 0) {
+            searchQuery.milestone = { $in: milestones.map(m => m._id) };
+          }
+        }
+      }
+
+      // Date range filters
+      if (created_after || created_before) {
+        searchQuery.createdOn = {};
+        if (created_after) {
+          searchQuery.createdOn.$gte = new Date(created_after).getTime();
+        }
+        if (created_before) {
+          searchQuery.createdOn.$lte = new Date(created_before).getTime();
+        }
+      }
+
+      if (modified_after || modified_before) {
+        searchQuery.modifiedOn = {};
+        if (modified_after) {
+          searchQuery.modifiedOn.$gte = new Date(modified_after).getTime();
+        }
+        if (modified_before) {
+          searchQuery.modifiedOn.$lte = new Date(modified_before).getTime();
+        }
+      }
+
+      // Get initial results
+      let issues = await client.findAll(
+        tracker.class.Issue,
+        searchQuery,
+        { 
+          limit: limit * 2, // Get more results for text filtering
+          sort: { modifiedOn: -1 }
+        }
+      );
+
+      // Apply full-text search if query is provided
+      if (query) {
+        const searchTerms = query.toLowerCase().split(/\s+/);
+        issues = issues.filter(issue => {
+          const titleText = (issue.title || '').toLowerCase();
+          const descriptionText = (issue.description || '').toLowerCase();
+          const combinedText = titleText + ' ' + descriptionText;
+          
+          return searchTerms.every(term => 
+            combinedText.includes(term)
+          );
+        });
+      }
+
+      // Limit results after text filtering
+      issues = issues.slice(0, limit);
+
+      // Fetch related data for display
+      const projectIds = [...new Set(issues.map(i => i.space))];
+      const projects = await client.findAll(
+        tracker.class.Project,
+        { _id: { $in: projectIds } }
+      );
+      const projectMap = new Map(projects.map(p => [p._id, p]));
+
+      const componentIds = [...new Set(issues.map(i => i.component).filter(Boolean))];
+      const components = componentIds.length > 0 ? await client.findAll(
+        tracker.class.Component,
+        { _id: { $in: componentIds } }
+      ) : [];
+      const componentMap = new Map(components.map(c => [c._id, c]));
+
+      const milestoneIds = [...new Set(issues.map(i => i.milestone).filter(Boolean))];
+      const milestones = milestoneIds.length > 0 ? await client.findAll(
+        tracker.class.Milestone,
+        { _id: { $in: milestoneIds } }
+      ) : [];
+      const milestoneMap = new Map(milestones.map(m => [m._id, m]));
+
+      // Format results
+      let result = `Found ${issues.length} issues`;
+      if (query) {
+        result += ` matching "${query}"`;
+      }
+      result += `:\n\n`;
+
+      for (const issue of issues) {
+        const project = projectMap.get(issue.space);
+        const projectName = project ? project.name : 'Unknown Project';
+        const projectIdentifier = project ? project.identifier : 'UNKNOWN';
+
+        result += `📋 **${issue.identifier}**: ${issue.title}\n`;
+        result += `   Project: ${projectName} (${projectIdentifier})\n`;
+        result += `   Status: ${issue.status}\n`;
+        
+        const priorityNames = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
+        const priorityName = priorityNames[issue.priority] || 'Not set';
+        result += `   Priority: ${priorityName}\n`;
+        
+        // Add component information
+        if (issue.component) {
+          const comp = componentMap.get(issue.component);
+          result += `   Component: ${comp ? comp.label : 'Unknown'}\n`;
+        }
+        
+        // Add milestone information
+        if (issue.milestone) {
+          const ms = milestoneMap.get(issue.milestone);
+          result += `   Milestone: ${ms ? ms.label : 'Unknown'}\n`;
+        }
+        
+        // Add assignee information
+        if (issue.assignee) {
+          result += `   Assignee: ${issue.assignee}\n`;
+        }
+        
+        // Add due date if set
+        if (issue.dueDate) {
+          result += `   Due Date: ${new Date(issue.dueDate).toLocaleDateString()}\n`;
+        }
+        
+        result += `   Created: ${new Date(issue.createdOn).toLocaleDateString()}\n`;
+        result += `   Modified: ${new Date(issue.modifiedOn).toLocaleDateString()}\n\n`;
+      }
+
+      if (issues.length === 0) {
+        result += 'No issues found matching the search criteria.';
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: result
+          }
+        ]
+      };
+
+    } catch (error) {
+      throw new Error(`Search failed: ${error.message}`);
+    }
+  }
+
   async run(transportType = 'stdio') {
     if (transportType === 'http') {
       await this.runHttpServer();
@@ -1689,6 +1994,66 @@ class HulyMCPServer {
                     },
                     required: ['project_identifier', 'repository_name']
                   }
+                },
+                {
+                  name: 'huly_search_issues',
+                  description: 'Search and filter issues with advanced capabilities',
+                  inputSchema: {
+                    type: 'object',
+                    properties: {
+                      query: {
+                        type: 'string',
+                        description: 'Search query for title and description (optional)'
+                      },
+                      project_identifier: {
+                        type: 'string',
+                        description: 'Project identifier to search within (optional for cross-project search)'
+                      },
+                      status: {
+                        type: 'string',
+                        description: 'Filter by status (e.g., "Backlog", "In Progress", "Done")'
+                      },
+                      priority: {
+                        type: 'string',
+                        description: 'Filter by priority (low, medium, high, urgent, NoPriority)',
+                        enum: ['low', 'medium', 'high', 'urgent', 'NoPriority']
+                      },
+                      assignee: {
+                        type: 'string',
+                        description: 'Filter by assignee ID or username'
+                      },
+                      component: {
+                        type: 'string',
+                        description: 'Filter by component name'
+                      },
+                      milestone: {
+                        type: 'string',
+                        description: 'Filter by milestone name'
+                      },
+                      created_after: {
+                        type: 'string',
+                        description: 'Filter issues created after this date (ISO 8601 format)'
+                      },
+                      created_before: {
+                        type: 'string',
+                        description: 'Filter issues created before this date (ISO 8601 format)'
+                      },
+                      modified_after: {
+                        type: 'string',
+                        description: 'Filter issues modified after this date (ISO 8601 format)'
+                      },
+                      modified_before: {
+                        type: 'string',
+                        description: 'Filter issues modified before this date (ISO 8601 format)'
+                      },
+                      limit: {
+                        type: 'number',
+                        description: 'Maximum number of results to return (default: 50)',
+                        default: 50
+                      }
+                    },
+                    required: []
+                  }
                 }
               ]
             };
@@ -1734,6 +2099,9 @@ class HulyMCPServer {
                 break;
               case 'huly_assign_repository_to_project':
                 result = await this.assignRepositoryToProject(client, args.project_identifier, args.repository_name);
+                break;
+              case 'huly_search_issues':
+                result = await this.searchIssues(client, args);
                 break;
               default:
                 return res.status(400).json({
@@ -2024,6 +2392,66 @@ class HulyMCPServer {
               },
               required: ['project_identifier', 'repository_name']
             }
+          },
+          {
+            name: 'huly_search_issues',
+            description: 'Search and filter issues with advanced capabilities',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  description: 'Search query for title and description (optional)'
+                },
+                project_identifier: {
+                  type: 'string',
+                  description: 'Project identifier to search within (optional for cross-project search)'
+                },
+                status: {
+                  type: 'string',
+                  description: 'Filter by status (e.g., "Backlog", "In Progress", "Done")'
+                },
+                priority: {
+                  type: 'string',
+                  description: 'Filter by priority (low, medium, high, urgent, NoPriority)',
+                  enum: ['low', 'medium', 'high', 'urgent', 'NoPriority']
+                },
+                assignee: {
+                  type: 'string',
+                  description: 'Filter by assignee ID or username'
+                },
+                component: {
+                  type: 'string',
+                  description: 'Filter by component name'
+                },
+                milestone: {
+                  type: 'string',
+                  description: 'Filter by milestone name'
+                },
+                created_after: {
+                  type: 'string',
+                  description: 'Filter issues created after this date (ISO 8601 format)'
+                },
+                created_before: {
+                  type: 'string',
+                  description: 'Filter issues created before this date (ISO 8601 format)'
+                },
+                modified_after: {
+                  type: 'string',
+                  description: 'Filter issues modified after this date (ISO 8601 format)'
+                },
+                modified_before: {
+                  type: 'string',
+                  description: 'Filter issues modified before this date (ISO 8601 format)'
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Maximum number of results to return (default: 50)',
+                  default: 50
+                }
+              },
+              required: []
+            }
           }
         ];
         
@@ -2078,6 +2506,9 @@ class HulyMCPServer {
             break;
           case 'huly_assign_repository_to_project':
             result = await this.assignRepositoryToProject(client, args.project_identifier, args.repository_name);
+            break;
+          case 'huly_search_issues':
+            result = await this.searchIssues(client, args);
             break;
           default:
             return res.status(404).json({ error: `Tool ${toolName} not found` });
