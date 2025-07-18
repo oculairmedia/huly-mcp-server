@@ -95,6 +95,26 @@ class HulyMCPServer {
     this.setupHandlers();
   }
 
+  // Helper function to convert string to Huly markup format
+  createMarkupFromString(text) {
+    if (!text || text.trim() === '') {
+      return ''; // Return empty string for null descriptions
+    }
+    
+    const markup = {
+      type: 'doc',
+      content: [{
+        type: 'paragraph',
+        content: [{
+          type: 'text',
+          text: text.trim()
+        }]
+      }]
+    };
+    
+    return JSON.stringify(markup);
+  }
+
   async connectToHuly() {
     if (this.hulyClient) {
       return this.hulyClient;
@@ -699,7 +719,7 @@ class HulyMCPServer {
       'issues',
       {
         title,
-        description,
+        description: this.createMarkupFromString(description),
         identifier: `${project.identifier}-${sequence}`,
         number: sequence,
         status: project.defaultIssueStatus || statusManager.getDefaultStatus('full'),
@@ -1170,7 +1190,7 @@ class HulyMCPServer {
       'subIssues',
       {
         title,
-        description,
+        description: this.createMarkupFromString(description),
         identifier: `${project.identifier}-${sequence}`,
         number: sequence,
         status: project.defaultIssueStatus || statusManager.getDefaultStatus('full'),
