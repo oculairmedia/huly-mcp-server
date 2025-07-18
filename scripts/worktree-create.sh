@@ -105,25 +105,36 @@ if [ $? -eq 0 ]; then
         GITHUB_TOKEN_FROM_ENV=$(grep -E "^GITHUB_TOKEN=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'")
     fi
     
-    # Use token from .env, environment, or global git config
-    if [ -n "$GITHUB_TOKEN_FROM_ENV" ]; then
-        echo -e "${GREEN}✅ Found GitHub token in .env file${NC}"
-        # Export it for the current session
-        echo "export GITHUB_TOKEN='$GITHUB_TOKEN_FROM_ENV'" >> "$WORKTREE_PATH/.env"
-    elif [ -n "$GITHUB_TOKEN" ]; then
-        echo -e "${GREEN}✅ Using GitHub token from environment${NC}"
-        # Save it to worktree .env for persistence
-        echo "export GITHUB_TOKEN='$GITHUB_TOKEN'" >> "$WORKTREE_PATH/.env"
+    # Check if .env already has GITHUB_TOKEN
+    if grep -q "^GITHUB_TOKEN=" "$WORKTREE_PATH/.env" 2>/dev/null; then
+        echo -e "${GREEN}✅ GitHub token already in worktree .env${NC}"
     else
-        # Try to get from git config
-        GIT_TOKEN=$(git config --global github.token || true)
-        if [ -n "$GIT_TOKEN" ]; then
-            echo -e "${GREEN}✅ Found GitHub token in git config${NC}"
-            echo "export GITHUB_TOKEN='$GIT_TOKEN'" >> "$WORKTREE_PATH/.env"
+        # Use token from .env, environment, or global git config
+        if [ -n "$GITHUB_TOKEN_FROM_ENV" ]; then
+            echo -e "${GREEN}✅ Found GitHub token in .env file${NC}"
+            # Append to .env properly (no export)
+            echo "" >> "$WORKTREE_PATH/.env"
+            echo "# GitHub token for PR creation" >> "$WORKTREE_PATH/.env"
+            echo "GITHUB_TOKEN=$GITHUB_TOKEN_FROM_ENV" >> "$WORKTREE_PATH/.env"
+        elif [ -n "$GITHUB_TOKEN" ]; then
+            echo -e "${GREEN}✅ Using GitHub token from environment${NC}"
+            # Save it to worktree .env for persistence
+            echo "" >> "$WORKTREE_PATH/.env"
+            echo "# GitHub token for PR creation" >> "$WORKTREE_PATH/.env"
+            echo "GITHUB_TOKEN=$GITHUB_TOKEN" >> "$WORKTREE_PATH/.env"
         else
-            echo -e "${YELLOW}⚠️  No GitHub token found. You may need to set it for PR creation:${NC}"
-            echo -e "${YELLOW}   export GITHUB_TOKEN=your_github_token${NC}"
-            echo -e "${YELLOW}   Or add it to your .env file as GITHUB_TOKEN=your_token${NC}"
+            # Try to get from git config
+            GIT_TOKEN=$(git config --global github.token || true)
+            if [ -n "$GIT_TOKEN" ]; then
+                echo -e "${GREEN}✅ Found GitHub token in git config${NC}"
+                echo "" >> "$WORKTREE_PATH/.env"
+                echo "# GitHub token for PR creation" >> "$WORKTREE_PATH/.env"
+                echo "GITHUB_TOKEN=$GIT_TOKEN" >> "$WORKTREE_PATH/.env"
+            else
+                echo -e "${YELLOW}⚠️  No GitHub token found. You may need to set it for PR creation:${NC}"
+                echo -e "${YELLOW}   export GITHUB_TOKEN=your_github_token${NC}"
+                echo -e "${YELLOW}   Or add it to your .env file as GITHUB_TOKEN=your_token${NC}"
+            fi
         fi
     fi
     
