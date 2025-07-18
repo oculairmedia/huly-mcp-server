@@ -130,32 +130,6 @@ if [ $? -eq 0 ]; then
         # Get the directory of this script
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         "${SCRIPT_DIR}/handle-pr-duplicate.sh" "${ISSUE_NUMBER}"
-    else
-        echo "⏳ Waiting for potential duplicate creation..."
-        sleep 8  # Give more time for webhook
-        
-        # Check again
-        DUPLICATE_CHECK=$(curl -s -X POST "${MCP_SERVER_URL}/mcp" \
-            -H "Content-Type: application/json" \
-            -d "{
-                \"jsonrpc\": \"2.0\",
-                \"method\": \"tools/call\",
-                \"params\": {
-                    \"name\": \"huly_list_issues\",
-                    \"arguments\": {
-                        \"project_identifier\": \"HULLY\",
-                        \"limit\": 5
-                    }
-                },
-                \"id\": 1
-            }" | jq -r '.result.content[0].text' | grep "\[HULLY-${ISSUE_NUMBER}\]" || true)
-        
-        if [ -n "$DUPLICATE_CHECK" ]; then
-            echo "⚠️  Duplicate issue detected on second check! Running cleanup..."
-            "${SCRIPT_DIR}/handle-pr-duplicate.sh" "${ISSUE_NUMBER}"
-        else
-            echo "✅ No duplicate issue created"
-        fi
     fi
 else
     echo "❌ Failed to create pull request"
