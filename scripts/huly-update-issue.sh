@@ -22,21 +22,24 @@ PROJECT=${3:-$DEFAULT_PROJECT}
 
 # Map friendly status names to Huly status IDs
 case $STATUS in
-    "backlog"|"todo")
+    "backlog")
         HULY_STATUS="tracker:status:Backlog"
         ;;
-    "active"|"in-progress"|"progress")
-        HULY_STATUS="tracker:status:Active"
+    "todo")
+        HULY_STATUS="tracker:status:Todo"
         ;;
-    "in-review"|"review")
-        HULY_STATUS="tracker:status:InReview"
+    "active"|"in-progress"|"progress"|"in-review"|"review")
+        HULY_STATUS="tracker:status:InProgress"
         ;;
     "done"|"completed")
         HULY_STATUS="tracker:status:Done"
         ;;
+    "canceled"|"cancelled")
+        HULY_STATUS="tracker:status:Canceled"
+        ;;
     *)
         echo "Invalid status: $STATUS"
-        echo "Valid statuses: backlog, active, in-progress, in-review, done"
+        echo "Valid statuses: backlog, todo, in-progress, in-review, done, canceled"
         exit 1
         ;;
 esac
