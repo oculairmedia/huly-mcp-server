@@ -19,11 +19,15 @@ import apiClient from '@hcengineering/api-client';
 import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
 import rankModule from '@hcengineering/rank';
+import chunterModule from '@hcengineering/chunter';
+import activityModule from '@hcengineering/activity';
 import WebSocket from 'ws';
 import statusManager from './StatusManager.js';
 
 const { connect } = apiClient;
 const tracker = trackerModule.default || trackerModule;
+const chunter = chunterModule.default || chunterModule;
+const activity = activityModule.default || activityModule;
 const { generateId } = coreModule;
 const { makeRank } = rankModule;
 
@@ -412,6 +416,43 @@ class HulyMCPServer {
               },
               required: []
             }
+          },
+          {
+            name: 'huly_list_comments',
+            description: 'List comments on an issue',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                issue_identifier: {
+                  type: 'string',
+                  description: 'Issue identifier (e.g., "LMP-1")'
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Maximum number of comments to return (default: 50)',
+                  default: 50
+                }
+              },
+              required: ['issue_identifier']
+            }
+          },
+          {
+            name: 'huly_create_comment',
+            description: 'Create a comment on an issue',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                issue_identifier: {
+                  type: 'string',
+                  description: 'Issue identifier (e.g., "LMP-1")'
+                },
+                message: {
+                  type: 'string',
+                  description: 'Comment message (supports markdown)'
+                }
+              },
+              required: ['issue_identifier', 'message']
+            }
           }
         ]
       };
@@ -462,6 +503,12 @@ class HulyMCPServer {
           
           case 'huly_search_issues':
             return await this.searchIssues(client, args);
+          
+          case 'huly_list_comments':
+            return await this.listComments(client, args.issue_identifier, args.limit);
+          
+          case 'huly_create_comment':
+            return await this.createComment(client, args.issue_identifier, args.message);
           
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -1490,6 +1537,155 @@ class HulyMCPServer {
     }
   }
 
+  async listComments(client, issueIdentifier, limit = 50) {
+    try {
+      // Find the issue
+      const issue = await client.findOne(
+        tracker.class.Issue,
+        { identifier: issueIdentifier }
+      );
+
+      if (!issue) {
+        throw new HulyError(
+          ERROR_CODES.ISSUE_NOT_FOUND,
+          `Issue ${issueIdentifier} not found`,
+          {
+            context: `No issue found with identifier ${issueIdentifier}`,
+            suggestion: 'Check the issue identifier and ensure it exists'
+          }
+        );
+      }
+
+      // Find all chat messages (comments) attached to this issue
+      const comments = await client.findAll(
+        chunter.class.ChatMessage,
+        { 
+          attachedTo: issue._id,
+          attachedToClass: tracker.class.Issue
+        },
+        { 
+          limit,
+          sort: { createdOn: 1 } // Sort by creation date, oldest first
+        }
+      );
+
+      let result = `Found ${comments.length} comments on issue ${issueIdentifier}:\n\n`;
+      
+      if (comments.length === 0) {
+        result += 'No comments found on this issue.';
+      } else {
+        for (const comment of comments) {
+          const createdDate = new Date(comment.createdOn).toLocaleString();
+          const modifiedDate = comment.modifiedOn !== comment.createdOn 
+            ? ` (edited: ${new Date(comment.modifiedOn).toLocaleString()})` 
+            : '';
+          
+          result += `💬 **Comment by ${comment.createdBy || 'Unknown'}**\n`;
+          result += `   Date: ${createdDate}${modifiedDate}\n`;
+          result += `   Message: ${comment.message}\n`;
+          
+          // Check for attachments
+          if (comment.attachments && comment.attachments > 0) {
+            result += `   📎 Attachments: ${comment.attachments}\n`;
+          }
+          
+          result += '\n';
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: result
+          }
+        ]
+      };
+    } catch (error) {
+      if (error instanceof HulyError) {
+        throw error;
+      }
+      throw new HulyError(
+        ERROR_CODES.DATABASE_ERROR,
+        `Failed to list comments: ${error.message}`,
+        {
+          context: 'An error occurred while fetching comments',
+          suggestion: 'Check the issue identifier and try again'
+        }
+      );
+    }
+  }
+
+  async createComment(client, issueIdentifier, message) {
+    try {
+      // Validate inputs
+      if (!message || message.trim() === '') {
+        throw new HulyError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Comment message cannot be empty',
+          {
+            context: 'A non-empty message is required to create a comment',
+            suggestion: 'Provide a meaningful comment message'
+          }
+        );
+      }
+
+      // Find the issue
+      const issue = await client.findOne(
+        tracker.class.Issue,
+        { identifier: issueIdentifier }
+      );
+
+      if (!issue) {
+        throw new HulyError(
+          ERROR_CODES.ISSUE_NOT_FOUND,
+          `Issue ${issueIdentifier} not found`,
+          {
+            context: `No issue found with identifier ${issueIdentifier}`,
+            suggestion: 'Check the issue identifier and ensure it exists'
+          }
+        );
+      }
+
+      // Create the comment as a ChatMessage
+      const commentId = generateId();
+      
+      await client.addCollection(
+        chunter.class.ChatMessage,
+        issue.space,
+        issue._id,
+        tracker.class.Issue,
+        'comments',
+        {
+          message: message.trim(),
+          attachments: 0
+        },
+        commentId
+      );
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `✅ Successfully added comment to issue ${issueIdentifier}\n\nComment: ${message}`
+          }
+        ]
+      };
+    } catch (error) {
+      if (error instanceof HulyError) {
+        throw error;
+      }
+      throw new HulyError(
+        ERROR_CODES.DATABASE_ERROR,
+        `Failed to create comment: ${error.message}`,
+        {
+          context: 'An error occurred while creating the comment',
+          suggestion: 'Check your connection and try again'
+        }
+      );
+    }
+  }
+
   async searchIssues(client, args) {
     const {
       query,
@@ -2135,6 +2331,12 @@ class HulyMCPServer {
                 break;
               case 'huly_search_issues':
                 result = await this.searchIssues(client, args);
+                break;
+              case 'huly_list_comments':
+                result = await this.listComments(client, args.issue_identifier, args.limit);
+                break;
+              case 'huly_create_comment':
+                result = await this.createComment(client, args.issue_identifier, args.message);
                 break;
               default:
                 return res.status(400).json({
