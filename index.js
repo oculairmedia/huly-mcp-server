@@ -708,7 +708,12 @@ class HulyMCPServer {
       if (issue.description) {
         const descContent = await this.getDescriptionContent(issue.description);
         if (descContent) {
-          result += `   Description: ${descContent}\n`;
+          // Truncate long descriptions to keep output readable
+          const maxLength = 200;
+          const truncated = descContent.length > maxLength 
+            ? descContent.substring(0, maxLength) + '...' 
+            : descContent;
+          result += `   Description: ${truncated}\n`;
         }
       }
       
