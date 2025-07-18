@@ -105,35 +105,80 @@ if [ $? -eq 0 ]; then
         GITHUB_TOKEN_FROM_ENV=$(grep -E "^GITHUB_TOKEN=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'")
     fi
     
+    # Function to safely append to .env file
+    append_to_env() {
+        local file="$1"
+        local content="$2"
+        
+        # Ensure file ends with newline
+        if [ -f "$file" ] && [ -s "$file" ]; then
+            # Check if file ends with newline
+            if [ "$(tail -c1 "$file" | wc -l)" -eq 0 ]; then
+                echo "" >> "$file"
+            fi
+        fi
+        echo "$content" >> "$file"
+    }
+    
     # Check if .env already has GITHUB_TOKEN
     if grep -q "^GITHUB_TOKEN=" "$WORKTREE_PATH/.env" 2>/dev/null; then
         echo -e "${GREEN}✅ GitHub token already in worktree .env${NC}"
+        # Validate it's not corrupted (e.g., missing newline causing concatenation)
+        TOKEN_COUNT=$(grep -c "^GITHUB_TOKEN=" "$WORKTREE_PATH/.env")
+        if [ "$TOKEN_COUNT" -gt 1 ]; then
+            echo -e "${YELLOW}⚠️  Multiple GITHUB_TOKEN entries detected. Cleaning up...${NC}"
+            # Keep only the first valid entry
+            FIRST_TOKEN=$(grep "^GITHUB_TOKEN=" "$WORKTREE_PATH/.env" | head -1)
+            # Remove all GITHUB_TOKEN lines
+            grep -v "^GITHUB_TOKEN=" "$WORKTREE_PATH/.env" > "$WORKTREE_PATH/.env.tmp"
+            mv "$WORKTREE_PATH/.env.tmp" "$WORKTREE_PATH/.env"
+            # Add back the first token
+            append_to_env "$WORKTREE_PATH/.env" ""
+            append_to_env "$WORKTREE_PATH/.env" "# GitHub token for PR creation"
+            append_to_env "$WORKTREE_PATH/.env" "$FIRST_TOKEN"
+            echo -e "${GREEN}✅ Cleaned up duplicate entries${NC}"
+        fi
     else
         # Use token from .env, environment, or global git config
         if [ -n "$GITHUB_TOKEN_FROM_ENV" ]; then
             echo -e "${GREEN}✅ Found GitHub token in .env file${NC}"
-            # Append to .env properly (no export)
-            echo "" >> "$WORKTREE_PATH/.env"
-            echo "# GitHub token for PR creation" >> "$WORKTREE_PATH/.env"
-            echo "GITHUB_TOKEN=$GITHUB_TOKEN_FROM_ENV" >> "$WORKTREE_PATH/.env"
+            # Append to .env properly
+            append_to_env "$WORKTREE_PATH/.env" ""
+            append_to_env "$WORKTREE_PATH/.env" "# GitHub token for PR creation"
+            append_to_env "$WORKTREE_PATH/.env" "GITHUB_TOKEN=$GITHUB_TOKEN_FROM_ENV"
         elif [ -n "$GITHUB_TOKEN" ]; then
             echo -e "${GREEN}✅ Using GitHub token from environment${NC}"
             # Save it to worktree .env for persistence
-            echo "" >> "$WORKTREE_PATH/.env"
-            echo "# GitHub token for PR creation" >> "$WORKTREE_PATH/.env"
-            echo "GITHUB_TOKEN=$GITHUB_TOKEN" >> "$WORKTREE_PATH/.env"
+            append_to_env "$WORKTREE_PATH/.env" ""
+            append_to_env "$WORKTREE_PATH/.env" "# GitHub token for PR creation"
+            append_to_env "$WORKTREE_PATH/.env" "GITHUB_TOKEN=$GITHUB_TOKEN"
         else
             # Try to get from git config
             GIT_TOKEN=$(git config --global github.token || true)
             if [ -n "$GIT_TOKEN" ]; then
                 echo -e "${GREEN}✅ Found GitHub token in git config${NC}"
-                echo "" >> "$WORKTREE_PATH/.env"
-                echo "# GitHub token for PR creation" >> "$WORKTREE_PATH/.env"
-                echo "GITHUB_TOKEN=$GIT_TOKEN" >> "$WORKTREE_PATH/.env"
+                append_to_env "$WORKTREE_PATH/.env" ""
+                append_to_env "$WORKTREE_PATH/.env" "# GitHub token for PR creation"
+                append_to_env "$WORKTREE_PATH/.env" "GITHUB_TOKEN=$GIT_TOKEN"
             else
                 echo -e "${YELLOW}⚠️  No GitHub token found. You may need to set it for PR creation:${NC}"
                 echo -e "${YELLOW}   export GITHUB_TOKEN=your_github_token${NC}"
                 echo -e "${YELLOW}   Or add it to your .env file as GITHUB_TOKEN=your_token${NC}"
+            fi
+        fi
+    fi
+    
+    # Validate .env file integrity
+    if [ -f "$WORKTREE_PATH/.env" ]; then
+        # Check for basic syntax errors
+        if ! bash -c "set -a; source '$WORKTREE_PATH/.env' 2>/dev/null; set +a"; then
+            echo -e "${YELLOW}⚠️  Warning: .env file may have syntax errors${NC}"
+        else
+            # Verify GitHub token is accessible
+            if bash -c "set -a; source '$WORKTREE_PATH/.env' 2>/dev/null; set +a; [ -n \"\$GITHUB_TOKEN\" ]"; then
+                echo -e "${GREEN}✅ .env file validated successfully${NC}"
+            else
+                echo -e "${YELLOW}⚠️  GitHub token not accessible from .env${NC}"
             fi
         fi
     fi
