@@ -112,7 +112,10 @@ class HulyMCPServer {
       }]
     };
     
-    return JSON.stringify(markup);
+    const markupString = JSON.stringify(markup);
+    console.log('Creating markup for description:', text);
+    console.log('Generated markup:', markupString);
+    return markupString;
   }
 
   async connectToHuly() {
@@ -634,6 +637,11 @@ class HulyMCPServer {
       const priorityNames = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
       const priorityName = priorityNames[issue.priority] || 'Not set';
       result += `   Priority: ${priorityName}\n`;
+      
+      // Add description if present
+      if (issue.description) {
+        result += `   Description: ${issue.description}\n`;
+      }
       
       // Add component information
       if (issue.component) {
