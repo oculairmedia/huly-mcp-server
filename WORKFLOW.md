@@ -80,7 +80,7 @@ First, create an issue in Huly with a clear description. Note the issue number (
 ### 3. Development
 ```bash
 # Navigate to worktree
-cd ../worktrees/feature-HULLY-42-user-authentication
+cd ./worktrees/feature-HULLY-42-user-authentication
 
 # Check for conflicts before starting
 ./scripts/check-conflicts.sh
@@ -293,7 +293,7 @@ Progresses HULLY-42
 
 ### Worktree Already Exists
 ```bash
-fatal: '../worktrees/feature-HULLY-42' already exists
+fatal: './worktrees/feature-HULLY-42' already exists
 ```
 **Solution**:
 1. Remove old worktree: `./scripts/worktree-remove.sh 42`

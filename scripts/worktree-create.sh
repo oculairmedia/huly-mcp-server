@@ -83,7 +83,7 @@ echo "Fetching latest changes..."
 git fetch origin
 
 # Create worktree
-WORKTREE_PATH="../worktrees/$WORKTREE_NAME"
+WORKTREE_PATH="./worktrees/$WORKTREE_NAME"
 echo -e "${YELLOW}Creating worktree at: $WORKTREE_PATH${NC}"
 echo -e "${YELLOW}Branch name: $BRANCH_NAME${NC}"
 

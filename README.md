@@ -241,7 +241,7 @@ The project includes helper scripts for managing worktrees:
 2. **Create Worktree**: 
    ```bash
    ./scripts/worktree-create.sh 8 feature "search-filter"
-   cd ../worktrees/feature-HULLY-8-search-filter
+   cd ./worktrees/feature-HULLY-8-search-filter
    ```
 3. **Start Development**: Issue automatically marked as "In Progress"
 4. **Commit Changes**: Issue references automatically added to commits

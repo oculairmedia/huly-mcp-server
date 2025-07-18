@@ -134,3 +134,6 @@ Thumbs.db
 
 # Claude Code custom commands (contains secrets)
 .claude/commands/
+
+# Git worktrees
+worktrees/

@@ -21,6 +21,7 @@ import coreModule from '@hcengineering/core';
 import rankModule from '@hcengineering/rank';
 import chunterModule from '@hcengineering/chunter';
 import activityModule from '@hcengineering/activity';
+import collaboratorClientModule from '@hcengineering/collaborator-client';
 import WebSocket from 'ws';
 import statusManager from './StatusManager.js';
 
@@ -28,8 +29,33 @@ const { connect } = apiClient;
 const tracker = trackerModule.default || trackerModule;
 const chunter = chunterModule.default || chunterModule;
 const activity = activityModule.default || activityModule;
-const { generateId } = coreModule;
+const { generateId, makeCollabJsonId, makeCollabId } = coreModule;
 const { makeRank } = rankModule;
+const { getClient: getCollaboratorClient } = collaboratorClientModule;
+
+// Helper function to extract text from ProseMirror JSON markup
+function extractTextFromMarkup(doc) {
+  if (!doc || typeof doc !== 'object') return '';
+  
+  let text = '';
+  
+  function traverse(node) {
+    if (!node) return;
+    
+    if (node.type === 'text' && node.text) {
+      text += node.text;
+    }
+    
+    if (node.content && Array.isArray(node.content)) {
+      for (const child of node.content) {
+        traverse(child);
+      }
+    }
+  }
+  
+  traverse(doc);
+  return text.trim();
+}
 
 // Error codes for structured error responses
 const ERROR_CODES = {
@@ -102,21 +128,59 @@ class HulyMCPServer {
     }
     
     try {
-      // Use the client's uploadMarkup method to properly store the content
-      const markupRef = await client.uploadMarkup(
-        tracker.class.Issue,
-        issueId,
-        'description',
-        text.trim(),
-        'markdown' // Use markdown format for plain text
-      );
+      // Create the CollaborativeDoc reference
+      const collabDoc = makeCollabId(tracker.class.Issue, issueId, 'description');
+      // Create the MarkupBlobRef ID
+      const markupBlobRef = makeCollabJsonId(collabDoc);
       
-      console.log('Created MarkupBlobRef:', markupRef);
-      return markupRef;
+      console.log('Created MarkupBlobRef:', markupBlobRef);
+      return markupBlobRef;
     } catch (error) {
       console.error('Failed to create markup:', error);
       // Fallback to empty string if markup creation fails
       return '';
+    }
+  }
+
+  // Helper function to get description content from MarkupBlobRef
+  async getDescriptionContent(descriptionRef) {
+    if (!descriptionRef || descriptionRef === '') {
+      return '';
+    }
+    
+    try {
+      // Get collaborator client
+      const workspaceId = HULY_CONFIG.workspace;
+      const token = this.hulyClient?.token || '';
+      const collaboratorUrl = HULY_CONFIG.url.replace('https://', 'wss://') + '/collaborator';
+      
+      const collabClient = getCollaboratorClient(workspaceId, token, collaboratorUrl);
+      
+      // Create CollaborativeDoc from the reference
+      const issueId = descriptionRef.split('-')[0];
+      const collabDoc = {
+        objectClass: tracker.class.Issue,
+        objectId: issueId,
+        objectAttr: 'description'
+      };
+      
+      // Get the markup content
+      const markup = await collabClient.getMarkup(collabDoc, descriptionRef);
+      
+      // Convert markup JSON to text if needed
+      if (typeof markup === 'string' && markup.startsWith('{')) {
+        try {
+          const doc = JSON.parse(markup);
+          return extractTextFromMarkup(doc);
+        } catch (e) {
+          return markup;
+        }
+      }
+      
+      return markup || '';
+    } catch (error) {
+      console.error('Failed to get description content:', error);
+      return `[MarkupBlobRef: ${descriptionRef}]`; // Fallback to showing the reference
     }
   }
 
@@ -642,7 +706,10 @@ class HulyMCPServer {
       
       // Add description if present
       if (issue.description) {
-        result += `   Description: ${issue.description}\n`;
+        const descContent = await this.getDescriptionContent(issue.description);
+        if (descContent) {
+          result += `   Description: ${descContent}\n`;
+        }
       }
       
       // Add component information
