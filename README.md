@@ -144,88 +144,51 @@ services:
 
 ## API Reference
 
-### HTTP Endpoints
+For complete API documentation including all tools, parameters, examples, and error handling, see **[API.md](API.md)**.
 
-#### Health Check
-```bash
-GET /health
-```
+### Quick Reference
 
-#### List Tools
-```bash
-GET /tools
-```
+The server provides 13 MCP tools for comprehensive Huly integration:
 
-#### MCP Protocol
-```bash
-POST /mcp
-Content-Type: application/json
+#### Core Endpoints
+- **Health Check**: `GET /health`
+- **List Tools**: `GET /tools`  
+- **MCP Protocol**: `POST /mcp`
+- **Direct Tool Calls**: `POST /tools/{tool_name}`
 
-{
-  "jsonrpc": "2.0",
-  "method": "tools/list",
-  "params": {},
-  "id": 1
-}
-```
+#### Essential Examples
 
-#### Direct Tool Calls
+**List Projects**:
 ```bash
 POST /tools/huly_list_projects
 Content-Type: application/json
-
 {}
 ```
 
-### Tool Examples
-
-#### List Projects
-```javascript
+**Create Issue**:
+```bash
+POST /tools/huly_create_issue
+Content-Type: application/json
 {
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "huly_list_projects",
-    "arguments": {}
-  },
-  "id": 1
+  "project_identifier": "PROJ",
+  "title": "New Issue",
+  "description": "Issue description",
+  "priority": "high"
 }
 ```
 
-#### Create Issue
-```javascript
+**Update Issue**:
+```bash
+POST /tools/huly_update_issue
+Content-Type: application/json
 {
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "huly_create_issue",
-    "arguments": {
-      "project_identifier": "PROJ",
-      "title": "New Issue",
-      "description": "Issue description",
-      "priority": "high"
-    }
-  },
-  "id": 2
+  "issue_identifier": "PROJ-123",
+  "field": "status",
+  "value": "In Progress"
 }
 ```
 
-#### Update Issue
-```javascript
-{
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "huly_update_issue",
-    "arguments": {
-      "issue_identifier": "PROJ-123",
-      "field": "status",
-      "value": "In Progress"
-    }
-  },
-  "id": 3
-}
-```
+For complete documentation with all 13 tools, parameters, error handling, and integration examples, see **[API.md](API.md)**.
 
 ## Git Worktree Workflow
 
