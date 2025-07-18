@@ -5,20 +5,29 @@ A Model Context Protocol (MCP) server for interacting with Huly project manageme
 ## Features
 
 - **Project Management**: List, create, and manage Huly projects
-- **Issue Tracking**: Create, list, and update issues across projects
+- **Issue Tracking**: Create, list, and update issues across projects with full metadata
+- **Git Worktree Integration**: Parallel development workflow with automatic issue tracking
 - **Dual Transport Support**: Both HTTP and stdio transports
 - **Docker Integration**: Fully containerized with Docker Compose
 - **Authentication**: Secure connection to Huly instances
+- **Git Hooks**: Automatic Huly issue status updates
 
 ## Available Tools
 
 | Tool | Description |
 |------|-------------|
 | `huly_list_projects` | List all projects with descriptions and issue counts |
-| `huly_list_issues` | List issues in a specific project with filtering |
+| `huly_list_issues` | List issues with full metadata (component, milestone, assignee, due date) |
 | `huly_create_issue` | Create new issues with title, description, and priority |
-| `huly_update_issue` | Update existing issue fields (title, description, status, priority) |
+| `huly_update_issue` | Update existing issue fields (title, description, status, priority, component, milestone) |
 | `huly_create_project` | Create new projects with custom identifiers |
+| `huly_create_subissue` | Create subissues under existing parent issues |
+| `huly_create_component` | Create new components in projects |
+| `huly_list_components` | List all components in a project |
+| `huly_create_milestone` | Create new milestones with target dates |
+| `huly_list_milestones` | List all milestones in a project |
+| `huly_list_github_repositories` | List available GitHub repositories |
+| `huly_assign_repository_to_project` | Assign GitHub repositories to projects |
 
 ## Quick Start
 
@@ -218,6 +227,101 @@ Content-Type: application/json
 }
 ```
 
+## Git Worktree Workflow
+
+This project uses Git worktrees for parallel development, allowing simultaneous work on multiple Huly issues without context switching. Each issue is developed in its own isolated worktree with automatic status tracking.
+
+### Branch Naming Convention
+
+All branches follow the format: `<type>/HULLY-<number>-<description>`
+
+**Types:**
+- `feature/` - New features or enhancements
+- `bugfix/` - Bug fixes
+- `hotfix/` - Critical production fixes
+- `docs/` - Documentation updates
+- `refactor/` - Code refactoring
+
+**Examples:**
+- `feature/HULLY-8-search-filter-capabilities`
+- `bugfix/HULLY-24-subissue-relationships`
+- `docs/HULLY-5-setup-guides`
+
+### Workflow Scripts
+
+The project includes helper scripts for managing worktrees:
+
+```bash
+# Create a new worktree for an issue
+./scripts/worktree-create.sh <issue-number> <type> [description]
+# Example: ./scripts/worktree-create.sh 8 feature "search-filter"
+
+# List all active worktrees
+./scripts/worktree-list.sh
+
+# Check status of all worktrees
+./scripts/worktree-status.sh
+
+# Remove a worktree after merging
+./scripts/worktree-remove.sh <issue-number>
+
+# Update Huly issue status manually
+./scripts/huly-update-issue.sh <issue-number> <status>
+
+# Create PR and update issue status
+./scripts/create-pr.sh [title] [body]
+```
+
+### Complete Development Workflow
+
+1. **Pick an Issue**: Select an issue from Huly backlog
+2. **Create Worktree**: 
+   ```bash
+   ./scripts/worktree-create.sh 8 feature "search-filter"
+   cd ../worktrees/feature-HULLY-8-search-filter
+   ```
+3. **Start Development**: Issue automatically marked as "In Progress"
+4. **Commit Changes**: Issue references automatically added to commits
+5. **Create PR**: 
+   ```bash
+   ./scripts/create-pr.sh
+   ```
+6. **Review**: Issue automatically marked as "In Review"
+7. **Merge**: Issue automatically marked as "Done"
+8. **Cleanup**: 
+   ```bash
+   ./scripts/worktree-remove.sh 8
+   ```
+
+### Git Hooks Integration
+
+The workflow includes automatic Git hooks that:
+
+- **post-checkout**: Updates issue to "In Progress" when switching to feature branch
+- **prepare-commit-msg**: Adds "Progresses HULLY-XX" to commit messages
+- **post-merge**: Updates issue to "Done" when feature branch is merged
+
+Install hooks with:
+```bash
+./scripts/setup-hooks.sh
+```
+
+### Commit Message Convention
+
+Include Huly issue references in commit messages:
+- `Fixes HULLY-XX` - Closes the issue when merged
+- `Closes HULLY-XX` - Same as Fixes
+- `Progresses HULLY-XX` - Updates progress on the issue
+- `References HULLY-XX` - Mentions related issue
+
+### Parallel Development Benefits
+
+- **Multiple Issues**: Work on different issues simultaneously
+- **Clean History**: Main branch stays clean for releases
+- **Automatic Tracking**: Issue status updates automatically
+- **No Context Switching**: Each issue has its own workspace
+- **Team Coordination**: Clear visibility of who's working on what
+
 ## Development
 
 ### Project Structure
@@ -228,7 +332,15 @@ huly-mcp-server/
 ├── Dockerfile         # Container configuration
 ├── start-mcp.sh      # Startup script for stdio transport
 ├── README.md         # This file
-└── WISHLIST.md       # Feature wishlist and roadmap
+├── WISHLIST.md       # Feature wishlist and roadmap
+└── scripts/          # Workflow automation scripts
+    ├── worktree-create.sh    # Create new worktrees
+    ├── worktree-list.sh      # List active worktrees
+    ├── worktree-status.sh    # Check worktree status
+    ├── worktree-remove.sh    # Remove worktrees
+    ├── huly-update-issue.sh  # Update Huly issue status
+    ├── create-pr.sh          # Create PR and update status
+    └── setup-hooks.sh        # Install Git hooks
 ```
 
 ### Running Tests

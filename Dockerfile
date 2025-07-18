@@ -2,6 +2,10 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Accept GitHub token as build argument
+ARG GITHUB_TOKEN
+ENV GITHUB_TOKEN=$GITHUB_TOKEN
+
 # Copy package files
 COPY package.json .npmrc ./
 
