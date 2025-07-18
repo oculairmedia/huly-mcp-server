@@ -1384,14 +1384,47 @@ class HulyMCPServer {
         throw new Error(`Project ${projectIdentifier} not found`);
       }
 
-      // Find the repository by name
-      const repository = await client.findOne(
+      // Find the repository by name - support both "owner/repo" and "repo" formats
+      let repository = await client.findOne(
         'github:class:GithubIntegrationRepository',
         { name: repositoryName }
       );
 
+      // If not found by exact match and input contains "/", try without owner prefix
+      if (!repository && repositoryName.includes('/')) {
+        const repoNameOnly = repositoryName.split('/').pop();
+        repository = await client.findOne(
+          'github:class:GithubIntegrationRepository',
+          { name: repoNameOnly }
+        );
+      }
+
       if (!repository) {
-        throw new Error(`GitHub repository "${repositoryName}" not found. Use huly_list_github_repositories to see available repositories.`);
+        // Provide helpful error message with available repositories
+        const availableRepos = await client.findAll(
+          'github:class:GithubIntegrationRepository',
+          {},
+          { limit: 5 }
+        );
+        
+        let errorMsg = `GitHub repository "${repositoryName}" not found.`;
+        if (availableRepos.length > 0) {
+          errorMsg += '\n\nAvailable repositories (first 5):\n';
+          errorMsg += availableRepos.map(r => `- ${r.name}`).join('\n');
+          errorMsg += '\n\nUse huly_list_github_repositories to see all available repositories.';
+        } else {
+          errorMsg += ' No GitHub repositories are available. Please check your GitHub integration.';
+        }
+        
+        throw new HulyError(
+          errorMsg,
+          'REPOSITORY_NOT_FOUND',
+          { 
+            repositoryName, 
+            availableCount: availableRepos.length,
+            searchedFormats: repositoryName.includes('/') ? ['exact', 'name-only'] : ['exact']
+          }
+        );
       }
 
       if (repository.githubProject) {
