@@ -95,27 +95,29 @@ class HulyMCPServer {
     this.setupHandlers();
   }
 
-  // Helper function to convert string to Huly markup format
-  createMarkupFromString(text) {
+  // Helper function to create a MarkupBlobRef for issue descriptions
+  async createDescriptionMarkup(client, issueId, text) {
     if (!text || text.trim() === '') {
-      return ''; // Return empty string for null descriptions
+      return ''; // Return empty string for empty descriptions
     }
     
-    const markup = {
-      type: 'doc',
-      content: [{
-        type: 'paragraph',
-        content: [{
-          type: 'text',
-          text: text.trim()
-        }]
-      }]
-    };
-    
-    const markupString = JSON.stringify(markup);
-    console.log('Creating markup for description:', text);
-    console.log('Generated markup:', markupString);
-    return markupString;
+    try {
+      // Use the client's uploadMarkup method to properly store the content
+      const markupRef = await client.uploadMarkup(
+        tracker.class.Issue,
+        issueId,
+        'description',
+        text.trim(),
+        'markdown' // Use markdown format for plain text
+      );
+      
+      console.log('Created MarkupBlobRef:', markupRef);
+      return markupRef;
+    } catch (error) {
+      console.error('Failed to create markup:', error);
+      // Fallback to empty string if markup creation fails
+      return '';
+    }
   }
 
   async connectToHuly() {
@@ -718,6 +720,9 @@ class HulyMCPServer {
     };
     const priorityValue = priorityMap[priority] ?? 0;
 
+    // Create the description markup reference
+    const descriptionRef = await this.createDescriptionMarkup(client, issueId, description);
+    
     // Create issue
     await client.addCollection(
       tracker.class.Issue,
@@ -727,7 +732,7 @@ class HulyMCPServer {
       'issues',
       {
         title,
-        description: this.createMarkupFromString(description),
+        description: descriptionRef,
         identifier: `${project.identifier}-${sequence}`,
         number: sequence,
         status: project.defaultIssueStatus || statusManager.getDefaultStatus('full'),
@@ -1189,6 +1194,9 @@ class HulyMCPServer {
     };
     const priorityValue = priorityMap[priority] ?? 0;
 
+    // Create the description markup reference
+    const descriptionRef = await this.createDescriptionMarkup(client, subissueId, description);
+    
     // Create subissue with proper attachedTo reference
     await client.addCollection(
       tracker.class.Issue,
@@ -1198,7 +1206,7 @@ class HulyMCPServer {
       'subIssues',
       {
         title,
-        description: this.createMarkupFromString(description),
+        description: descriptionRef,
         identifier: `${project.identifier}-${sequence}`,
         number: sequence,
         status: project.defaultIssueStatus || statusManager.getDefaultStatus('full'),
