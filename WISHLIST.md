@@ -1,6 +1,10 @@
 # Huly MCP Server - Enhancement Wishlist
 
+## 🚀 Recently Added
+- [x] **Enhanced issue listing** - Now shows component, milestone, assignee, and due date in list_issues (HULLY-29)
+
 ## 🔍 Search & Filter Capabilities
+*Tracked in project as HULLY-8: Add issue search and filtering capabilities*
 
 ### Issue Search
 - [ ] **Search issues by keyword** - Full-text search across title and description
@@ -8,18 +12,29 @@
 - [ ] **Filter by status** - Show issues in specific workflow states
 - [ ] **Filter by priority** - Show high/medium/low priority issues
 - [ ] **Filter by date range** - Issues created/modified within timeframe
+- [ ] **Filter by milestone** - Show issues in specific milestones
+- [ ] **Filter by component** - Show issues by component
 - [ ] **Cross-project queries** - Search across all projects simultaneously
 
 ### Advanced Queries
 ```javascript
 // Example implementations:
 huly_search_issues("keyword", {assignee: "user", status: "in-progress"})
+huly_query_issues({milestone: "MVP Release", status: {$ne: "Done"}})
 huly_my_issues()  // Issues assigned to current user
 huly_issues_by_status("tracker:status:InProgress")
 huly_recent_issues(7)  // Issues from last 7 days
 ```
 
+### MongoDB-Style Query Support
+- [ ] **Complex field matching** - Support for $in, $nin, $ne operators
+- [ ] **Numeric comparisons** - $gt, $gte, $lt, $lte for priorities, dates
+- [ ] **Text pattern matching** - $like, $regex for flexible searches
+- [ ] **Field existence** - $exists to find issues with/without certain fields
+- [ ] **Nested queries** - Support for querying nested fields
+
 ## 📊 Bulk Operations
+*Tracked in project as HULLY-9: Implement bulk operations for project management*
 
 ### Batch Updates
 - [ ] **Batch update issues** - Change multiple issues at once
@@ -29,11 +44,12 @@ huly_recent_issues(7)  // Issues from last 7 days
 
 ### Project Management
 - [ ] **Archive projects** - Mark projects as archived/inactive
-- [ ] **Delete projects** - Remove projects (with confirmation)
+- [ ] **Delete projects** - Remove projects (with confirmation) - See HULLY-18
 - [ ] **Clone projects** - Create project templates
 - [ ] **Bulk issue creation** - Create multiple issues from templates
 
 ## 🔗 Relationship Management
+*Tracked in project as HULLY-11: Add issue relationships and hierarchies*
 
 ### Issue Relationships
 - [ ] **Link related issues** - Parent/child relationships
@@ -42,6 +58,8 @@ huly_recent_issues(7)  // Issues from last 7 days
 - [ ] **Epic/story hierarchies** - Multi-level issue organization
 
 ### Enhanced Issue Data
+*User assignments tracked as HULLY-10: Add user assignments and collaboration features*
+*File attachments tracked as HULLY-15: Implement file attachments and rich content support*
 - [ ] **Comments and notes** - Add/update issue comments
 - [ ] **File attachments** - Attach documents, images, etc.
 - [ ] **User assignments** - Assign issues to team members
@@ -49,6 +67,7 @@ huly_recent_issues(7)  // Issues from last 7 days
 - [ ] **Labels and tags** - Custom categorization
 
 ## 📈 Analytics & Reporting
+*Tracked in project as HULLY-12: Add analytics and reporting capabilities*
 
 ### Project Metrics
 - [ ] **Velocity tracking** - Issues completed per time period
@@ -64,12 +83,14 @@ huly_recent_issues(7)  // Issues from last 7 days
 - [ ] **Deadline tracking** - Issues approaching due dates
 
 ### Export Capabilities
+*Export features tracked as HULLY-14: Add export and integration capabilities*
 - [ ] **CSV export** - Export issues for external analysis
 - [ ] **JSON export** - Raw data export for integration
 - [ ] **Report generation** - Automated status reports
 - [ ] **Calendar integration** - Export deadlines to calendar
 
 ## 🎯 Quick Actions & Shortcuts
+*Tracked in project as HULLY-13: Implement quick actions and natural language interface*
 
 ### Natural Language Interface
 - [ ] **Quick create** - `huly_quick_create("bug in login @high #CCMCP")`
@@ -85,6 +106,7 @@ huly_recent_issues(7)  // Issues from last 7 days
 ## 🔧 Technical Enhancements
 
 ### Performance
+*Tracked in project as HULY-16: Add performance optimizations and caching*
 - [ ] **Caching layer** - Cache frequently accessed data
 - [ ] **Pagination** - Handle large datasets efficiently
 - [ ] **Incremental sync** - Only fetch changed data
@@ -97,6 +119,7 @@ huly_recent_issues(7)  // Issues from last 7 days
 - [ ] **Workflow customization** - Custom status workflows
 
 ### Integration
+*GitHub integration tracked as HULLY-28: Add GitHub Repository Integration Support*
 - [ ] **Webhook support** - React to Huly events
 - [ ] **External integrations** - GitHub, Slack, etc.
 - [ ] **API extensions** - Custom API endpoints
@@ -117,6 +140,7 @@ huly_recent_issues(7)  // Issues from last 7 days
 - [ ] **Templates** - Issue and project templates
 
 ## 🔐 Security & Permissions
+*Tracked in project as HULY-17: Implement security and access control improvements*
 
 ### Access Control
 - [ ] **Role-based access** - Different permissions per user
@@ -150,21 +174,26 @@ huly_recent_issues(7)  // Issues from last 7 days
 
 1. **High Priority** - Essential for daily use
    - Search issues by keyword
-   - Filter by status/priority
+   - Filter by status/priority/milestone/component
+   - MongoDB-style query support (huly_query_issues)
    - My issues dashboard
    - Bulk status updates
+   - Full issue details with relationships
 
 2. **Medium Priority** - Quality of life improvements
    - Comments and notes
    - User assignments
+   - Time tracking updates
    - Quick create shortcuts
    - Export capabilities
+   - Issue relationship management
 
 3. **Low Priority** - Advanced features
    - Analytics and reporting
    - Workflow customization
    - Plugin system
    - Mobile support
+   - Webhook integration
 
 ## Implementation Notes
 
