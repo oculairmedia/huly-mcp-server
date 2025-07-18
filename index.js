@@ -20,6 +20,7 @@ import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
 import rankModule from '@hcengineering/rank';
 import WebSocket from 'ws';
+import statusManager from './StatusManager.js';
 
 const { connect } = apiClient;
 const tracker = trackerModule.default || trackerModule;
@@ -150,7 +151,7 @@ class HulyMCPServer {
                 },
                 value: {
                   type: 'string',
-                  description: 'New value for the field'
+                  description: 'New value for the field. For status: accepts human-readable (backlog, todo, in-progress, done, canceled) or full format (tracker:status:Backlog, etc.)'
                 }
               },
               required: ['issue_identifier', 'field', 'value']
@@ -447,7 +448,15 @@ class HulyMCPServer {
     
     for (const issue of issues) {
       result += `📋 **${issue.identifier}**: ${issue.title}\n`;
-      result += `   Status: ${issue.status}\n`;
+      
+      // Use StatusManager to display human-readable status
+      try {
+        const humanStatus = statusManager.toHumanStatus(issue.status);
+        const statusDescription = statusManager.getStatusDescription(issue.status);
+        result += `   Status: ${humanStatus} (${statusDescription})\n`;
+      } catch (error) {
+        result += `   Status: ${issue.status}\n`;
+      }
       
       const priorityNames = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
       const priorityName = priorityNames[issue.priority] || 'Not set';
@@ -540,7 +549,7 @@ class HulyMCPServer {
         description,
         identifier: `${project.identifier}-${sequence}`,
         number: sequence,
-        status: project.defaultIssueStatus || 'tracker:status:Backlog',
+        status: project.defaultIssueStatus || statusManager.getDefaultStatus('full'),
         priority: priorityValue,
         kind: 'tracker:taskTypes:Issue',
         rank: makeRank(lastIssue?.rank, undefined),
@@ -561,11 +570,15 @@ class HulyMCPServer {
       issueId
     );
 
+    const issueStatus = project.defaultIssueStatus || statusManager.getDefaultStatus('full');
+    const humanStatus = statusManager.toHumanStatus(issueStatus);
+    const statusDescription = statusManager.getStatusDescription(issueStatus);
+    
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Created issue ${project.identifier}-${sequence}: ${title}\n\nStatus: ${project.defaultIssueStatus || 'tracker:status:Backlog'}\nPriority: ${priority}`
+          text: `✅ Created issue ${project.identifier}-${sequence}: ${title}\n\nStatus: ${humanStatus} (${statusDescription})\nPriority: ${priority}`
         }
       ]
     };
@@ -583,8 +596,14 @@ class HulyMCPServer {
 
     const updateData = {};
     
-    // Handle priority field specially
-    if (field === 'priority') {
+    // Handle status field with StatusManager
+    if (field === 'status') {
+      try {
+        updateData[field] = statusManager.toFullStatus(value);
+      } catch (error) {
+        throw new Error(`Invalid status value: ${value}. ${error.message}`);
+      }
+    } else if (field === 'priority') {
       const priorityMap = {
         'NoPriority': 0,
         'urgent': 1,
@@ -743,7 +762,7 @@ class HulyMCPServer {
         description,
         identifier: `${project.identifier}-${sequence}`,
         number: sequence,
-        status: project.defaultIssueStatus || 'tracker:status:Backlog',
+        status: project.defaultIssueStatus || statusManager.getDefaultStatus('full'),
         priority: priorityValue,
         kind: 'tracker:taskTypes:Issue',
         rank: makeRank(lastIssue?.rank, undefined),
@@ -1205,7 +1224,7 @@ class HulyMCPServer {
                       },
                       value: {
                         type: 'string',
-                        description: 'New value for the field'
+                        description: 'New value for the field. For status: accepts human-readable (backlog, todo, in-progress, done, canceled) or full format (tracker:status:Backlog, etc.)'
                       }
                     },
                     required: ['issue_identifier', 'field', 'value']
@@ -1524,7 +1543,7 @@ class HulyMCPServer {
                 },
                 value: {
                   type: 'string',
-                  description: 'New value for the field'
+                  description: 'New value for the field. For status: accepts human-readable (backlog, todo, in-progress, done, canceled) or full format (tracker:status:Backlog, etc.)'
                 }
               },
               required: ['issue_identifier', 'field', 'value']
