@@ -4,6 +4,11 @@
 # Creates a PR and updates Huly issue status to "In Review"
 # Usage: ./scripts/create-pr.sh [title] [body]
 
+# Source .env file if it exists and GITHUB_TOKEN is not set
+if [ -z "$GITHUB_TOKEN" ] && [ -f ".env" ]; then
+    source .env 2>/dev/null || true
+fi
+
 # Get current branch name
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
