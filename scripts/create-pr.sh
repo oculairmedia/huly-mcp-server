@@ -64,9 +64,29 @@ echo ""
 echo "📤 Pushing branch to origin..."
 git push -u origin "$BRANCH"
 
-# Create PR using GitHub CLI
-echo "📋 Creating pull request..."
-gh pr create --title "$TITLE" --body "$BODY"
+# Check if PR already exists for this branch
+echo "📋 Checking for existing pull request..."
+EXISTING_PR=$(gh pr list --head "$BRANCH" --json number,title --jq '.[0]' 2>/dev/null || echo "")
+
+if [ -n "$EXISTING_PR" ] && [ "$EXISTING_PR" != "null" ]; then
+    PR_NUMBER=$(echo "$EXISTING_PR" | jq -r '.number')
+    CURRENT_TITLE=$(echo "$EXISTING_PR" | jq -r '.title')
+    
+    echo "📋 Found existing PR #$PR_NUMBER: $CURRENT_TITLE"
+    
+    # Check if title needs [HULLY-XX] prefix
+    if [[ ! "$CURRENT_TITLE" =~ ^\[HULLY-[0-9]+\] ]]; then
+        echo "🔧 Updating PR title to include [HULLY-${ISSUE_NUMBER}] prefix..."
+        gh pr edit "$PR_NUMBER" --title "$TITLE"
+        echo "✅ PR title updated to: $TITLE"
+    else
+        echo "✅ PR already has correct title format"
+    fi
+else
+    # Create new PR
+    echo "📋 Creating pull request..."
+    gh pr create --title "$TITLE" --body "$BODY"
+fi
 
 if [ $? -eq 0 ]; then
     echo "✅ Pull request created successfully!"
