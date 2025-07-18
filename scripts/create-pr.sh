@@ -78,6 +78,34 @@ if [ $? -eq 0 ]; then
     echo "- PR created and ready for review"
     echo "- Huly issue updated to 'In Review'"
     echo "- Issue will be automatically marked 'Done' when PR is merged"
+    
+    # Check for duplicate issue creation
+    echo ""
+    echo "📋 Checking for duplicate issue..."
+    sleep 3  # Give GitHub webhook time to create duplicate
+    
+    # Look for duplicate with our PR title pattern
+    DUPLICATE_CHECK=$(curl -s -X POST "${MCP_SERVER_URL}/mcp" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"jsonrpc\": \"2.0\",
+            \"method\": \"tools/call\",
+            \"params\": {
+                \"name\": \"huly_list_issues\",
+                \"arguments\": {
+                    \"project_identifier\": \"HULLY\",
+                    \"limit\": 5
+                }
+            },
+            \"id\": 1
+        }" | jq -r '.result.content[0].text' | grep "\[HULLY-${ISSUE_NUMBER}\]" || true)
+    
+    if [ -n "$DUPLICATE_CHECK" ]; then
+        echo "⚠️  Duplicate issue detected! Running cleanup..."
+        # Get the directory of this script
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        "${SCRIPT_DIR}/handle-pr-duplicate.sh" "${ISSUE_NUMBER}"
+    fi
 else
     echo "❌ Failed to create pull request"
     exit 1
