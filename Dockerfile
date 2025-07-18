@@ -1,16 +1,16 @@
+# Use the existing working MCP image as base
+FROM huly-huly-mcp:latest AS working-deps
+
+# Final image
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Accept GitHub token as build argument
-ARG GITHUB_TOKEN
-ENV GITHUB_TOKEN=$GITHUB_TOKEN
-
 # Copy package files
-COPY package.json .npmrc ./
+COPY package.json ./
 
-# Install dependencies
-RUN npm install --production
+# Copy working node_modules from the existing image
+COPY --from=working-deps /app/node_modules ./node_modules
 
 # Copy source code
 COPY index.js ./
