@@ -293,6 +293,33 @@ The project includes helper scripts for managing worktrees:
    ./scripts/worktree-remove.sh 8
    ```
 
+### Claude Code Slash Commands
+
+This project includes custom slash commands for Claude Code that streamline the worktree workflow:
+
+#### Available Commands
+
+- **`/worktree-create <issue> <type> [description]`** - Create a new worktree for a Huly issue
+  - Example: `/worktree-create 38 feature search-functionality`
+
+- **`/worktree-pr`** - Create a pull request for the current branch
+  - Automatically updates Huly issue status
+
+- **`/worktree-merge <issue>`** - Complete workflow by merging and cleaning up
+  - Example: `/worktree-merge 38`
+
+- **`/huly-status <issue> <status>`** - Quick status update for any Huly issue
+  - Example: `/huly-status 42 done`
+  - Valid statuses: backlog, todo, in-progress, done, canceled
+
+- **`/worktree-help`** - Show all available worktree commands
+
+These commands are stored in `.claude/commands/` and provide:
+- Faster workflow execution
+- Dynamic content showing current state
+- Automatic GitHub token handling
+- Integration with MCP tools
+
 ### Git Hooks Integration
 
 The workflow includes automatic Git hooks that:

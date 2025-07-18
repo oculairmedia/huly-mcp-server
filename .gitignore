@@ -131,3 +131,6 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+# Claude Code custom commands (contains secrets)
+.claude/commands/
