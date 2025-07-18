@@ -150,7 +150,7 @@ class HulyMCPServer {
                 },
                 value: {
                   type: 'string',
-                  description: 'New value for the field'
+                  description: 'New value for the field. For status field, valid values are: Backlog, Todo, InProgress, Done, Canceled'
                 }
               },
               required: ['issue_identifier', 'field', 'value']
@@ -593,6 +593,31 @@ class HulyMCPServer {
         'low': 4
       };
       updateData[field] = priorityMap[value] ?? 0;
+    } else if (field === 'status') {
+      // Handle status field with comprehensive validation
+      const validStatuses = {
+        'Backlog': 'tracker:status:Backlog',
+        'Todo': 'tracker:status:Todo',
+        'InProgress': 'tracker:status:InProgress',
+        'Done': 'tracker:status:Done',
+        'Canceled': 'tracker:status:Canceled'
+      };
+      
+      // Check if value is already in full format (tracker:status:*)
+      if (value.startsWith('tracker:status:')) {
+        const statusName = value.replace('tracker:status:', '');
+        if (!Object.keys(validStatuses).includes(statusName)) {
+          throw new Error(`Invalid status "${value}". Valid statuses are: ${Object.keys(validStatuses).join(', ')}`);
+        }
+        updateData[field] = value;
+      } else {
+        // Handle human-readable status names
+        const statusValue = validStatuses[value];
+        if (!statusValue) {
+          throw new Error(`Invalid status "${value}". Valid statuses are: ${Object.keys(validStatuses).join(', ')}`);
+        }
+        updateData[field] = statusValue;
+      }
     } else if (field === 'milestone') {
       // Handle milestone field by looking up milestone by label
       const milestone = await client.findOne(
@@ -1524,7 +1549,7 @@ class HulyMCPServer {
                 },
                 value: {
                   type: 'string',
-                  description: 'New value for the field'
+                  description: 'New value for the field. For status field, valid values are: Backlog, Todo, InProgress, Done, Canceled'
                 }
               },
               required: ['issue_identifier', 'field', 'value']
