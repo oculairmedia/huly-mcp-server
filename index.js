@@ -542,6 +542,20 @@ class HulyMCPServer {
               },
               required: ['issue_identifier', 'message']
             }
+          },
+          {
+            name: 'huly_get_issue_details',
+            description: 'Get comprehensive details about a specific issue including full description, comments, and all metadata',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                issue_identifier: {
+                  type: 'string',
+                  description: 'Issue identifier (e.g., "LMP-1")'
+                }
+              },
+              required: ['issue_identifier']
+            }
           }
         ]
       };
@@ -598,6 +612,9 @@ class HulyMCPServer {
           
           case 'huly_create_comment':
             return await this.createComment(client, args.issue_identifier, args.message);
+          
+          case 'huly_get_issue_details':
+            return await this.getIssueDetails(client, args.issue_identifier);
           
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -1794,6 +1811,244 @@ class HulyMCPServer {
     }
   }
 
+  async getIssueDetails(client, issueIdentifier) {
+    try {
+      // Find the issue
+      const issue = await client.findOne(
+        tracker.class.Issue,
+        { identifier: issueIdentifier }
+      );
+
+      if (!issue) {
+        throw new HulyError(
+          ERROR_CODES.ISSUE_NOT_FOUND,
+          `Issue ${issueIdentifier} not found`,
+          {
+            context: `No issue found with identifier ${issueIdentifier}`,
+            suggestion: 'Check the issue identifier and ensure it exists'
+          }
+        );
+      }
+
+      // Get project information
+      const project = await client.findOne(
+        tracker.class.Project,
+        { _id: issue.space }
+      );
+
+      // Get component information
+      let component = null;
+      if (issue.component) {
+        component = await client.findOne(
+          tracker.class.Component,
+          { _id: issue.component }
+        );
+      }
+
+      // Get milestone information
+      let milestone = null;
+      if (issue.milestone) {
+        milestone = await client.findOne(
+          tracker.class.Milestone,
+          { _id: issue.milestone }
+        );
+      }
+
+      // Get parent issue information if it's a subissue
+      let parentIssues = [];
+      if (issue.parents && issue.parents.length > 0) {
+        for (const parent of issue.parents) {
+          const parentIssue = await client.findOne(
+            tracker.class.Issue,
+            { _id: parent.parentId }
+          );
+          if (parentIssue) {
+            parentIssues.push({
+              identifier: parentIssue.identifier,
+              title: parentIssue.title
+            });
+          }
+        }
+      }
+
+      // Get child issues if any
+      let childIssues = [];
+      if (issue.childInfo && issue.childInfo.length > 0) {
+        for (const child of issue.childInfo) {
+          childIssues.push({
+            identifier: child.identifier,
+            title: child.childTitle
+          });
+        }
+      }
+
+      // Get all comments
+      const comments = await client.findAll(
+        chunter.class.ChatMessage,
+        { 
+          attachedTo: issue._id,
+          attachedToClass: tracker.class.Issue
+        },
+        { 
+          sort: { createdOn: 1 } // Sort by creation date, oldest first
+        }
+      );
+
+      // Get full description content
+      let fullDescription = '';
+      if (issue.description) {
+        fullDescription = await this.getDescriptionContent(issue.description);
+      }
+
+      // Build comprehensive result
+      let result = `# Issue Details: ${issue.identifier}\n\n`;
+      
+      // Basic Information
+      result += `## Basic Information\n`;
+      result += `**Title:** ${issue.title}\n`;
+      result += `**Project:** ${project ? `${project.name} (${project.identifier})` : 'Unknown'}\n`;
+      result += `**Issue Number:** ${issue.number}\n`;
+      result += `**Kind:** ${issue.kind || 'tracker:taskTypes:Issue'}\n\n`;
+
+      // Status and Priority
+      result += `## Status & Priority\n`;
+      try {
+        const humanStatus = statusManager.toHumanStatus(issue.status);
+        const statusDescription = statusManager.getStatusDescription(issue.status);
+        result += `**Status:** ${humanStatus} (${statusDescription})\n`;
+      } catch (error) {
+        result += `**Status:** ${issue.status}\n`;
+      }
+      
+      const priorityNames = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
+      const priorityName = priorityNames[issue.priority] || 'Not set';
+      result += `**Priority:** ${priorityName}\n`;
+      
+      if (issue.assignee) {
+        result += `**Assignee:** ${issue.assignee}\n`;
+      } else {
+        result += `**Assignee:** Not assigned\n`;
+      }
+      result += `\n`;
+
+      // Full Description
+      if (fullDescription) {
+        result += `## Description\n${fullDescription}\n\n`;
+      } else {
+        result += `## Description\n*No description provided*\n\n`;
+      }
+
+      // Organization
+      result += `## Organization\n`;
+      if (component) {
+        result += `**Component:** ${component.label}`;
+        if (component.description) {
+          result += ` - ${component.description}`;
+        }
+        result += `\n`;
+      }
+      
+      if (milestone) {
+        result += `**Milestone:** ${milestone.label}`;
+        const statusNames = ['Planned', 'In Progress', 'Completed', 'Canceled'];
+        const milestoneStatus = statusNames[milestone.status] || 'Unknown';
+        result += ` (${milestoneStatus})`;
+        if (milestone.targetDate) {
+          result += ` - Target: ${new Date(milestone.targetDate).toLocaleDateString()}`;
+        }
+        result += `\n`;
+      }
+      result += `\n`;
+
+      // Time Tracking
+      result += `## Time Tracking\n`;
+      result += `**Estimation:** ${issue.estimation || 0} hours\n`;
+      result += `**Remaining Time:** ${issue.remainingTime || 0} hours\n`;
+      result += `**Reported Time:** ${issue.reportedTime || 0} hours\n`;
+      result += `**Reports Count:** ${issue.reports || 0}\n`;
+      
+      if (issue.dueDate) {
+        result += `**Due Date:** ${new Date(issue.dueDate).toLocaleDateString()}\n`;
+      }
+      result += `\n`;
+
+      // Relationships
+      result += `## Relationships\n`;
+      
+      if (parentIssues.length > 0) {
+        result += `**Parent Issues:**\n`;
+        for (const parent of parentIssues) {
+          result += `- ${parent.identifier}: ${parent.title}\n`;
+        }
+      }
+      
+      if (childIssues.length > 0) {
+        result += `**Sub-Issues:** (${issue.subIssues || childIssues.length} total)\n`;
+        for (const child of childIssues) {
+          result += `- ${child.identifier}: ${child.title}\n`;
+        }
+      }
+      
+      if (parentIssues.length === 0 && childIssues.length === 0) {
+        result += `*No parent or sub-issues*\n`;
+      }
+      result += `\n`;
+
+      // Comments History
+      result += `## Comments (${comments.length} total)\n`;
+      if (comments.length > 0) {
+        for (const comment of comments) {
+          const createdDate = new Date(comment.createdOn).toLocaleString();
+          const isEdited = comment.modifiedOn !== comment.createdOn;
+          
+          result += `\n### ${comment.createdBy || 'Unknown'} - ${createdDate}`;
+          if (isEdited) {
+            result += ` (edited ${new Date(comment.modifiedOn).toLocaleString()})`;
+          }
+          result += `\n${comment.message}\n`;
+          
+          if (comment.attachments && comment.attachments > 0) {
+            result += `*📎 ${comment.attachments} attachment(s)*\n`;
+          }
+        }
+      } else {
+        result += `*No comments yet*\n`;
+      }
+      result += `\n`;
+
+      // Metadata
+      result += `## Metadata\n`;
+      result += `**Created:** ${new Date(issue.createdOn).toLocaleString()}\n`;
+      result += `**Last Modified:** ${new Date(issue.modifiedOn).toLocaleString()}\n`;
+      result += `**Created By:** ${issue.createdBy || 'Unknown'}\n`;
+      result += `**Modified By:** ${issue.modifiedBy || 'Unknown'}\n`;
+      result += `**Rank:** ${issue.rank || 'N/A'}\n`;
+      result += `**Attachments:** ${issue.attachments || 0}\n`;
+      result += `**Comments Count:** ${issue.comments || comments.length}\n`;
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: result
+          }
+        ]
+      };
+    } catch (error) {
+      if (error instanceof HulyError) {
+        throw error;
+      }
+      throw new HulyError(
+        ERROR_CODES.DATABASE_ERROR,
+        `Failed to get issue details: ${error.message}`,
+        {
+          context: 'An error occurred while fetching issue details',
+          suggestion: 'Check the issue identifier and try again'
+        }
+      );
+    }
+  }
+
   async searchIssues(client, args) {
     const {
       query,
@@ -1991,6 +2246,18 @@ class HulyMCPServer {
         const priorityNames = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
         const priorityName = priorityNames[issue.priority] || 'Not set';
         result += `   Priority: ${priorityName}\n`;
+        
+        // Add description if present (truncated for search results)
+        if (issue.description) {
+          const descContent = await this.getDescriptionContent(issue.description);
+          if (descContent) {
+            const maxLength = 200;
+            const truncated = descContent.length > maxLength 
+              ? descContent.substring(0, maxLength) + '...' 
+              : descContent;
+            result += `   Description: ${truncated}\n`;
+          }
+        }
         
         // Add component information
         if (issue.component) {
@@ -2391,6 +2658,57 @@ class HulyMCPServer {
                     },
                     required: []
                   }
+                },
+                {
+                  name: 'huly_list_comments',
+                  description: 'List comments on an issue',
+                  inputSchema: {
+                    type: 'object',
+                    properties: {
+                      issue_identifier: {
+                        type: 'string',
+                        description: 'Issue identifier (e.g., "LMP-1")'
+                      },
+                      limit: {
+                        type: 'number',
+                        description: 'Maximum number of comments to return (default: 50)',
+                        default: 50
+                      }
+                    },
+                    required: ['issue_identifier']
+                  }
+                },
+                {
+                  name: 'huly_create_comment',
+                  description: 'Create a comment on an issue',
+                  inputSchema: {
+                    type: 'object',
+                    properties: {
+                      issue_identifier: {
+                        type: 'string',
+                        description: 'Issue identifier (e.g., "LMP-1")'
+                      },
+                      message: {
+                        type: 'string',
+                        description: 'Comment message (supports markdown)'
+                      }
+                    },
+                    required: ['issue_identifier', 'message']
+                  }
+                },
+                {
+                  name: 'huly_get_issue_details',
+                  description: 'Get comprehensive details about a specific issue including full description, comments, and all metadata',
+                  inputSchema: {
+                    type: 'object',
+                    properties: {
+                      issue_identifier: {
+                        type: 'string',
+                        description: 'Issue identifier (e.g., "LMP-1")'
+                      }
+                    },
+                    required: ['issue_identifier']
+                  }
                 }
               ]
             };
@@ -2445,6 +2763,9 @@ class HulyMCPServer {
                 break;
               case 'huly_create_comment':
                 result = await this.createComment(client, args.issue_identifier, args.message);
+                break;
+              case 'huly_get_issue_details':
+                result = await this.getIssueDetails(client, args.issue_identifier);
                 break;
               default:
                 return res.status(400).json({
@@ -2795,6 +3116,57 @@ class HulyMCPServer {
               },
               required: []
             }
+          },
+          {
+            name: 'huly_list_comments',
+            description: 'List comments on an issue',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                issue_identifier: {
+                  type: 'string',
+                  description: 'Issue identifier (e.g., "LMP-1")'
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Maximum number of comments to return (default: 50)',
+                  default: 50
+                }
+              },
+              required: ['issue_identifier']
+            }
+          },
+          {
+            name: 'huly_create_comment',
+            description: 'Create a comment on an issue',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                issue_identifier: {
+                  type: 'string',
+                  description: 'Issue identifier (e.g., "LMP-1")'
+                },
+                message: {
+                  type: 'string',
+                  description: 'Comment message (supports markdown)'
+                }
+              },
+              required: ['issue_identifier', 'message']
+            }
+          },
+          {
+            name: 'huly_get_issue_details',
+            description: 'Get comprehensive details about a specific issue including full description, comments, and all metadata',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                issue_identifier: {
+                  type: 'string',
+                  description: 'Issue identifier (e.g., "LMP-1")'
+                }
+              },
+              required: ['issue_identifier']
+            }
           }
         ];
         
@@ -2852,6 +3224,15 @@ class HulyMCPServer {
             break;
           case 'huly_search_issues':
             result = await this.searchIssues(client, args);
+            break;
+          case 'huly_list_comments':
+            result = await this.listComments(client, args.issue_identifier, args.limit);
+            break;
+          case 'huly_create_comment':
+            result = await this.createComment(client, args.issue_identifier, args.message);
+            break;
+          case 'huly_get_issue_details':
+            result = await this.getIssueDetails(client, args.issue_identifier);
             break;
           default:
             return res.status(404).json({ error: `Tool ${toolName} not found` });
