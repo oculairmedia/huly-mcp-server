@@ -9,6 +9,14 @@ import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
 import { HulyError } from '../core/HulyError.js';
 import { MILESTONE_STATUS_MAP, MILESTONE_STATUS_NAMES } from '../core/constants.js';
+import { 
+  validateRequiredString,
+  validateOptionalString,
+  isValidProjectIdentifier,
+  isValidISODate,
+  isValidMilestoneStatus,
+  validateEnum
+} from '../utils/validators.js';
 
 const tracker = trackerModule.default || trackerModule;
 const { generateId } = coreModule;
@@ -84,6 +92,11 @@ export class ProjectService {
     // Generate identifier if not provided
     if (!identifier) {
       identifier = name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().substring(0, 5);
+    }
+    
+    // Validate identifier format
+    if (!isValidProjectIdentifier(identifier)) {
+      throw HulyError.invalidValue('identifier', identifier, '1-5 uppercase letters/numbers');
     }
 
     // Check if identifier already exists
@@ -239,11 +252,11 @@ export class ProjectService {
     // Map status strings to MilestoneStatus enum values
     const statusValue = MILESTONE_STATUS_MAP[status] ?? 0;
 
-    // Parse and validate target date
-    const targetTimestamp = Date.parse(targetDate);
-    if (isNaN(targetTimestamp)) {
+    // Validate target date
+    if (!isValidISODate(targetDate)) {
       throw HulyError.invalidValue('target_date', targetDate, 'ISO 8601 format (e.g., 2024-12-31)');
     }
+    const targetTimestamp = Date.parse(targetDate);
 
     const milestoneId = generateId();
     

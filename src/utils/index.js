@@ -13,3 +13,23 @@ export {
   truncateText,
   cleanText
 } from './textExtractor.js';
+
+export {
+  isValidProjectIdentifier,
+  isValidIssueIdentifier,
+  parseIssueIdentifier,
+  isValidPriority,
+  getValidPriorities,
+  normalizePriority,
+  isValidUpdateField,
+  isValidISODate,
+  isValidMilestoneStatus,
+  validateRequiredString,
+  validateOptionalString,
+  validateEnum,
+  validatePositiveInteger,
+  sanitizeString,
+  createIdentifierValidator,
+  validateProjectIdentifier,
+  validateIssueIdentifier
+} from './validators.js';

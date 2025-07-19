@@ -8,6 +8,17 @@
 import { HulyError } from '../core/HulyError.js';
 import { ERROR_CODES, PRIORITY_MAP, DEFAULTS } from '../core/constants.js';
 import { extractTextFromMarkup, extractTextFromDoc } from '../utils/textExtractor.js';
+import { 
+  validateRequiredString,
+  validateOptionalString,
+  validateEnum,
+  isValidPriority,
+  getValidPriorities,
+  normalizePriority,
+  isValidUpdateField,
+  validateProjectIdentifier,
+  validateIssueIdentifier
+} from '../utils/validators.js';
 import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
 import chunterModule from '@hcengineering/chunter';
@@ -130,9 +141,7 @@ class IssueService {
    */
   async createIssue(client, projectIdentifier, title, description = '', priority = 'NoPriority') {
     // Validate priority
-    if (!Object.keys(PRIORITY_MAP).includes(priority)) {
-      throw HulyError.invalidValue('priority', priority, Object.keys(PRIORITY_MAP).join(', '));
-    }
+    priority = validateEnum(priority, 'priority', getValidPriorities(), 'NoPriority');
 
     const project = await client.findOne(
       tracker.class.Project,
@@ -225,6 +234,11 @@ class IssueService {
    * Update an issue
    */
   async updateIssue(client, issueIdentifier, field, value) {
+    // Validate field name
+    if (!isValidUpdateField(field)) {
+      throw HulyError.invalidValue('field', field, 'title, description, status, priority, component, or milestone');
+    }
+
     const issue = await client.findOne(
       tracker.class.Issue,
       { identifier: issueIdentifier }
@@ -279,21 +293,14 @@ class IssueService {
         break;
         
       case 'priority':
-        const priorityMap = {
-          'low': tracker.component.Priority.Low,
-          'medium': tracker.component.Priority.Medium,
-          'high': tracker.component.Priority.High,
-          'urgent': tracker.component.Priority.Urgent,
-          'nopriority': tracker.component.Priority.NoPriority
-        };
-        
-        const normalizedPriority = value.toLowerCase();
-        if (!priorityMap[normalizedPriority]) {
+        // Normalize and validate priority
+        const normalizedPriority = normalizePriority(value);
+        if (!normalizedPriority) {
           throw HulyError.invalidValue('priority', value, 'low, medium, high, urgent, or nopriority');
         }
         
-        updateData.priority = priorityMap[normalizedPriority];
-        displayValue = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+        updateData.priority = tracker.component.Priority[normalizedPriority === 'NoPriority' ? 'NoPriority' : normalizedPriority.charAt(0).toUpperCase() + normalizedPriority.slice(1)];
+        displayValue = normalizedPriority === 'NoPriority' ? 'No Priority' : normalizedPriority;
         break;
         
       case 'component':
@@ -356,9 +363,7 @@ class IssueService {
    */
   async createSubissue(client, parentIssueIdentifier, title, description = '', priority = 'NoPriority') {
     // Validate priority
-    if (!Object.keys(PRIORITY_MAP).includes(priority)) {
-      throw HulyError.invalidValue('priority', priority, Object.keys(PRIORITY_MAP).join(', '));
-    }
+    priority = validateEnum(priority, 'priority', getValidPriorities(), 'NoPriority');
 
     const parentIssue = await client.findOne(
       tracker.class.Issue,
