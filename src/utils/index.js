@@ -33,3 +33,10 @@ export {
   validateProjectIdentifier,
   validateIssueIdentifier
 } from './validators.js';
+
+export {
+  Logger,
+  getLogger,
+  createLoggerWithConfig,
+  resetLogger
+} from './Logger.js';

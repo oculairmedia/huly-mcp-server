@@ -34,6 +34,7 @@ import {
 } from './src/utils/index.js';
 import { projectService, createIssueService } from './src/services/index.js';
 import { createMCPHandler } from './src/protocol/index.js';
+import { createLoggerWithConfig } from './src/utils/index.js';
 
 const tracker = trackerModule.default || trackerModule;
 const chunter = chunterModule.default || chunterModule;
@@ -45,6 +46,19 @@ const { getClient: getCollaboratorClient } = collaboratorClientModule;
 // Create issueService instance with statusManager
 const issueService = createIssueService(statusManager);
 
+// Create logger instance
+let logger = null;
+try {
+  // Try to create logger with ConfigManager if available
+  const { getConfigManager } = await import('./src/config/index.js');
+  const configManager = getConfigManager();
+  logger = createLoggerWithConfig(configManager);
+} catch (error) {
+  // Fallback to default logger if ConfigManager not available
+  const { getLogger } = await import('./src/utils/index.js');
+  logger = getLogger({ level: 'info' });
+}
+
 // Huly connection configuration
 const HULY_CONFIG = {
   url: process.env.HULY_URL || 'https://pm.oculair.ca',
@@ -55,6 +69,8 @@ const HULY_CONFIG = {
 
 class HulyMCPServer {
   constructor() {
+    this.logger = logger;
+    
     this.server = new Server(
       {
         name: 'huly-mcp-server',
@@ -67,12 +83,19 @@ class HulyMCPServer {
         }
       }
     );
+    
+    this.logger.info('Initializing Huly MCP Server');
 
     this.hulyClientWrapper = createHulyClient({
       url: HULY_CONFIG.url,
       email: HULY_CONFIG.email,
       password: HULY_CONFIG.password,
       workspace: HULY_CONFIG.workspace
+    });
+    
+    this.logger.debug('Huly client configured', { 
+      url: HULY_CONFIG.url, 
+      workspace: HULY_CONFIG.workspace 
     });
     
     // Initialize MCP protocol handler
@@ -85,32 +108,37 @@ class HulyMCPServer {
 
 
   async connectToHuly() {
+    this.logger.debug('Connecting to Huly platform');
     return await this.hulyClientWrapper.getClient();
   }
 
 
 
   async cleanup() {
+    this.logger.info('Shutting down Huly MCP Server');
     // Disconnect from Huly when shutting down
     if (this.hulyClientWrapper) {
       await this.hulyClientWrapper.disconnect();
+      this.logger.debug('Disconnected from Huly platform');
     }
   }
 
   async run(transportType = 'stdio') {
     // Set up cleanup handlers
     process.on('SIGINT', async () => {
-      console.log('Shutting down gracefully...');
+      this.logger.info('Received SIGINT signal');
       await this.cleanup();
       process.exit(0);
     });
     
     process.on('SIGTERM', async () => {
-      console.log('Shutting down gracefully...');
+      this.logger.info('Received SIGTERM signal');
       await this.cleanup();
       process.exit(0);
     });
 
+    this.logger.info(`Starting server with ${transportType} transport`);
+    
     if (transportType === 'http') {
       await this.runHttpServer();
     } else {
@@ -119,8 +147,10 @@ class HulyMCPServer {
   }
 
   async runStdioServer() {
+    this.logger.debug('Starting STDIO transport');
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
+    this.logger.info('STDIO transport connected');
   }
 
   async runHttpServer() {
@@ -600,6 +630,11 @@ class HulyMCPServer {
       } catch (error) {
         // Handle HulyError instances with structured responses
         if (error instanceof HulyError) {
+          this.logger.warn('MCP request failed with HulyError', {
+            method,
+            errorCode: error.code,
+            details: error.details
+          });
           res.status(400).json({
             jsonrpc: '2.0',
             error: { 
@@ -613,6 +648,7 @@ class HulyMCPServer {
             id: req.body.id || null
           });
         } else {
+          this.logger.error('MCP request failed with unexpected error', error);
           res.status(500).json({
             jsonrpc: '2.0',
             error: { code: -32000, message: error.message },
@@ -1061,10 +1097,10 @@ class HulyMCPServer {
     });
     
     app.listen(port, () => {
-      console.log(`Huly MCP Server running on http://localhost:${port}`);
-      console.log(`Health check: http://localhost:${port}/health`);
-      console.log(`List tools: http://localhost:${port}/tools`);
-      console.log(`MCP endpoint: http://localhost:${port}/mcp`);
+      this.logger.info(`Huly MCP Server running on http://localhost:${port}`);
+      this.logger.info(`Health check: http://localhost:${port}/health`);
+      this.logger.info(`List tools: http://localhost:${port}/tools`);
+      this.logger.info(`MCP endpoint: http://localhost:${port}/mcp`);
     });
   }
 }
@@ -1076,4 +1112,7 @@ const transportType = transportArg ? transportArg.split('=')[1] : 'stdio';
 
 // Run the server
 const server = new HulyMCPServer();
-server.run(transportType).catch(console.error);
+server.run(transportType).catch((error) => {
+  logger.error('Failed to start server', error);
+  process.exit(1);
+});
