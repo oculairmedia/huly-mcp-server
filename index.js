@@ -32,37 +32,16 @@ import {
   VALID_UPDATE_FIELDS,
   createHulyClient
 } from './src/core/index.js';
+import {
+  extractTextFromMarkup,
+  extractTextFromDoc
+} from './src/utils/index.js';
 const tracker = trackerModule.default || trackerModule;
 const chunter = chunterModule.default || chunterModule;
 const activity = activityModule.default || activityModule;
 const { generateId, makeCollabJsonId, makeCollabId } = coreModule;
 const { makeRank } = rankModule;
 const { getClient: getCollaboratorClient } = collaboratorClientModule;
-
-// Helper function to extract text from ProseMirror JSON markup
-function extractTextFromMarkup(doc) {
-  if (!doc || typeof doc !== 'object') return '';
-  
-  let text = '';
-  
-  function traverse(node) {
-    if (!node) return;
-    
-    if (node.type === 'text' && node.text) {
-      text += node.text;
-    }
-    
-    if (node.content && Array.isArray(node.content)) {
-      for (const child of node.content) {
-        traverse(child);
-      }
-    }
-  }
-  
-  traverse(doc);
-  return text.trim();
-}
-
 
 // Huly connection configuration
 const HULY_CONFIG = {
@@ -122,28 +101,6 @@ class HulyMCPServer {
     }
   }
 
-  // Helper function to get description content from MarkupBlobRef
-  extractTextFromDoc(doc) {
-    if (!doc || !doc.content) return '';
-    
-    let text = '';
-    const processNode = (node) => {
-      if (node.type === 'text' && node.text) {
-        text += node.text;
-      } else if (node.content && Array.isArray(node.content)) {
-        node.content.forEach(processNode);
-      }
-      if (node.type === 'paragraph' || node.type === 'heading') {
-        text += '\n';
-      }
-    };
-    
-    if (Array.isArray(doc.content)) {
-      doc.content.forEach(processNode);
-    }
-    
-    return text.trim();
-  }
 
   async getDescriptionContent(descriptionRef, issueId) {
     if (!descriptionRef || descriptionRef === '') {
@@ -1619,7 +1576,7 @@ class HulyMCPServer {
             const parsed = JSON.parse(comment.message);
             if (parsed.type === 'doc' && parsed.content) {
               // Extract text from ProseMirror document structure
-              messageContent = this.extractTextFromDoc(parsed);
+              messageContent = extractTextFromDoc(parsed);
             }
           } catch (e) {
             // Not JSON, use as-is
