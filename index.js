@@ -36,6 +36,7 @@ import {
   extractTextFromMarkup,
   extractTextFromDoc
 } from './src/utils/index.js';
+import { projectService } from './src/services/index.js';
 const tracker = trackerModule.default || trackerModule;
 const chunter = chunterModule.default || chunterModule;
 const activity = activityModule.default || activityModule;
@@ -513,7 +514,7 @@ class HulyMCPServer {
         return await this.hulyClientWrapper.withClient(async (client) => {
           switch (name) {
             case 'huly_list_projects':
-              return await this.listProjects(client);
+              return await projectService.listProjects(client);
           
           case 'huly_list_issues':
             return await this.listIssues(client, args.project_identifier, args.limit);
@@ -525,28 +526,28 @@ class HulyMCPServer {
             return await this.updateIssue(client, args.issue_identifier, args.field, args.value);
           
           case 'huly_create_project':
-            return await this.createProject(client, args.name, args.description, args.identifier);
+            return await projectService.createProject(client, args.name, args.description, args.identifier);
           
           case 'huly_create_subissue':
             return await this.createSubissue(client, args.parent_issue_identifier, args.title, args.description, args.priority);
           
           case 'huly_create_component':
-            return await this.createComponent(client, args.project_identifier, args.label, args.description);
+            return await projectService.createComponent(client, args.project_identifier, args.label, args.description);
           
           case 'huly_list_components':
-            return await this.listComponents(client, args.project_identifier);
+            return await projectService.listComponents(client, args.project_identifier);
           
           case 'huly_create_milestone':
-            return await this.createMilestone(client, args.project_identifier, args.label, args.description, args.target_date, args.status);
+            return await projectService.createMilestone(client, args.project_identifier, args.label, args.description, args.target_date, args.status);
           
           case 'huly_list_milestones':
-            return await this.listMilestones(client, args.project_identifier);
+            return await projectService.listMilestones(client, args.project_identifier);
           
           case 'huly_list_github_repositories':
-            return await this.listGithubRepositories(client);
+            return await projectService.listGithubRepositories(client);
           
           case 'huly_assign_repository_to_project':
-            return await this.assignRepositoryToProject(client, args.project_identifier, args.repository_name);
+            return await projectService.assignRepositoryToProject(client, args.project_identifier, args.repository_name);
           
           case 'huly_search_issues':
             return await this.searchIssues(client, args);
@@ -583,37 +584,6 @@ class HulyMCPServer {
     });
   }
 
-  async listProjects(client) {
-    const projects = await client.findAll(
-      tracker.class.Project,
-      {},
-      { sort: { modifiedOn: -1 } }
-    );
-
-    let result = `Found ${projects.length} projects:\n\n`;
-    
-    for (const project of projects) {
-      const issueCount = await client.findAll(
-        tracker.class.Issue,
-        { space: project._id },
-        { total: true }
-      );
-
-      result += `📁 **${project.name}** (${project.identifier})\n`;
-      result += `   Description: ${project.description || 'No description'}\n`;
-      result += `   Issues: ${issueCount.total}\n`;
-      result += `   Created: ${new Date(project.createdOn).toLocaleDateString()}\n\n`;
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: result
-        }
-      ]
-    };
-  }
 
   async listIssues(client, projectIdentifier, limit = 50) {
     const project = await client.findOne(
@@ -1008,61 +978,6 @@ class HulyMCPServer {
     }
   }
 
-  async createProject(client, name, description = '', identifier) {
-    const projectId = generateId();
-    
-    // Generate identifier if not provided
-    if (!identifier) {
-      identifier = name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().substring(0, 5);
-    }
-
-    // Check if identifier already exists
-    const existingProject = await client.findOne(
-      tracker.class.Project,
-      { identifier }
-    );
-
-    if (existingProject) {
-      throw new HulyError(
-        ERROR_CODES.VALIDATION_ERROR,
-        `Project with identifier '${identifier}' already exists`,
-        {
-          context: 'Project identifier must be unique',
-          suggestion: 'Use a different identifier',
-          data: { identifier }
-        }
-      );
-    }
-
-    await client.createDoc(
-      tracker.class.Project,
-      'core:space:Space',
-      {
-        name,
-        description,
-        identifier,
-        private: false,
-        archived: false,
-        autoJoin: true,
-        sequence: 0,
-        defaultIssueStatus: 'tracker:status:Backlog',
-        defaultTimeReportDay: 'PreviousWorkDay',
-        defaultAssignee: null,
-        members: [],
-        owners: []
-      },
-      projectId
-    );
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `✅ Created project ${name} (${identifier})\n\nDescription: ${description || 'No description'}`
-        }
-      ]
-    };
-  }
 
   async createSubissue(client, parentIssueIdentifier, title, description = '', priority = 'NoPriority') {
     const parentIssue = await client.findOne(
@@ -1170,339 +1085,6 @@ class HulyMCPServer {
     };
   }
 
-  async createComponent(client, projectIdentifier, label, description = '') {
-    const project = await client.findOne(
-      tracker.class.Project,
-      { identifier: projectIdentifier }
-    );
-
-    if (!project) {
-      throw HulyError.notFound('project', projectIdentifier);
-    }
-
-    const componentId = generateId();
-
-    await client.createDoc(
-      tracker.class.Component,
-      project._id,
-      {
-        label,
-        description,
-        lead: null,
-        comments: 0,
-        attachments: 0
-      },
-      componentId
-    );
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `✅ Created component "${label}" in project ${project.name}`
-        }
-      ]
-    };
-  }
-
-  async listComponents(client, projectIdentifier) {
-    const project = await client.findOne(
-      tracker.class.Project,
-      { identifier: projectIdentifier }
-    );
-
-    if (!project) {
-      throw HulyError.notFound('project', projectIdentifier);
-    }
-
-    const components = await client.findAll(
-      tracker.class.Component,
-      { space: project._id }
-    );
-
-    let result = `Found ${components.length} components in ${project.name}:\n\n`;
-    
-    for (const component of components) {
-      result += `🏷️  **${component.label}**\n`;
-      if (component.description) {
-        result += `   Description: ${component.description}\n`;
-      }
-      result += `   Lead: ${component.lead || 'Not assigned'}\n\n`;
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: result
-        }
-      ]
-    };
-  }
-
-  async createMilestone(client, projectIdentifier, label, description = '', targetDate, status = 'planned') {
-    const project = await client.findOne(
-      tracker.class.Project,
-      { identifier: projectIdentifier }
-    );
-
-    if (!project) {
-      throw HulyError.notFound('project', projectIdentifier);
-    }
-
-    // Map status strings to MilestoneStatus enum values
-    const statusMap = {
-      'planned': 0,
-      'in_progress': 1,
-      'completed': 2,
-      'canceled': 3
-    };
-    const statusValue = statusMap[status] ?? 0;
-
-    // Parse target date
-    const targetTimestamp = new Date(targetDate).getTime();
-    if (isNaN(targetTimestamp)) {
-      throw HulyError.invalidValue('target_date', target_date, 'ISO 8601 format (e.g., 2024-12-31)');
-    }
-
-    const milestoneId = generateId();
-
-    await client.createDoc(
-      tracker.class.Milestone,
-      project._id,
-      {
-        label,
-        description,
-        status: statusValue,
-        targetDate: targetTimestamp,
-        comments: 0,
-        attachments: 0
-      },
-      milestoneId
-    );
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `✅ Created milestone "${label}" in project ${project.name}\n\nTarget Date: ${new Date(targetTimestamp).toLocaleDateString()}\nStatus: ${status}`
-        }
-      ]
-    };
-  }
-
-  async listMilestones(client, projectIdentifier) {
-    const project = await client.findOne(
-      tracker.class.Project,
-      { identifier: projectIdentifier }
-    );
-
-    if (!project) {
-      throw HulyError.notFound('project', projectIdentifier);
-    }
-
-    const milestones = await client.findAll(
-      tracker.class.Milestone,
-      { space: project._id }
-    );
-
-    const statusNames = ['Planned', 'In Progress', 'Completed', 'Canceled'];
-    
-    let result = `Found ${milestones.length} milestones in ${project.name}:\n\n`;
-    
-    for (const milestone of milestones) {
-      result += `🎯 **${milestone.label}**\n`;
-      if (milestone.description) {
-        result += `   Description: ${milestone.description}\n`;
-      }
-      result += `   Status: ${statusNames[milestone.status] || 'Unknown'}\n`;
-      result += `   Target Date: ${new Date(milestone.targetDate).toLocaleDateString()}\n\n`;
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: result
-        }
-      ]
-    };
-  }
-
-  async listGithubRepositories(client) {
-    try {
-      // List all GitHub integration repositories using string class reference
-      const repositories = await client.findAll(
-        'github:class:GithubIntegrationRepository',
-        {}
-      );
-
-      let result = `Found ${repositories.length} GitHub repositories available:\n\n`;
-      
-      for (const repo of repositories) {
-        result += `📁 **${repo.name}**\n`;
-        if (repo.description) {
-          result += `   Description: ${repo.description}\n`;
-        }
-        result += `   Owner: ${repo.owner?.login || 'Unknown'}\n`;
-        result += `   Language: ${repo.language || 'Not specified'}\n`;
-        result += `   Stars: ${repo.stargazers || 0} | Forks: ${repo.forks || 0}\n`;
-        result += `   Private: ${repo.private ? 'Yes' : 'No'}\n`;
-        result += `   Has Issues: ${repo.hasIssues ? 'Yes' : 'No'}\n`;
-        if (repo.githubProject) {
-          result += `   🔗 Already assigned to project\n`;
-        } else {
-          result += `   ✅ Available for assignment\n`;
-        }
-        result += `   URL: ${repo.htmlURL || repo.url || 'N/A'}\n\n`;
-      }
-
-      if (repositories.length === 0) {
-        result += 'No GitHub repositories found. Make sure GitHub integration is configured and repositories are available.';
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: result
-          }
-        ]
-      };
-    } catch (error) {
-      throw HulyError.database('list GitHub repositories', error);
-    }
-  }
-
-  async assignRepositoryToProject(client, projectIdentifier, repositoryName) {
-    try {
-      // Find the project
-      const project = await client.findOne(
-        tracker.class.Project,
-        { identifier: projectIdentifier }
-      );
-
-      if (!project) {
-        throw HulyError.notFound('project', projectIdentifier);
-      }
-
-      // Find the repository by name - support both "owner/repo" and "repo" formats
-      let repository = await client.findOne(
-        'github:class:GithubIntegrationRepository',
-        { name: repositoryName }
-      );
-
-      // If not found by exact match and input contains "/", try without owner prefix
-      if (!repository && repositoryName.includes('/')) {
-        const repoNameOnly = repositoryName.split('/').pop();
-        repository = await client.findOne(
-          'github:class:GithubIntegrationRepository',
-          { name: repoNameOnly }
-        );
-      }
-
-      if (!repository) {
-        // Provide helpful error message with available repositories
-        const availableRepos = await client.findAll(
-          'github:class:GithubIntegrationRepository',
-          {},
-          { limit: 5 }
-        );
-        
-        let errorMsg = `GitHub repository "${repositoryName}" not found.`;
-        if (availableRepos.length > 0) {
-          errorMsg += '\n\nAvailable repositories (first 5):\n';
-          errorMsg += availableRepos.map(r => `- ${r.name}`).join('\n');
-          errorMsg += '\n\nUse huly_list_github_repositories to see all available repositories.';
-        } else {
-          errorMsg += ' No GitHub repositories are available. Please check your GitHub integration.';
-        }
-        
-        throw new HulyError(
-          ERROR_CODES.REPOSITORY_NOT_FOUND,
-          errorMsg,
-          { 
-            context: `Repository '${repositoryName}' not found`,
-            suggestion: availableRepos.length > 0 ? `Available repositories: ${availableRepos.slice(0, 5).map(r => r.name).join(', ')}` : 'No GitHub repositories are available. Please check your GitHub integration.',
-            data: {
-              repositoryName, 
-              availableCount: availableRepos.length,
-              searchedFormats: repositoryName.includes('/') ? ['exact', 'name-only'] : ['exact']
-            }
-          }
-        );
-      }
-
-      if (repository.githubProject) {
-        throw new HulyError(
-          ERROR_CODES.VALIDATION_ERROR,
-          `Repository "${repositoryName}" is already assigned to another project`,
-          {
-            context: 'Repository can only be assigned to one project',
-            suggestion: 'Unassign from current project first',
-            data: { repositoryName, currentProject: repository.githubProject }
-          }
-        );
-      }
-
-      // Apply the GithubProject mixin to the project if not already applied
-      const existingGithubProject = await client.findOne(
-        'github:mixin:GithubProject',
-        { _id: project._id }
-      );
-
-      if (!existingGithubProject) {
-        // Apply the mixin with initial data
-        await client.createMixin(
-          project._id,
-          tracker.class.Project,
-          project.space,
-          'github:mixin:GithubProject',
-          {
-            integration: repository.attachedTo, // The GithubIntegration ID
-            repositories: [repository._id],
-            projectNodeId: `project-${project._id}`,
-            projectNumber: project.sequence || 1
-          }
-        );
-      } else {
-        // Update existing GitHub project to add this repository
-        const currentRepos = existingGithubProject.repositories || [];
-        if (!currentRepos.includes(repository._id)) {
-          await client.updateMixin(
-            project._id,
-            tracker.class.Project,
-            project.space,
-            'github:mixin:GithubProject',
-            {
-              repositories: [...currentRepos, repository._id]
-            }
-          );
-        }
-      }
-
-      // Update the repository to link it to this project
-      await client.updateDoc(
-        'github:class:GithubIntegrationRepository',
-        repository.space,
-        repository._id,
-        {
-          githubProject: project._id
-        }
-      );
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `✅ Successfully assigned GitHub repository "${repositoryName}" to project ${project.name} (${projectIdentifier})\n\nThe project now has GitHub integration enabled and can sync issues, pull requests, and other GitHub data.`
-          }
-        ]
-      };
-    } catch (error) {
-      throw HulyError.database('assign repository to project', error);
-    }
-  }
 
   async listComments(client, issueIdentifier, limit = 50) {
     try {
