@@ -9,6 +9,7 @@
     "start:http": "node index.js --transport=http",
     "start:stdio": "node index.js --transport=stdio",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:staged": "NODE_OPTIONS='--experimental-vm-modules' jest --bail --findRelatedTests",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -49,7 +50,8 @@
     ],
     "*.test.js": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix",
+      "npm run test:staged --"
     ],
     "*.json": "prettier --write",
     "*.md": "prettier --write"
