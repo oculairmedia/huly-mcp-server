@@ -171,20 +171,9 @@ class IssueService {
     const number = (lastOne?.number ?? 0) + 1;
     const identifier = `${project.identifier}-${number}`;
 
-    // Create description if provided
-    let descriptionRef = '';
-    if (description && description.trim()) {
-      try {
-        descriptionRef = await this._createDescriptionMarkup(client, identifier, description);
-      } catch (error) {
-        console.error('Error creating description:', error);
-        // Continue without description rather than failing
-      }
-    }
-
     const issueData = {
       title,
-      description: descriptionRef,
+      description: '', // Will be updated after issue creation
       assignee: null,
       component: null,
       milestone: null,
@@ -212,6 +201,30 @@ class IssueService {
       'subIssues',
       issueData
     );
+
+    // Now upload description using the actual issue ID
+    if (description && description.trim()) {
+      try {
+        const descriptionRef = await client.uploadMarkup(
+          tracker.class.Issue,
+          issueId,
+          'description',
+          description.trim(),
+          'markdown' // Use markdown format for plain text
+        );
+        
+        // Update the issue with the description reference
+        await client.updateDoc(
+          tracker.class.Issue,
+          project._id,
+          issueId,
+          { description: descriptionRef }
+        );
+      } catch (error) {
+        console.error('Error creating description:', error);
+        // Continue without description rather than failing
+      }
+    }
 
     // Get status name for display
     let statusName = 'Backlog';
@@ -264,7 +277,7 @@ class IssueService {
         let descriptionRef = '';
         if (value && value.trim()) {
           try {
-            descriptionRef = await this._createDescriptionMarkup(client, issueIdentifier, value);
+            descriptionRef = await this._createDescriptionMarkup(client, issue._id, value);
           } catch (error) {
             console.error('Error creating description:', error);
             throw HulyError.operationFailed('Failed to update description', { error: error.message });
@@ -405,19 +418,9 @@ class IssueService {
     const number = (lastOne?.number ?? 0) + 1;
     const identifier = `${project.identifier}-${number}`;
 
-    // Create description if provided
-    let descriptionRef = '';
-    if (description && description.trim()) {
-      try {
-        descriptionRef = await this._createDescriptionMarkup(client, identifier, description);
-      } catch (error) {
-        console.error('Error creating description:', error);
-      }
-    }
-
     const issueData = {
       title,
-      description: descriptionRef,
+      description: '', // Will be updated after issue creation
       assignee: null,
       component: parentIssue.component,  // Inherit from parent
       milestone: parentIssue.milestone,  // Inherit from parent
@@ -445,6 +448,30 @@ class IssueService {
       'subIssues',
       issueData
     );
+
+    // Now upload description using the actual issue ID
+    if (description && description.trim()) {
+      try {
+        const descriptionRef = await client.uploadMarkup(
+          tracker.class.Issue,
+          issueId,
+          'description',
+          description.trim(),
+          'markdown' // Use markdown format for plain text
+        );
+        
+        // Update the issue with the description reference
+        await client.updateDoc(
+          tracker.class.Issue,
+          project._id,
+          issueId,
+          { description: descriptionRef }
+        );
+      } catch (error) {
+        console.error('Error creating description:', error);
+        // Continue without description rather than failing
+      }
+    }
 
     // Update parent's subIssues count
     await client.updateDoc(
@@ -1000,25 +1027,22 @@ class IssueService {
       return ''; // Return empty string for empty descriptions
     }
     
-    // Create the markup content as a JSON string
-    const markupContent = {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [
-            {
-              type: 'text',
-              text: text.trim()
-            }
-          ]
-        }
-      ]
-    };
-
-    // For now, store the markup content directly as a JSON string
-    // This matches the current implementation in index.js
-    return JSON.stringify(markupContent);
+    try {
+      // Use the client's uploadMarkup method to properly store the content
+      const markupRef = await client.uploadMarkup(
+        tracker.class.Issue,
+        issueId,
+        'description',
+        text.trim(),
+        'markdown' // Use markdown format for plain text
+      );
+      
+      return markupRef;
+    } catch (error) {
+      console.error('Failed to create markup:', error);
+      // Fallback to empty string if markup creation fails
+      return '';
+    }
   }
 
   /**
