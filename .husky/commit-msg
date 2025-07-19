@@ -1,0 +1,21 @@
+#\!/bin/sh
+
+# Get the commit message
+commit_regex='^(feat < /dev/null | fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,}$|^Merge branch|^Merge pull request|^Initial commit'
+commit_message=$(cat "$1")
+
+if \! echo "$commit_message" | grep -qE "$commit_regex"; then
+  echo "❌ Invalid commit message format\!"
+  echo ""
+  echo "Commit message must follow the format:"
+  echo "  <type>(<scope>): <subject>"
+  echo ""
+  echo "Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
+  echo ""
+  echo "Examples:"
+  echo "  feat(auth): add login functionality"
+  echo "  fix(api): resolve connection timeout issue"
+  echo "  docs: update README with new instructions"
+  echo ""
+  exit 1
+fi

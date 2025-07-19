@@ -333,8 +333,43 @@ huly-mcp-server/
     └── setup-hooks.sh        # Install Git hooks
 ```
 
+### Code Quality
+
+#### Linting
+```bash
+# Check for linting errors
+npm run lint
+
+# Auto-fix linting errors
+npm run lint:fix
+```
+
+#### Pre-commit Hooks
+The project uses Husky and lint-staged to ensure code quality before commits:
+
+- **ESLint**: Automatically fixes and validates JavaScript files
+- **Test Runner**: Runs related tests for modified test files
+- **Commit Message**: Enforces conventional commit format
+
+Commit message format:
+```
+<type>(<scope>): <subject>
+
+Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert
+```
+
+Examples:
+```bash
+git commit -m "feat(api): add new endpoint for user data"
+git commit -m "fix: resolve connection timeout issue"
+git commit -m "docs: update README with setup instructions"
+```
+
 ### Running Tests
 ```bash
+# Run all tests
+npm test
+
 # Test stdio transport
 timeout 5 npm run start:stdio
 

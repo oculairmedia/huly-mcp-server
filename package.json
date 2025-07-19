@@ -10,7 +10,8 @@
     "start:stdio": "node index.js --transport=stdio",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "prepare": "husky"
   },
   "dependencies": {
     "@hcengineering/activity": "0.6.500",
@@ -32,6 +33,15 @@
     "eslint": "^9.31.0",
     "eslint-plugin-jest": "^29.0.1",
     "eslint-plugin-node": "^11.1.0",
-    "jest": "^30.0.4"
+    "husky": "^9.1.7",
+    "jest": "^30.0.4",
+    "lint-staged": "^16.1.2"
+  },
+  "lint-staged": {
+    "*.js": "eslint --fix",
+    "*.test.js": [
+      "eslint --fix",
+      "jest --bail --findRelatedTests"
+    ]
   }
 }
