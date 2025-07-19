@@ -7,20 +7,25 @@
   "scripts": {
     "start": "node index.js",
     "start:http": "node index.js --transport=http",
-    "start:stdio": "node index.js --transport=stdio"
+    "start:stdio": "node index.js --transport=stdio",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
   },
   "dependencies": {
-    "@hcengineering/api-client": "0.6.500",
-    "@hcengineering/core": "0.6.500",
-    "@hcengineering/tracker": "0.6.500",
-    "@hcengineering/task": "0.6.500",
-    "@hcengineering/rank": "0.6.500",
-    "@hcengineering/chunter": "0.6.500",
     "@hcengineering/activity": "0.6.500",
+    "@hcengineering/api-client": "0.6.500",
+    "@hcengineering/chunter": "0.6.500",
     "@hcengineering/collaborator-client": "0.6.500",
+    "@hcengineering/core": "0.6.500",
+    "@hcengineering/rank": "0.6.500",
+    "@hcengineering/task": "0.6.500",
+    "@hcengineering/tracker": "0.6.500",
     "@modelcontextprotocol/sdk": "^0.6.0",
-    "ws": "^8.16.0",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.0.4",
+    "jest": "^30.0.4"
   }
 }
