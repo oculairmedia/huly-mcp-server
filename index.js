@@ -133,7 +133,8 @@ class HulyMCPServer {
         tracker.class.Issue,
         issueId,
         'description',
-        text.trim()
+        text.trim(),
+        'markdown'  // Specify markdown format for plain text descriptions
       );
       
       console.log('Created MarkupBlobRef:', markupRef);
@@ -146,29 +147,61 @@ class HulyMCPServer {
   }
 
   // Helper function to get description content from MarkupBlobRef
-  async getDescriptionContent(descriptionRef) {
+  extractTextFromDoc(doc) {
+    if (!doc || !doc.content) return '';
+    
+    let text = '';
+    const processNode = (node) => {
+      if (node.type === 'text' && node.text) {
+        text += node.text;
+      } else if (node.content && Array.isArray(node.content)) {
+        node.content.forEach(processNode);
+      }
+      if (node.type === 'paragraph' || node.type === 'heading') {
+        text += '\n';
+      }
+    };
+    
+    if (Array.isArray(doc.content)) {
+      doc.content.forEach(processNode);
+    }
+    
+    return text.trim();
+  }
+
+  async getDescriptionContent(descriptionRef, issueId) {
     if (!descriptionRef || descriptionRef === '') {
       return '';
     }
     
     try {
-      // Use the client's fetchMarkup method to retrieve the content
-      const markup = await this.hulyClient.fetchMarkup(descriptionRef);
-      
-      // The markup might be returned as plain text or as JSON
-      if (typeof markup === 'string') {
-        // If it starts with '{', it might be JSON markup
-        if (markup.startsWith('{')) {
-          try {
-            const doc = JSON.parse(markup);
-            return extractTextFromMarkup(doc);
-          } catch (e) {
-            // Not JSON, return as is
-            return markup;
+      // fetchMarkup needs the object details to retrieve content
+      // If we don't have issueId, try to extract it from the reference
+      if (!issueId && typeof descriptionRef === 'string') {
+        // Try to extract issueId from reference format
+        if (descriptionRef.includes(':')) {
+          const parts = descriptionRef.split(':');
+          if (parts.length >= 3) {
+            issueId = parts[2].split('-')[0];
           }
+        } else if (descriptionRef.includes('-')) {
+          issueId = descriptionRef.split('-')[0];
         }
-        return markup;
       }
+      
+      if (!issueId) {
+        console.error('Cannot extract issueId from description reference');
+        return `[MarkupBlobRef: ${descriptionRef}]`;
+      }
+      
+      // Use the client's fetchMarkup method to retrieve the content
+      const markup = await this.hulyClient.fetchMarkup(
+        tracker.class.Issue,
+        issueId,
+        'description',
+        descriptionRef,
+        'markdown'  // Fetch as markdown since we stored as markdown
+      );
       
       return markup || '';
     } catch (error) {
@@ -716,7 +749,7 @@ class HulyMCPServer {
       
       // Add description if present
       if (issue.description) {
-        const descContent = await this.getDescriptionContent(issue.description);
+        const descContent = await this.getDescriptionContent(issue.description, issue._id);
         if (descContent) {
           // Truncate long descriptions to keep output readable
           const maxLength = 200;
@@ -1698,9 +1731,12 @@ class HulyMCPServer {
         );
       }
 
-      // Find all chat messages (comments) attached to this issue
-      const comments = await client.findAll(
-        chunter.class.ChatMessage,
+      // Get the total comment count from the issue's collection counter
+      const totalCommentCount = issue.comments || 0;
+
+      // Find all activity messages (includes ChatMessage, ThreadMessage, etc.)
+      const activityMessages = await client.findAll(
+        activity.class.ActivityMessage,
         { 
           attachedTo: issue._id,
           attachedToClass: tracker.class.Issue
@@ -1711,20 +1747,57 @@ class HulyMCPServer {
         }
       );
 
-      let result = `Found ${comments.length} comments on issue ${issueIdentifier}:\n\n`;
+      // Also find thread messages which use a different attachment pattern
+      const threadMessages = await client.findAll(
+        chunter.class.ThreadMessage,
+        {
+          objectId: issue._id,
+          objectClass: tracker.class.Issue
+        },
+        {
+          limit: Math.max(0, limit - activityMessages.length),
+          sort: { createdOn: 1 }
+        }
+      );
+
+      // Combine all messages
+      const allMessages = [...activityMessages, ...threadMessages].sort((a, b) => a.createdOn - b.createdOn);
+
+      let result = `Found ${totalCommentCount} total comments on issue ${issueIdentifier} (showing ${allMessages.length}):\n\n`;
       
-      if (comments.length === 0) {
-        result += 'No comments found on this issue.';
+      if (allMessages.length === 0) {
+        result += 'No comments retrieved. Comments may exist but are not accessible via current query.';
       } else {
-        for (const comment of comments) {
+        for (const comment of allMessages) {
           const createdDate = new Date(comment.createdOn).toLocaleString();
           const modifiedDate = comment.modifiedOn !== comment.createdOn 
             ? ` (edited: ${new Date(comment.modifiedOn).toLocaleString()})` 
             : '';
           
-          result += `💬 **Comment by ${comment.createdBy || 'Unknown'}**\n`;
+          // Determine comment type
+          let commentType = '💬';
+          if (comment._class === chunter.class.ThreadMessage) {
+            commentType = '🔗';
+          } else if (comment._class === activity.class.DocUpdateMessage) {
+            commentType = '📝';
+          }
+          
+          result += `${commentType} **Comment by ${comment.createdBy || 'Unknown'}**\n`;
           result += `   Date: ${createdDate}${modifiedDate}\n`;
-          result += `   Message: ${comment.message}\n`;
+          
+          // Parse message content if it's JSON
+          let messageContent = comment.message;
+          try {
+            const parsed = JSON.parse(comment.message);
+            if (parsed.type === 'doc' && parsed.content) {
+              // Extract text from ProseMirror document structure
+              messageContent = this.extractTextFromDoc(parsed);
+            }
+          } catch (e) {
+            // Not JSON, use as-is
+          }
+          
+          result += `   Message: ${messageContent}\n`;
           
           // Check for attachments
           if (comment.attachments && comment.attachments > 0) {
@@ -1914,7 +1987,7 @@ class HulyMCPServer {
       // Get full description content
       let fullDescription = '';
       if (issue.description) {
-        fullDescription = await this.getDescriptionContent(issue.description);
+        fullDescription = await this.getDescriptionContent(issue.description, issue._id);
       }
 
       // Build comprehensive result
@@ -2266,7 +2339,7 @@ class HulyMCPServer {
         
         // Add description if present (truncated for search results)
         if (issue.description) {
-          const descContent = await this.getDescriptionContent(issue.description);
+          const descContent = await this.getDescriptionContent(issue.description, issue._id);
           if (descContent) {
             const maxLength = 200;
             const truncated = descContent.length > maxLength 
