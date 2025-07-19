@@ -3357,6 +3357,11 @@ const args = process.argv.slice(2);
 const transportArg = args.find(arg => arg.startsWith('--transport='));
 const transportType = transportArg ? transportArg.split('=')[1] : 'stdio';
 
-// Run the server
-const server = new HulyMCPServer();
-server.run(transportType).catch(console.error);
+// Export for testing
+export { HulyMCPServer, HulyError, ERROR_CODES };
+
+// Run the server only if this is the main module
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const server = new HulyMCPServer();
+  server.run(transportType).catch(console.error);
+}

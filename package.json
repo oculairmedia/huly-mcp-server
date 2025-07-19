@@ -7,7 +7,10 @@
   "scripts": {
     "start": "node index.js",
     "start:http": "node index.js --transport=http",
-    "start:stdio": "node index.js --transport=stdio"
+    "start:stdio": "node index.js --transport=stdio",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:ci": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage --ci --reporters=default --reporters=jest-junit"
   },
   "dependencies": {
     "@hcengineering/api-client": "0.6.500",
@@ -22,5 +25,38 @@
     "ws": "^8.16.0",
     "express": "^4.18.2",
     "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@jest/globals": "^29.7.0",
+    "jest-environment-node": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"],
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "index.js",
+      "StatusManager.js",
+      "!scripts/**",
+      "!coverage/**",
+      "!node_modules/**"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    },
+    "testMatch": [
+      "**/__tests__/**/*.test.js",
+      "**/?(*.)+(spec|test).js"
+    ]
   }
 }
