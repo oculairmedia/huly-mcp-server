@@ -142,4 +142,4 @@ const server = new HulyMCPServer();
 server.run(transportType).catch((error) => {
   logger.error('Failed to start server', error);
   process.exit(1);
-});
+});// Test comment
