@@ -12,26 +12,25 @@ import { createHulyClient } from './src/core/index.js';
 import { projectService, createIssueService } from './src/services/index.js';
 import { createMCPHandler, toolDefinitions } from './src/protocol/index.js';
 import { TransportFactory } from './src/transport/index.js';
+import { getConfigManager } from './src/config/index.js';
 import statusManager from './StatusManager.js';
 
 // Create issueService instance with statusManager
 const issueService = createIssueService(statusManager);
 
-// Huly connection configuration
-const HULY_CONFIG = {
-  url: process.env.HULY_URL || 'https://pm.oculair.ca',
-  email: process.env.HULY_EMAIL || 'emanuvaderland@gmail.com',
-  password: process.env.HULY_PASSWORD || 'k2a8yy7sFWVZ6eL',
-  workspace: process.env.HULY_WORKSPACE || 'agentspace'
-};
+// Get configuration manager instance
+const configManager = getConfigManager();
 
 class HulyMCPServer {
   constructor() {
+    this.configManager = configManager;
+    const serverInfo = this.configManager.getServerInfo();
+    
     this.server = new Server(
       {
-        name: 'huly-mcp-server',
-        version: '1.0.0',
-        description: 'MCP server for Huly project management platform'
+        name: serverInfo.name,
+        version: serverInfo.version,
+        description: this.configManager.get('server.description')
       },
       {
         capabilities: {
@@ -40,12 +39,7 @@ class HulyMCPServer {
       }
     );
 
-    this.hulyClientWrapper = createHulyClient({
-      url: HULY_CONFIG.url,
-      email: HULY_CONFIG.email,
-      password: HULY_CONFIG.password,
-      workspace: HULY_CONFIG.workspace
-    });
+    this.hulyClientWrapper = createHulyClient(this.configManager.getHulyConfig());
     
     this.services = {
       projectService,
@@ -92,7 +86,7 @@ class HulyMCPServer {
       toolDefinitions,
       hulyClientWrapper: this.hulyClientWrapper,
       services: this.services,
-      port: process.env.PORT || 3000
+      port: this.configManager.get('transport.http.port')
     };
     
     this.transport = TransportFactory.create(transportType, this.server, transportOptions);
@@ -115,7 +109,7 @@ class HulyMCPServer {
 // Parse command line arguments
 const args = process.argv.slice(2);
 const transportArg = args.find(arg => arg.startsWith('--transport='));
-const transportType = transportArg ? transportArg.split('=')[1] : 'stdio';
+const transportType = transportArg ? transportArg.split('=')[1] : configManager.get('transport.defaultType');
 
 // Validate transport type
 if (!TransportFactory.isSupported(transportType)) {
