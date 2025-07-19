@@ -1,11 +1,11 @@
-#\!/bin/sh
+#!/bin/sh
 
 # Get the commit message
-commit_regex='^(feat < /dev/null | fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,}$|^Merge branch|^Merge pull request|^Initial commit'
+commit_regex='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,}$|^Merge branch|^Merge pull request|^Initial commit'
 commit_message=$(cat "$1")
 
-if \! echo "$commit_message" | grep -qE "$commit_regex"; then
-  echo "❌ Invalid commit message format\!"
+if ! echo "$commit_message" | grep -qE "$commit_regex"; then
+  echo "❌ Invalid commit message format!"
   echo ""
   echo "Commit message must follow the format:"
   echo "  <type>(<scope>): <subject>"
