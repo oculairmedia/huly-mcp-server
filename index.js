@@ -2,7 +2,7 @@
 
 /**
  * Huly MCP Server
- * 
+ *
  * Provides MCP tools for interacting with Huly project management platform
  * using the compatible SDK version 0.6.500
  */
@@ -30,7 +30,7 @@ class HulyMCPServer {
     this.configManager = configManager;
     this.logger = logger;
     const serverInfo = this.configManager.getServerInfo();
-    
+
     this.server = new Server(
       {
         name: serverInfo.name,
@@ -43,39 +43,39 @@ class HulyMCPServer {
         }
       }
     );
-    
+
     this.logger.info('Initializing Huly MCP Server');
 
     this.hulyClientWrapper = createHulyClient(this.configManager.getHulyConfig());
-    
+
     const hulyConfig = this.configManager.getHulyConfig();
-    this.logger.debug('Huly client configured', { 
-      url: hulyConfig.url, 
-      workspace: hulyConfig.workspace 
+    this.logger.debug('Huly client configured', {
+      url: hulyConfig.url,
+      workspace: hulyConfig.workspace
     });
-    
+
     this.services = {
       projectService,
       issueService
     };
-    
+
     // Initialize MCP protocol handler
     this.mcpHandler = createMCPHandler(this.server, {
       ...this.services,
       hulyClientWrapper: this.hulyClientWrapper
     });
-    
+
     this.transport = null;
   }
 
   async cleanup() {
     this.logger.info('Shutting down Huly MCP Server');
-    
+
     // Stop transport if running
     if (this.transport && this.transport.isRunning()) {
       await this.transport.stop();
     }
-    
+
     // Disconnect from Huly
     if (this.hulyClientWrapper) {
       await this.hulyClientWrapper.disconnect();
@@ -90,7 +90,7 @@ class HulyMCPServer {
       await this.cleanup();
       process.exit(0);
     });
-    
+
     process.on('SIGTERM', async () => {
       this.logger.info('Received SIGTERM signal');
       await this.cleanup();
@@ -107,13 +107,13 @@ class HulyMCPServer {
       port: this.configManager.get('transport.http.port'),
       logger: this.logger.child('transport')
     };
-    
+
     this.transport = TransportFactory.create(transportType, this.server, transportOptions);
-    
+
     // Start the transport
     try {
       await this.transport.start();
-      
+
       // Only log for HTTP transport; stdio transport should not log
       if (transportType === 'http') {
         this.logger.info(`Huly MCP Server started with ${transportType} transport`);

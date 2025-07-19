@@ -43,14 +43,14 @@ export default [
     rules: {
       // Error prevention
       'no-console': 'off', // Allow console for logging
-      'no-unused-vars': ['error', { 
+      'no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_'
       }],
       'no-undef': 'error',
       'no-constant-condition': 'warn',
       'no-debugger': 'error',
-      
+
       // Best practices
       'eqeqeq': ['error', 'always'],
       'no-eval': 'error',
@@ -60,29 +60,29 @@ export default [
       'prefer-const': 'error',
       'prefer-arrow-callback': 'error',
       'no-var': 'error',
-      
+
       // Style
       'semi': ['error', 'always'],
-      'quotes': ['error', 'single', { 
+      'quotes': ['error', 'single', {
         avoidEscape: true,
-        allowTemplateLiterals: true 
+        allowTemplateLiterals: true
       }],
-      'indent': ['error', 2, { 
-        SwitchCase: 1 
+      'indent': ['error', 2, {
+        SwitchCase: 1
       }],
       'comma-dangle': ['error', 'never'],
       'no-trailing-spaces': 'error',
-      'no-multiple-empty-lines': ['error', { 
-        max: 2, 
-        maxEOF: 1 
+      'no-multiple-empty-lines': ['error', {
+        max: 2,
+        maxEOF: 1
       }],
-      
+
       // ES6
       'arrow-spacing': 'error',
       'no-duplicate-imports': 'error',
       'prefer-template': 'error',
       'template-curly-spacing': ['error', 'never'],
-      
+
       // Node.js specific
       'node/no-unsupported-features/es-syntax': 'off', // We're using ES modules
       'node/no-missing-import': 'off', // Doesn't work well with ES modules

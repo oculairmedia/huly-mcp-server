@@ -2,7 +2,6 @@
  * Tests for validation utilities
  */
 
-import { jest } from '@jest/globals';
 import {
   isValidProjectIdentifier,
   isValidIssueIdentifier,
@@ -193,7 +192,7 @@ describe('Validation Utilities', () => {
     it('should validate length constraints', () => {
       expect(validateRequiredString('test', 'field', { minLength: 3 })).toBe('test');
       expect(() => validateRequiredString('ab', 'field', { minLength: 3 })).toThrow(HulyError);
-      
+
       expect(validateRequiredString('test', 'field', { maxLength: 5 })).toBe('test');
       expect(() => validateRequiredString('toolong', 'field', { maxLength: 5 })).toThrow(HulyError);
     });

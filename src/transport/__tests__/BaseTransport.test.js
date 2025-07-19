@@ -24,14 +24,14 @@ describe('BaseTransport', () => {
     expect(transport.server).toBe(server);
   });
 
-  it('should require subclasses to implement abstract methods', () => {
+  it('should require subclasses to implement abstract methods', async () => {
     class IncompleteTransport extends BaseTransport {}
-    
+
     const server = { connect: jest.fn() };
     const transport = new IncompleteTransport(server);
 
-    expect(() => transport.start()).rejects.toThrow('start() method must be implemented by subclass');
-    expect(() => transport.stop()).rejects.toThrow('stop() method must be implemented by subclass');
+    await expect(() => transport.start()).rejects.toThrow('start() method must be implemented by subclass');
+    await expect(() => transport.stop()).rejects.toThrow('stop() method must be implemented by subclass');
     expect(() => transport.getType()).toThrow('getType() method must be implemented by subclass');
     expect(() => transport.isRunning()).toThrow('isRunning() method must be implemented by subclass');
   });

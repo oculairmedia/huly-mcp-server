@@ -1,6 +1,6 @@
 /**
  * BaseTransport - Abstract base class for MCP transports
- * 
+ *
  * Defines the interface that all transport implementations must follow
  */
 

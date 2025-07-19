@@ -1,6 +1,6 @@
 /**
  * HulyClient - Wrapper for Huly platform connection management
- * 
+ *
  * Provides connection pooling, retry logic, and proper cleanup
  * for the Huly API client
  */
@@ -8,7 +8,6 @@
 import apiClient from '@hcengineering/api-client';
 import WebSocket from 'ws';
 import { HulyError } from './HulyError.js';
-import { ERROR_CODES } from './constants.js';
 
 const { connect } = apiClient;
 
@@ -60,7 +59,7 @@ export class HulyClient {
 
     // Start new connection attempt
     this.connectionPromise = this._connectWithRetry();
-    
+
     try {
       this.client = await this.connectionPromise;
       return this.client;
@@ -77,7 +76,7 @@ export class HulyClient {
   async _connectWithRetry() {
     this.isConnecting = true;
     this.retryCount = 0;
-    
+
     while (this.retryCount < RETRY_CONFIG.maxAttempts) {
       try {
         const client = await this._attemptConnection();
@@ -88,23 +87,23 @@ export class HulyClient {
       } catch (error) {
         this.lastConnectionError = error;
         this.retryCount++;
-        
+
         if (this.retryCount >= RETRY_CONFIG.maxAttempts) {
           this.isConnecting = false;
           throw HulyError.connection('Huly platform', error);
         }
-        
+
         // Calculate delay with exponential backoff
         const delay = Math.min(
           RETRY_CONFIG.initialDelay * Math.pow(RETRY_CONFIG.backoffFactor, this.retryCount - 1),
           RETRY_CONFIG.maxDelay
         );
-        
+
         console.log(`Connection attempt ${this.retryCount} failed, retrying in ${delay}ms...`);
         await this._sleep(delay);
       }
     }
-    
+
     this.isConnecting = false;
     throw HulyError.connection('Huly platform', this.lastConnectionError);
   }
@@ -122,10 +121,10 @@ export class HulyClient {
         workspace: this.config.workspace,
         socketFactory: (url) => new WebSocket(url)
       });
-      
+
       // Verify connection is working
       await this._verifyConnection(client);
-      
+
       return client;
     } catch (error) {
       console.error('Connection attempt failed:', error.message);
@@ -144,8 +143,8 @@ export class HulyClient {
       // Try a simple operation to verify connection
       // This uses the account module to check if we can access account info
       const accountModule = await import('@hcengineering/core');
-      const core = accountModule.default || accountModule;
-      
+      const _core = accountModule.default || accountModule;
+
       // Just check if we can access the hierarchy
       const hierarchy = client.getHierarchy();
       if (!hierarchy) {
@@ -162,12 +161,12 @@ export class HulyClient {
    */
   isConnected() {
     if (!this.client) return false;
-    
+
     try {
       // Check if we can still access the hierarchy
       const hierarchy = this.client.getHierarchy();
       return hierarchy !== null && hierarchy !== undefined;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -179,7 +178,7 @@ export class HulyClient {
    */
   async getClient() {
     if (!this.isConnected()) {
-      return await this.connect();
+      return this.connect();
     }
     return this.client;
   }
@@ -193,11 +192,11 @@ export class HulyClient {
       // Wait for any pending connection to complete
       try {
         await this.connectionPromise;
-      } catch (error) {
+      } catch {
         // Ignore connection errors during disconnect
       }
     }
-    
+
     if (this.client) {
       try {
         if (typeof this.client.close === 'function') {
@@ -221,7 +220,7 @@ export class HulyClient {
    */
   async reconnect() {
     await this.disconnect();
-    return await this.connect();
+    return this.connect();
   }
 
   /**
@@ -232,14 +231,14 @@ export class HulyClient {
    */
   async withClient(fn, maxRetries = 1) {
     let lastError;
-    
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const client = await this.getClient();
         return await fn(client);
       } catch (error) {
         lastError = error;
-        
+
         // Check if error is connection-related
         if (this._isConnectionError(error) && attempt < maxRetries) {
           console.log(`Operation failed due to connection error, reconnecting (attempt ${attempt + 1}/${maxRetries})...`);
@@ -249,7 +248,7 @@ export class HulyClient {
         }
       }
     }
-    
+
     throw lastError;
   }
 
@@ -270,7 +269,7 @@ export class HulyClient {
       'websocket',
       'network'
     ];
-    
+
     const errorMessage = error.message?.toLowerCase() || '';
     return connectionKeywords.some(keyword => errorMessage.includes(keyword));
   }

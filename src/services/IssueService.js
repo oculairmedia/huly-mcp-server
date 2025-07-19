@@ -1,23 +1,18 @@
 /**
  * IssueService - Handles all issue-related operations
- * 
+ *
  * Provides methods for creating, updating, listing, and searching issues
  * in the Huly project management system.
  */
 
 import { HulyError } from '../core/HulyError.js';
-import { ERROR_CODES, PRIORITY_MAP, DEFAULTS } from '../core/constants.js';
+import { PRIORITY_MAP, DEFAULTS } from '../core/constants.js';
 import { extractTextFromMarkup, extractTextFromDoc } from '../utils/textExtractor.js';
-import { 
-  validateRequiredString,
-  validateOptionalString,
+import {
   validateEnum,
-  isValidPriority,
   getValidPriorities,
   normalizePriority,
-  isValidUpdateField,
-  validateProjectIdentifier,
-  validateIssueIdentifier
+  isValidUpdateField
 } from '../utils/validators.js';
 import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
@@ -28,8 +23,8 @@ import taskModule from '@hcengineering/task';
 const tracker = trackerModule.default || trackerModule;
 const core = coreModule.default || coreModule;
 const chunter = chunterModule.default || chunterModule;
-const activity = activityModule.default || activityModule;
-const task = taskModule.default || taskModule;
+const _activity = activityModule.default || activityModule;
+const _task = taskModule.default || taskModule;
 
 class IssueService {
   constructor(statusManager = null) {
@@ -52,7 +47,7 @@ class IssueService {
     const issues = await client.findAll(
       tracker.class.Issue,
       { space: project._id },
-      { 
+      {
         limit,
         sort: { modifiedOn: -1 }
       }
@@ -73,48 +68,48 @@ class IssueService {
     const milestoneMap = new Map(milestones.map(m => [m._id, m]));
 
     let result = `Found ${issues.length} issues in ${project.name}:\n\n`;
-    
+
     for (const issue of issues) {
       result += `📋 **${issue.identifier}**: ${issue.title}\n`;
-      
+
       // Use StatusManager to display human-readable status
       try {
         const humanStatus = this.statusManager.toHumanStatus(issue.status);
         const statusDescription = this.statusManager.getStatusDescription(issue.status);
         result += `   Status: ${humanStatus} (${statusDescription})\n`;
-      } catch (error) {
+      } catch {
         result += `   Status: ${issue.status}\n`;
       }
-      
+
       const priorityNames = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
       const priorityName = priorityNames[issue.priority] || 'Not set';
       result += `   Priority: ${priorityName}\n`;
-      
+
       // Resolve assignee
       if (issue.assignee) {
         const assignee = await client.findOne(core.class.Account, { _id: issue.assignee });
         result += `   Assignee: ${assignee?.email || 'Unknown'}\n`;
       }
-      
+
       // Resolve component
       if (issue.component) {
         const component = componentMap.get(issue.component);
         result += `   Component: ${component?.label || 'Unknown'}\n`;
       }
-      
+
       // Resolve milestone
       if (issue.milestone) {
         const milestone = milestoneMap.get(issue.milestone);
         result += `   Milestone: ${milestone?.label || 'Unknown'}\n`;
       }
-      
+
       // Add description preview if available
       if (issue.description) {
         try {
           const descText = await this._extractDescription(client, issue);
           if (descText && descText.trim()) {
-            const preview = descText.length > 100 ? 
-              descText.substring(0, 100) + '...' : 
+            const preview = descText.length > 100 ?
+              `${descText.substring(0, 100)}...` :
               descText;
             result += `   Description: ${preview}\n`;
           }
@@ -122,7 +117,7 @@ class IssueService {
           console.error('Error extracting description:', error);
         }
       }
-      
+
       result += '\n';
     }
 
@@ -212,7 +207,7 @@ class IssueService {
           description.trim(),
           'markdown' // Use markdown format for plain text
         );
-        
+
         // Update the issue with the description reference
         await client.updateDoc(
           tracker.class.Issue,
@@ -264,15 +259,15 @@ class IssueService {
       throw HulyError.notFound('issue', issueIdentifier);
     }
 
-    let updateData = {};
+    const updateData = {};
     let displayValue = value;
 
     switch (field) {
       case 'title':
         updateData.title = value;
         break;
-        
-      case 'description':
+
+      case 'description': {
         // Create new description markup
         let descriptionRef = '';
         if (value && value.trim()) {
@@ -285,18 +280,19 @@ class IssueService {
         }
         updateData.description = descriptionRef;
         break;
-        
+      }
+
       case 'status':
         try {
           // Convert human-readable status to internal format
           const internalStatus = this.statusManager.fromHumanStatus(value);
           const validStatuses = await this.statusManager.getValidStatuses(client, issue.space);
-          
+
           if (!validStatuses.includes(internalStatus)) {
             const humanStatuses = await this.statusManager.getHumanStatuses(client, issue.space);
             throw HulyError.invalidValue('status', value, humanStatuses.join(', '));
           }
-          
+
           updateData.status = internalStatus;
           displayValue = this.statusManager.toHumanStatus(internalStatus);
         } catch (error) {
@@ -307,52 +303,55 @@ class IssueService {
           updateData.status = value;
         }
         break;
-        
-      case 'priority':
+
+      case 'priority': {
         // Normalize and validate priority
         const normalizedPriority = normalizePriority(value);
         if (!normalizedPriority) {
           throw HulyError.invalidValue('priority', value, 'low, medium, high, urgent, or nopriority');
         }
-        
+
         updateData.priority = tracker.component.Priority[normalizedPriority === 'NoPriority' ? 'NoPriority' : normalizedPriority.charAt(0).toUpperCase() + normalizedPriority.slice(1)];
         displayValue = normalizedPriority === 'NoPriority' ? 'No Priority' : normalizedPriority;
         break;
-        
-      case 'component':
+      }
+
+      case 'component': {
         // Find component by label
         const component = await client.findOne(
           tracker.class.Component,
-          { 
+          {
             space: issue.space,
-            label: value 
+            label: value
           }
         );
-        
+
         if (!component && value) {
           throw HulyError.notFound('component', value);
         }
-        
+
         updateData.component = component?._id || null;
         break;
-        
-      case 'milestone':
+      }
+
+      case 'milestone': {
         // Find milestone by label
         const milestone = await client.findOne(
           tracker.class.Milestone,
-          { 
+          {
             space: issue.space,
-            label: value 
+            label: value
           }
         );
-        
+
         if (!milestone && value) {
           throw HulyError.notFound('milestone', value);
         }
-        
+
         updateData.milestone = milestone?._id || null;
         break;
-        
+      }
+
       default:
         throw HulyError.invalidValue('field', field, 'title, description, status, priority, component, or milestone');
     }
@@ -459,7 +458,7 @@ class IssueService {
           description.trim(),
           'markdown' // Use markdown format for plain text
         );
-        
+
         // Update the issue with the description reference
         await client.updateDoc(
           tracker.class.Issue,
@@ -537,29 +536,29 @@ class IssueService {
       // Get author information
       const author = await client.findOne(core.class.Account, { _id: comment.createdBy });
       const authorName = author?.email || 'Unknown';
-      
+
       // Format timestamp
       const timestamp = new Date(comment.createdOn).toLocaleString();
-      
+
       result += `💬 **${authorName}** - ${timestamp}\n`;
-      
+
       // Extract comment text
       let commentText = 'No content';
       if (comment.message) {
         try {
           // Try to extract text from the message (could be markup)
           commentText = await extractTextFromMarkup(comment.message);
-        } catch (error) {
+        } catch {
           // If extraction fails, use the raw message
           commentText = typeof comment.message === 'string' ? comment.message : JSON.stringify(comment.message);
         }
       }
-      
+
       // Truncate long comments
       if (commentText.length > 500) {
-        commentText = commentText.substring(0, 497) + '...';
+        commentText = `${commentText.substring(0, 497)}...`;
       }
-      
+
       result += `${commentText}\n\n`;
     }
 
@@ -606,7 +605,7 @@ class IssueService {
         ]
       };
       messageContent = JSON.stringify(markupContent);
-    } catch (error) {
+    } catch {
       // Fallback to plain text
       messageContent = message;
     }
@@ -666,50 +665,50 @@ class IssueService {
     );
 
     let result = `# ${issue.identifier}: ${issue.title}\n\n`;
-    
+
     // Basic information
     result += `**Project**: ${project?.name || 'Unknown'}\n`;
-    
+
     // Status
     try {
       const humanStatus = this.statusManager.toHumanStatus(issue.status);
       const statusDescription = this.statusManager.getStatusDescription(issue.status);
       result += `**Status**: ${humanStatus} - ${statusDescription}\n`;
-    } catch (error) {
+    } catch {
       result += `**Status**: ${issue.status}\n`;
     }
-    
+
     // Priority
     const priorityNames = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
     const priorityName = priorityNames[issue.priority] || 'Not set';
     result += `**Priority**: ${priorityName}\n`;
-    
+
     // Dates
     result += `**Created**: ${new Date(issue.createdOn).toLocaleString()}\n`;
     result += `**Modified**: ${new Date(issue.modifiedOn).toLocaleString()}\n`;
-    
+
     if (issue.dueTo) {
       result += `**Due Date**: ${new Date(issue.dueTo).toLocaleDateString()}\n`;
     }
-    
+
     // Assignee
     if (issue.assignee) {
       const assignee = await client.findOne(core.class.Account, { _id: issue.assignee });
       result += `**Assignee**: ${assignee?.email || 'Unknown'}\n`;
     }
-    
+
     // Component
     if (issue.component) {
       const component = await client.findOne(tracker.class.Component, { _id: issue.component });
       result += `**Component**: ${component?.label || 'Unknown'}\n`;
     }
-    
+
     // Milestone
     if (issue.milestone) {
       const milestone = await client.findOne(tracker.class.Milestone, { _id: issue.milestone });
       result += `**Milestone**: ${milestone?.label || 'Unknown'}\n`;
     }
-    
+
     // Time tracking
     if (issue.estimation > 0) {
       result += `**Estimated Time**: ${issue.estimation} hours\n`;
@@ -717,7 +716,7 @@ class IssueService {
     if (issue.reportedTime > 0) {
       result += `**Reported Time**: ${issue.reportedTime} hours\n`;
     }
-    
+
     // Related issues
     if (issue.attachedTo && issue.attachedTo !== 'tracker:ids:NoParent') {
       const parentIssue = await client.findOne(tracker.class.Issue, { _id: issue.attachedTo });
@@ -725,10 +724,10 @@ class IssueService {
         result += `**Parent Issue**: ${parentIssue.identifier} - ${parentIssue.title}\n`;
       }
     }
-    
+
     result += `**Comments**: ${issue.comments || 0}\n`;
     result += `**Sub-issues**: ${issue.subIssues || 0}\n`;
-    
+
     // Full description
     result += '\n## Description\n\n';
     if (issue.description) {
@@ -742,7 +741,7 @@ class IssueService {
     } else {
       result += 'No description provided.';
     }
-    
+
     // Recent comments
     result += '\n\n## Recent Comments\n\n';
     const comments = await client.findAll(
@@ -756,19 +755,19 @@ class IssueService {
         limit: 5
       }
     );
-    
+
     if (comments.length > 0) {
       for (const comment of comments) {
         const author = await client.findOne(core.class.Account, { _id: comment.createdBy });
         const timestamp = new Date(comment.createdOn).toLocaleString();
         result += `### ${author?.email || 'Unknown'} - ${timestamp}\n`;
-        
+
         // Extract comment text
         let commentText = '';
         if (comment.message) {
           try {
             commentText = await extractTextFromMarkup(comment.message);
-          } catch (error) {
+          } catch {
             commentText = typeof comment.message === 'string' ? comment.message : 'Unable to display comment';
           }
         }
@@ -777,7 +776,7 @@ class IssueService {
     } else {
       result += 'No comments yet.\n';
     }
-    
+
     // Sub-issues
     if (issue.subIssues > 0) {
       result += '\n## Sub-issues\n\n';
@@ -786,7 +785,7 @@ class IssueService {
         { attachedTo: issue._id },
         { limit: 10 }
       );
-      
+
       for (const subIssue of subIssues) {
         const statusName = this.statusManager.toHumanStatus(subIssue.status);
         result += `- ${subIssue.identifier}: ${subIssue.title} (${statusName})\n`;
@@ -843,7 +842,7 @@ class IssueService {
         // Try to convert human-readable status
         const internalStatus = this.statusManager.fromHumanStatus(status);
         searchCriteria.status = internalStatus;
-      } catch (error) {
+      } catch {
         // Use as-is if conversion fails
         searchCriteria.status = status;
       }
@@ -936,14 +935,14 @@ class IssueService {
     if (query) {
       const queryLower = query.toLowerCase();
       const filteredIssues = [];
-      
+
       for (const issue of issues) {
         // Check title
         if (issue.title.toLowerCase().includes(queryLower)) {
           filteredIssues.push(issue);
           continue;
         }
-        
+
         // Check description
         if (issue.description) {
           try {
@@ -951,12 +950,12 @@ class IssueService {
             if (descText && descText.toLowerCase().includes(queryLower)) {
               filteredIssues.push(issue);
             }
-          } catch (error) {
+          } catch {
             // Skip if description extraction fails
           }
         }
       }
-      
+
       issues = filteredIssues;
     }
 
@@ -988,23 +987,23 @@ class IssueService {
       const project = projectMap.get(issue.space);
       result += `📋 **${issue.identifier}**: ${issue.title}\n`;
       result += `   Project: ${project?.name || 'Unknown'}\n`;
-      
+
       // Status
       try {
         const humanStatus = this.statusManager.toHumanStatus(issue.status);
         result += `   Status: ${humanStatus}\n`;
-      } catch (error) {
+      } catch {
         result += `   Status: ${issue.status}\n`;
       }
-      
+
       // Priority
       const priorityNames = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
       const priorityName = priorityNames[issue.priority] || 'Not set';
       result += `   Priority: ${priorityName}\n`;
-      
+
       // Modified date
       result += `   Modified: ${new Date(issue.modifiedOn).toLocaleDateString()}\n`;
-      
+
       result += '\n';
     }
 
@@ -1026,7 +1025,7 @@ class IssueService {
     if (!text || text.trim() === '') {
       return ''; // Return empty string for empty descriptions
     }
-    
+
     try {
       // Use the client's uploadMarkup method to properly store the content
       const markupRef = await client.uploadMarkup(
@@ -1036,7 +1035,7 @@ class IssueService {
         text.trim(),
         'markdown' // Use markdown format for plain text
       );
-      
+
       return markupRef;
     } catch (error) {
       console.error('Failed to create markup:', error);

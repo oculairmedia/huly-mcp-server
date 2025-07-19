@@ -1,6 +1,6 @@
 /**
  * ProjectService - Service for managing Huly projects
- * 
+ *
  * Handles all project-related operations including projects,
  * components, milestones, and GitHub repository integrations
  */
@@ -9,13 +9,9 @@ import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
 import { HulyError } from '../core/HulyError.js';
 import { MILESTONE_STATUS_MAP, MILESTONE_STATUS_NAMES } from '../core/constants.js';
-import { 
-  validateRequiredString,
-  validateOptionalString,
+import {
   isValidProjectIdentifier,
-  isValidISODate,
-  isValidMilestoneStatus,
-  validateEnum
+  isValidISODate
 } from '../utils/validators.js';
 
 const tracker = trackerModule.default || trackerModule;
@@ -45,13 +41,13 @@ export class ProjectService {
     );
 
     let result = `Found ${projects.length} projects:\n\n`;
-    
+
     for (const project of projects) {
       const issueCount = await client.findAll(
         tracker.class.Issue,
         { space: project._id }
       );
-      
+
       result += `📁 ${project.name} (${project.identifier})\n`;
       if (project.description) {
         result += `   Description: ${project.description}\n`;
@@ -59,12 +55,12 @@ export class ProjectService {
       result += `   Issues: ${issueCount.length}\n`;
       result += `   Private: ${project.private || false}\n`;
       result += `   Archived: ${project.archived || false}\n`;
-      
+
       // List project owners if any
       if (project.owners && project.owners.length > 0) {
         result += `   Owners: ${project.owners.length}\n`;
       }
-      
+
       result += '\n';
     }
 
@@ -88,12 +84,12 @@ export class ProjectService {
    */
   async createProject(client, name, description = '', identifier) {
     const projectId = generateId();
-    
+
     // Generate identifier if not provided
     if (!identifier) {
       identifier = name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().substring(0, 5);
     }
-    
+
     // Validate identifier format
     if (!isValidProjectIdentifier(identifier)) {
       throw HulyError.invalidValue('identifier', identifier, '1-5 uppercase letters/numbers');
@@ -175,7 +171,7 @@ export class ProjectService {
   async createComponent(client, projectIdentifier, label, description = '') {
     const project = await this.findProject(client, projectIdentifier);
     const componentId = generateId();
-    
+
     await client.createDoc(
       tracker.class.Component,
       project._id,
@@ -207,14 +203,14 @@ export class ProjectService {
    */
   async listComponents(client, projectIdentifier) {
     const project = await this.findProject(client, projectIdentifier);
-    
+
     const components = await client.findAll(
       tracker.class.Component,
       { space: project._id }
     );
 
     let result = `Found ${components.length} components in project ${projectIdentifier}:\n\n`;
-    
+
     for (const component of components) {
       result += `🏷️  ${component.label}\n`;
       if (component.description) {
@@ -259,7 +255,7 @@ export class ProjectService {
     const targetTimestamp = Date.parse(targetDate);
 
     const milestoneId = generateId();
-    
+
     await client.createDoc(
       tracker.class.Milestone,
       project._id,
@@ -294,14 +290,14 @@ export class ProjectService {
    */
   async listMilestones(client, projectIdentifier) {
     const project = await this.findProject(client, projectIdentifier);
-    
+
     const milestones = await client.findAll(
       tracker.class.Milestone,
       { space: project._id }
     );
 
     let result = `Found ${milestones.length} milestones in project ${projectIdentifier}:\n\n`;
-    
+
     for (const milestone of milestones) {
       const statusName = MILESTONE_STATUS_NAMES[milestone.status] || 'Unknown';
       result += `🎯 ${milestone.label}\n`;
@@ -339,7 +335,7 @@ export class ProjectService {
       );
 
       let result = `Found ${repositories.length} GitHub repositories available:\n\n`;
-      
+
       for (const repo of repositories) {
         result += `📦 ${repo.name}`;
         if (repo.githubProject) {
@@ -355,14 +351,14 @@ export class ProjectService {
           result += ' (unassigned)';
         }
         result += '\n';
-        
+
         if (repo.url) {
           result += `   URL: ${repo.url}\n`;
         }
         if (repo.enabled !== undefined) {
           result += `   Enabled: ${repo.enabled ? 'Yes' : 'No'}\n`;
         }
-        
+
         result += '\n';
       }
 
@@ -398,10 +394,10 @@ export class ProjectService {
       );
 
       let repository = null;
-      
+
       // First try exact match
       repository = availableRepos.find(r => r.name === repositoryName);
-      
+
       // If not found, try without organization prefix
       if (!repository && repositoryName.includes('/')) {
         const repoNameOnly = repositoryName.split('/').pop();
@@ -414,7 +410,7 @@ export class ProjectService {
       if (!repository) {
         // Create informative error message
         let errorMsg = `Repository "${repositoryName}" not found.`;
-        
+
         if (availableRepos.length > 0) {
           errorMsg += '\n\nAvailable repositories:\n';
           availableRepos.forEach(r => {
@@ -423,15 +419,15 @@ export class ProjectService {
         } else {
           errorMsg += ' No GitHub repositories are available. Please check your GitHub integration.';
         }
-        
+
         throw new HulyError(
           'REPOSITORY_NOT_FOUND',
           errorMsg,
-          { 
+          {
             context: `Repository '${repositoryName}' not found`,
             suggestion: availableRepos.length > 0 ? `Available repositories: ${availableRepos.slice(0, 5).map(r => r.name).join(', ')}` : 'No GitHub repositories are available. Please check your GitHub integration.',
             data: {
-              repositoryName, 
+              repositoryName,
               availableCount: availableRepos.length,
               searchedFormats: repositoryName.includes('/') ? ['exact', 'name-only'] : ['exact']
             }

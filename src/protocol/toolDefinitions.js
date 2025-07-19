@@ -1,6 +1,6 @@
 /**
  * Tool Definitions - MCP tool schemas and metadata
- * 
+ *
  * Defines all available tools with their input schemas and descriptions
  * for the Model Context Protocol.
  */

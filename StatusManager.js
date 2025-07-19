@@ -1,11 +1,11 @@
 /**
  * StatusManager - Centralized status handling for Huly MCP Server
- * 
+ *
  * Provides unified status management across all MCP tools:
  * - Converts between human-readable and full Huly format
  * - Validates status values
  * - Ensures consistency across all tools
- * 
+ *
  * Supports both input formats:
  * - Human-readable: 'backlog', 'todo', 'in-progress', 'done', 'canceled'
  * - Full Huly format: 'tracker:status:Backlog', 'tracker:status:InProgress', etc.
@@ -21,7 +21,7 @@ export class StatusManager {
       ['in-progress', 'tracker:status:InProgress'],
       ['done', 'tracker:status:Done'],
       ['canceled', 'tracker:status:Canceled'],
-      
+
       // Alternative friendly names (aliases)
       ['active', 'tracker:status:InProgress'],
       ['progress', 'tracker:status:InProgress'],
@@ -30,7 +30,7 @@ export class StatusManager {
       ['completed', 'tracker:status:Done'],
       ['finished', 'tracker:status:Done'],
       ['cancelled', 'tracker:status:Canceled'],
-      
+
       // Priority mapping for issue creation
       ['low', 'tracker:status:Backlog'],
       ['medium', 'tracker:status:Todo'],
@@ -50,7 +50,7 @@ export class StatusManager {
     // Valid status values for validation
     this.validStatuses = Array.from(this.statusMap.keys());
     this.validFullStatuses = Array.from(this.reverseStatusMap.keys());
-    
+
     // Default status for new issues
     this.defaultStatus = 'tracker:status:Backlog';
     this.defaultHumanStatus = 'backlog';
@@ -78,11 +78,11 @@ export class StatusManager {
     // Convert from human-readable to full format
     const normalizedStatus = status.toLowerCase().trim();
     const fullStatus = this.statusMap.get(normalizedStatus);
-    
+
     if (!fullStatus) {
       throw new Error(`Invalid status: ${status}. Valid statuses: ${this.validStatuses.join(', ')}`);
     }
-    
+
     return fullStatus;
   }
 
@@ -110,7 +110,7 @@ export class StatusManager {
     if (!humanStatus) {
       throw new Error(`Unknown full status: ${status}`);
     }
-    
+
     return humanStatus;
   }
 
@@ -121,11 +121,11 @@ export class StatusManager {
    */
   isValidStatus(status) {
     if (!status) return false;
-    
+
     try {
       this.toFullStatus(status);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -186,7 +186,7 @@ export class StatusManager {
       'done': 'Done - Completed successfully',
       'canceled': 'Canceled - Work abandoned'
     };
-    
+
     return descriptions[humanStatus] || humanStatus;
   }
 }

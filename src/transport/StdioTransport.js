@@ -1,6 +1,6 @@
 /**
  * StdioTransport - Standard I/O transport for MCP
- * 
+ *
  * Implements MCP communication over stdin/stdout
  */
 
@@ -26,7 +26,7 @@ export class StdioTransport extends BaseTransport {
     try {
       await this.server.connect(this.transport);
       this.running = true;
-      
+
       // In stdio mode, we don't log to console as it interferes with the protocol
       // The transport will handle all communication
     } catch (error) {

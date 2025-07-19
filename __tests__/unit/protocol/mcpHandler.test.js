@@ -1,6 +1,6 @@
 /**
  * MCPHandler Tests
- * 
+ *
  * Tests for the MCP protocol handler
  */
 
@@ -12,7 +12,7 @@ import { HulyError } from '../../../src/core/HulyError.js';
 function createMockFn() {
   const calls = [];
   const mockImplementations = [];
-  
+
   const fn = async (...args) => {
     calls.push(args);
     if (mockImplementations.length > 0) {
@@ -25,36 +25,36 @@ function createMockFn() {
     }
     return undefined;
   };
-  
+
   fn.mockResolvedValue = (value) => {
     mockImplementations.push({ type: 'value', value });
     return fn;
   };
-  
+
   fn.mockResolvedValueOnce = (value) => {
     mockImplementations.push({ type: 'value', value });
     return fn;
   };
-  
+
   fn.mockRejectedValue = (error) => {
     mockImplementations.push({ type: 'error', error });
     return fn;
   };
-  
+
   fn.getCalls = () => calls;
   fn.toHaveBeenCalled = () => calls.length > 0;
   fn.toHaveBeenCalledWith = (...args) => {
-    return calls.some(call => 
-      call.length === args.length && 
+    return calls.some(call =>
+      call.length === args.length &&
       call.every((arg, i) => arg === args[i])
     );
   };
-  
+
   return fn;
 }
 
 describe('MCPHandler Tests', () => {
-  let handler;
+  let _handler;
   let mockServer;
   let mockServices;
   let mockClient;
@@ -97,10 +97,10 @@ describe('MCPHandler Tests', () => {
 
     // Mock withClient to execute the callback with mockClient
     mockServices.hulyClientWrapper.withClient = async (callback) => {
-      return await callback(mockClient);
+      return callback(mockClient);
     };
 
-    handler = new MCPHandler(mockServer, mockServices);
+    _handler = new MCPHandler(mockServer, mockServices);
   });
 
   describe('Constructor', () => {
@@ -130,10 +130,10 @@ describe('MCPHandler Tests', () => {
     beforeEach(() => {
       // Get the CallToolRequestSchema handler
       toolHandler = mockServer.setRequestHandler.getCalls()[1][1];
-      
+
       // Update mock to actually call the callback
       mockServices.hulyClientWrapper.withClient = async (callback) => {
-        return await callback(mockClient);
+        return callback(mockClient);
       };
     });
 
@@ -237,7 +237,7 @@ describe('MCPHandler Tests', () => {
     beforeEach(() => {
       toolHandler = mockServer.setRequestHandler.getCalls()[1][1];
       mockServices.hulyClientWrapper.withClient = async (callback) => {
-        return await callback(mockClient);
+        return callback(mockClient);
       };
     });
 
@@ -251,7 +251,7 @@ describe('MCPHandler Tests', () => {
       { name: 'huly_create_milestone', service: 'projectService', method: 'createMilestone', args: { project_identifier: 'TEST', label: 'v1.0' } },
       { name: 'huly_list_github_repositories', service: 'projectService', method: 'listGithubRepositories', args: {} },
       { name: 'huly_assign_repository_to_project', service: 'projectService', method: 'assignRepositoryToProject', args: { project_identifier: 'TEST', repository_name: 'org/repo' } },
-      
+
       // Issue tools
       { name: 'huly_list_issues', service: 'issueService', method: 'listIssues', args: { project_identifier: 'TEST' } },
       { name: 'huly_create_issue', service: 'issueService', method: 'createIssue', args: { project_identifier: 'TEST', title: 'Issue' } },

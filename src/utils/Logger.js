@@ -1,6 +1,6 @@
 /**
  * Logger Module
- * 
+ *
  * Provides structured logging with different levels and formats
  */
 
@@ -143,10 +143,10 @@ export class Logger {
    */
   _outputText(level, timestamp, message, context) {
     const parts = [];
-    
+
     // Add timestamp
     parts.push(`[${timestamp}]`);
-    
+
     // Add level with color and emoji
     const levelStr = level.toUpperCase().padEnd(5);
     if (this.useColors) {
@@ -154,18 +154,18 @@ export class Logger {
     } else {
       parts.push(levelStr);
     }
-    
+
     // Add emoji for better visibility
     parts.push(LEVEL_EMOJIS[level]);
-    
+
     // Add logger name
     if (this.name !== 'default') {
       parts.push(`[${this.name}]`);
     }
-    
+
     // Add message
     parts.push(message);
-    
+
     // Add context if present
     if (Object.keys(context).length > 0) {
       // Remove default context from display
@@ -177,13 +177,13 @@ export class Logger {
           }
         });
       }
-      
+
       if (Object.keys(displayContext).length > 0) {
         parts.push('-');
         parts.push(JSON.stringify(displayContext, null, 2));
       }
     }
-    
+
     // Output to appropriate stream
     const output = parts.join(' ');
     if (level === 'error') {

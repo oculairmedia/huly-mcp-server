@@ -1,6 +1,6 @@
 /**
  * Validation Utilities
- * 
+ *
  * Centralized validation functions for the Huly MCP Server
  */
 
@@ -42,7 +42,7 @@ export function parseIssueIdentifier(identifier) {
   if (!isValidIssueIdentifier(identifier)) {
     return null;
   }
-  
+
   const [project, numberStr] = identifier.split('-');
   return {
     project,
@@ -79,7 +79,7 @@ export function normalizePriority(priority) {
   if (!priority || typeof priority !== 'string') {
     return null;
   }
-  
+
   const normalized = priority.toLowerCase();
   const priorityMap = {
     'low': 'low',
@@ -90,7 +90,7 @@ export function normalizePriority(priority) {
     'no-priority': 'NoPriority',
     'none': 'NoPriority'
   };
-  
+
   return priorityMap[normalized] || null;
 }
 
@@ -115,12 +115,12 @@ export function isValidISODate(date) {
   if (!date || typeof date !== 'string') {
     return false;
   }
-  
+
   const parsed = Date.parse(date);
   if (isNaN(parsed)) {
     return false;
   }
-  
+
   // Check if the parsed date converts back to the same ISO string
   const isoString = new Date(parsed).toISOString();
   return date === isoString || date === isoString.split('T')[0]; // Allow date-only format
@@ -158,7 +158,7 @@ export function validateRequiredString(value, fieldName, options = {}) {
       }
     );
   }
-  
+
   const trimmed = value.trim();
   if (!trimmed) {
     throw new HulyError(
@@ -170,31 +170,31 @@ export function validateRequiredString(value, fieldName, options = {}) {
       }
     );
   }
-  
+
   if (options.minLength && trimmed.length < options.minLength) {
     throw HulyError.validation(
-      fieldName, 
-      value, 
+      fieldName,
+      value,
       `Must be at least ${options.minLength} characters`
     );
   }
-  
+
   if (options.maxLength && trimmed.length > options.maxLength) {
     throw HulyError.validation(
-      fieldName, 
-      value, 
+      fieldName,
+      value,
       `Must be at most ${options.maxLength} characters`
     );
   }
-  
+
   if (options.pattern && !options.pattern.test(trimmed)) {
     throw HulyError.validation(
-      fieldName, 
-      value, 
+      fieldName,
+      value,
       `Invalid format`
     );
   }
-  
+
   return trimmed;
 }
 
@@ -210,7 +210,7 @@ export function validateOptionalString(value, fieldName, options = {}) {
   if (value === undefined || value === null || value === '') {
     return undefined;
   }
-  
+
   return validateRequiredString(value, fieldName, options);
 }
 
@@ -237,11 +237,11 @@ export function validateEnum(value, fieldName, validValues, defaultValue) {
       }
     );
   }
-  
+
   if (!validValues.includes(value)) {
     throw HulyError.invalidValue(fieldName, value, validValues.join(', '));
   }
-  
+
   return value;
 }
 
@@ -270,20 +270,20 @@ export function validatePositiveInteger(value, fieldName, options = {}) {
       }
     );
   }
-  
+
   const num = Number(value);
   if (!Number.isInteger(num) || num < 0) {
     throw HulyError.validation(fieldName, value, 'Must be a positive integer');
   }
-  
+
   if (options.min !== undefined && num < options.min) {
     throw HulyError.validation(fieldName, value, `Must be at least ${options.min}`);
   }
-  
+
   if (options.max !== undefined && num > options.max) {
     throw HulyError.validation(fieldName, value, `Must be at most ${options.max}`);
   }
-  
+
   return num;
 }
 
@@ -296,10 +296,10 @@ export function sanitizeString(input) {
   if (!input || typeof input !== 'string') {
     return '';
   }
-  
+
   // Remove control characters and trim
   return input
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[^\x20-\x7E\t\n\r]/g, '') // Keep only printable ASCII, tabs, newlines, and carriage returns
     .trim();
 }
 
@@ -322,7 +322,7 @@ export function createIdentifierValidator(config) {
         }
       );
     }
-    
+
     if (!config.validator(identifier)) {
       throw HulyError.validation(
         `${config.entityName} identifier`,
@@ -330,7 +330,7 @@ export function createIdentifierValidator(config) {
         `Invalid ${config.entityName} identifier format`
       );
     }
-    
+
     return identifier;
   };
 }

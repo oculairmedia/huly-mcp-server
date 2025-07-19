@@ -1,6 +1,6 @@
 /**
  * HulyError - Custom error class for Huly MCP Server
- * 
+ *
  * Provides structured error handling with consistent formatting
  * and MCP-compatible response generation
  */
@@ -26,7 +26,7 @@ export class HulyError extends Error {
     this.code = code;
     this.details = details || {};
     this.name = 'HulyError';
-    
+
     // Capture stack trace
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, HulyError);
@@ -54,15 +54,15 @@ export class HulyError extends Error {
    */
   formatErrorMessage() {
     let text = `❌ Error [${this.code}]: ${this.message}`;
-    
+
     if (this.details?.context) {
       text += `\n\nContext: ${this.details.context}`;
     }
-    
+
     if (this.details?.suggestion) {
       text += `\n\nSuggestion: ${this.details.suggestion}`;
     }
-    
+
     return text;
   }
 
@@ -125,7 +125,7 @@ export class HulyError extends Error {
     };
 
     const code = codeMap[resourceType.toLowerCase()] || ERROR_CODES.UNKNOWN_ERROR;
-    
+
     return new HulyError(
       code,
       `${resourceType} ${identifier} not found`,

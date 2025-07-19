@@ -1,6 +1,6 @@
 /**
  * TransportFactory - Factory for creating transport instances
- * 
+ *
  * Creates appropriate transport instances based on configuration
  */
 
@@ -19,10 +19,10 @@ export class TransportFactory {
     switch (type.toLowerCase()) {
       case 'stdio':
         return new StdioTransport(server);
-        
+
       case 'http':
         return new HttpTransport(server, options);
-        
+
       default:
         throw new Error(`Unknown transport type: ${type}. Supported types: stdio, http`);
     }

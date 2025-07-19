@@ -1,6 +1,6 @@
 /**
  * ProjectService Tests
- * 
+ *
  * Tests for the project service module
  */
 
@@ -11,7 +11,7 @@ import { ProjectService } from '../../../src/services/ProjectService.js';
 function createMockFn() {
   const calls = [];
   const mockImplementations = [];
-  
+
   const fn = async (...args) => {
     calls.push(args);
     if (mockImplementations.length > 0) {
@@ -24,31 +24,31 @@ function createMockFn() {
     }
     return undefined;
   };
-  
+
   fn.mockResolvedValue = (value) => {
     mockImplementations.push({ type: 'value', value });
     return fn;
   };
-  
+
   fn.mockResolvedValueOnce = (value) => {
     mockImplementations.push({ type: 'value', value });
     return fn;
   };
-  
+
   fn.mockRejectedValue = (error) => {
     mockImplementations.push({ type: 'error', error });
     return fn;
   };
-  
+
   fn.getCalls = () => calls;
   fn.toHaveBeenCalled = () => calls.length > 0;
   fn.toHaveBeenCalledWith = (...args) => {
-    return calls.some(call => 
-      call.length === args.length && 
+    return calls.some(call =>
+      call.length === args.length &&
       call.every((arg, i) => arg === args[i])
     );
   };
-  
+
   return fn;
 }
 
@@ -123,7 +123,7 @@ describe('ProjectService Tests', () => {
       mockClient.findAll
         .mockResolvedValueOnce([])  // projects
         .mockResolvedValueOnce({ length: 0 });  // count
-      
+
       const result = await service.listProjects(mockClient);
       expect(result).toHaveProperty('content');
       expect(Array.isArray(result.content)).toBe(true);
@@ -134,7 +134,7 @@ describe('ProjectService Tests', () => {
     test('listComponents should return MCP-compatible response', async () => {
       mockClient.findOne.mockResolvedValueOnce({ _id: 'test', identifier: 'TEST' });
       mockClient.findAll.mockResolvedValueOnce([]);  // components
-      
+
       const result = await service.listComponents(mockClient, 'TEST');
       expect(result).toHaveProperty('content');
       expect(Array.isArray(result.content)).toBe(true);
@@ -145,7 +145,7 @@ describe('ProjectService Tests', () => {
     test('listMilestones should return MCP-compatible response', async () => {
       mockClient.findOne.mockResolvedValueOnce({ _id: 'test', identifier: 'TEST' });
       mockClient.findAll.mockResolvedValueOnce([]);  // milestones
-      
+
       const result = await service.listMilestones(mockClient, 'TEST');
       expect(result).toHaveProperty('content');
       expect(Array.isArray(result.content)).toBe(true);
@@ -155,7 +155,7 @@ describe('ProjectService Tests', () => {
 
     test('listGithubRepositories should return MCP-compatible response', async () => {
       mockClient.findAll.mockResolvedValueOnce([]);  // repositories
-      
+
       const result = await service.listGithubRepositories(mockClient);
       expect(result).toHaveProperty('content');
       expect(Array.isArray(result.content)).toBe(true);

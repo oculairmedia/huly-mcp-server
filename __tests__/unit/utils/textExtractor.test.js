@@ -1,6 +1,6 @@
 /**
  * Text Extractor Tests
- * 
+ *
  * Tests for text extraction utilities
  */
 
@@ -182,8 +182,8 @@ describe('Text Extractor Tests', () => {
           {
             type: 'paragraph',
             content: [
-              { 
-                type: 'text', 
+              {
+                type: 'text',
                 text: 'bold text',
                 marks: [{ type: 'bold' }]
               }
@@ -201,8 +201,8 @@ describe('Text Extractor Tests', () => {
           {
             type: 'paragraph',
             content: [
-              { 
-                type: 'text', 
+              {
+                type: 'text',
                 text: 'italic text',
                 marks: [{ type: 'italic' }]
               }
@@ -220,8 +220,8 @@ describe('Text Extractor Tests', () => {
           {
             type: 'paragraph',
             content: [
-              { 
-                type: 'text', 
+              {
+                type: 'text',
                 text: 'code snippet',
                 marks: [{ type: 'code' }]
               }
@@ -239,8 +239,8 @@ describe('Text Extractor Tests', () => {
           {
             type: 'paragraph',
             content: [
-              { 
-                type: 'text', 
+              {
+                type: 'text',
                 text: 'click here',
                 marks: [{ type: 'link', attrs: { href: 'https://example.com' } }]
               }

@@ -1,10 +1,10 @@
 /**
  * HulyClient Tests
- * 
+ *
  * Tests for the Huly client wrapper with connection management
  */
 
-import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, test, expect, beforeEach } from '@jest/globals';
 import { HulyClient, createHulyClient } from '../../../src/core/HulyClient.js';
 
 describe('HulyClient Tests', () => {
@@ -40,7 +40,7 @@ describe('HulyClient Tests', () => {
       client.client = {
         getHierarchy: () => null
       };
-      
+
       expect(client.isConnected()).toBe(false);
     });
 
@@ -48,7 +48,7 @@ describe('HulyClient Tests', () => {
       client.client = {
         getHierarchy: () => ({ someData: true })
       };
-      
+
       expect(client.isConnected()).toBe(true);
     });
 
@@ -58,7 +58,7 @@ describe('HulyClient Tests', () => {
           throw new Error('Connection lost');
         }
       };
-      
+
       expect(client.isConnected()).toBe(false);
     });
   });
@@ -83,7 +83,7 @@ describe('HulyClient Tests', () => {
         new Error('Validation failed'),
         new Error('Unknown error')
       ];
-      
+
       otherErrors.forEach(error => {
         expect(client._isConnectionError(error)).toBe(false);
       });
@@ -92,7 +92,7 @@ describe('HulyClient Tests', () => {
     test('should handle errors without message', () => {
       const errorWithoutMessage = new Error();
       errorWithoutMessage.message = undefined;
-      
+
       expect(client._isConnectionError(errorWithoutMessage)).toBe(false);
     });
   });
@@ -102,7 +102,7 @@ describe('HulyClient Tests', () => {
       const start = Date.now();
       await client._sleep(100);
       const elapsed = Date.now() - start;
-      
+
       expect(elapsed).toBeGreaterThanOrEqual(90); // Allow some tolerance
       expect(elapsed).toBeLessThan(150);
     });
@@ -111,7 +111,7 @@ describe('HulyClient Tests', () => {
   describe('Status', () => {
     test('should return initial status', () => {
       const status = client.getStatus();
-      
+
       expect(status).toEqual({
         connected: false,
         connecting: false,
@@ -127,7 +127,7 @@ describe('HulyClient Tests', () => {
 
     test('should not expose password in status', () => {
       const status = client.getStatus();
-      
+
       expect(status.config.password).toBeUndefined();
     });
 
@@ -135,9 +135,9 @@ describe('HulyClient Tests', () => {
       client.isConnecting = true;
       client.retryCount = 2;
       client.lastConnectionError = new Error('Test error');
-      
+
       const status = client.getStatus();
-      
+
       expect(status.connecting).toBe(true);
       expect(status.retryCount).toBe(2);
       expect(status.lastError).toBe('Test error');
@@ -147,7 +147,7 @@ describe('HulyClient Tests', () => {
   describe('Factory Function', () => {
     test('should create HulyClient instance', () => {
       const instance = createHulyClient(testConfig);
-      
+
       expect(instance).toBeInstanceOf(HulyClient);
       expect(instance.config).toEqual(testConfig);
     });
@@ -161,16 +161,16 @@ describe('HulyClient Tests', () => {
         maxDelay: 10000,
         backoffFactor: 2
       };
-      
+
       // Calculate expected delays
       const delay1 = RETRY_CONFIG.initialDelay; // 1000
       const delay2 = RETRY_CONFIG.initialDelay * RETRY_CONFIG.backoffFactor; // 2000
       const delay3 = RETRY_CONFIG.initialDelay * Math.pow(RETRY_CONFIG.backoffFactor, 2); // 4000
-      
+
       expect(delay1).toBe(1000);
       expect(delay2).toBe(2000);
       expect(delay3).toBe(4000);
-      
+
       // Verify max delay cap
       const delay4 = RETRY_CONFIG.initialDelay * Math.pow(RETRY_CONFIG.backoffFactor, 10); // Would be very large
       const cappedDelay = Math.min(delay4, RETRY_CONFIG.maxDelay);

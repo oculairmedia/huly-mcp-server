@@ -1,6 +1,6 @@
 /**
  * HttpTransport - HTTP transport for MCP
- * 
+ *
  * Implements MCP communication over HTTP using Express
  */
 
@@ -104,8 +104,8 @@ export class HttpTransport extends BaseTransport {
   setupRoutes() {
     // Health check endpoint
     this.app.get('/health', (req, res) => {
-      res.json({ 
-        status: 'healthy', 
+      res.json({
+        status: 'healthy',
         server: 'huly-mcp-server',
         transport: 'http',
         uptime: process.uptime()
@@ -116,7 +116,7 @@ export class HttpTransport extends BaseTransport {
     this.app.post('/mcp', async (req, res) => {
       try {
         const { jsonrpc, method, params, id } = req.body;
-        
+
         // Validate JSON-RPC request
         if (jsonrpc !== '2.0' || !method) {
           return res.status(400).json({
@@ -127,7 +127,7 @@ export class HttpTransport extends BaseTransport {
         }
 
         let result;
-        
+
         switch (method) {
           case 'initialize':
             result = {
@@ -141,17 +141,17 @@ export class HttpTransport extends BaseTransport {
               }
             };
             break;
-            
+
           case 'tools/list':
             result = {
               tools: this.toolDefinitions
             };
             break;
-            
+
           case 'tools/call':
             result = await this.executeTool(params.name, params.arguments);
             break;
-            
+
           default:
             return res.status(400).json({
               jsonrpc: '2.0',
@@ -159,13 +159,13 @@ export class HttpTransport extends BaseTransport {
               id
             });
         }
-        
+
         res.json({
           jsonrpc: '2.0',
           result,
           id
         });
-        
+
       } catch (error) {
         this.handleError(res, error, req.body.id);
       }
@@ -196,46 +196,46 @@ export class HttpTransport extends BaseTransport {
    */
   async executeTool(toolName, args) {
     // Delegate to the services
-    return await this.hulyClientWrapper.withClient(async (client) => {
+    return this.hulyClientWrapper.withClient(async (client) => {
       const { projectService, issueService } = this.services;
 
       switch (toolName) {
         // Project tools
         case 'huly_list_projects':
-          return await projectService.listProjects(client);
+          return projectService.listProjects(client);
         case 'huly_create_project':
-          return await projectService.createProject(client, args.name, args.description, args.identifier);
+          return projectService.createProject(client, args.name, args.description, args.identifier);
         case 'huly_list_components':
-          return await projectService.listComponents(client, args.project_identifier);
+          return projectService.listComponents(client, args.project_identifier);
         case 'huly_create_component':
-          return await projectService.createComponent(client, args.project_identifier, args.label, args.description);
+          return projectService.createComponent(client, args.project_identifier, args.label, args.description);
         case 'huly_list_milestones':
-          return await projectService.listMilestones(client, args.project_identifier);
+          return projectService.listMilestones(client, args.project_identifier);
         case 'huly_create_milestone':
-          return await projectService.createMilestone(client, args.project_identifier, args.label, args.description, args.target_date, args.status);
+          return projectService.createMilestone(client, args.project_identifier, args.label, args.description, args.target_date, args.status);
         case 'huly_list_github_repositories':
-          return await projectService.listGithubRepositories(client);
+          return projectService.listGithubRepositories(client);
         case 'huly_assign_repository_to_project':
-          return await projectService.assignRepositoryToProject(client, args.project_identifier, args.repository_name);
-          
+          return projectService.assignRepositoryToProject(client, args.project_identifier, args.repository_name);
+
         // Issue tools
         case 'huly_list_issues':
-          return await issueService.listIssues(client, args.project_identifier, args.limit);
+          return issueService.listIssues(client, args.project_identifier, args.limit);
         case 'huly_create_issue':
-          return await issueService.createIssue(client, args.project_identifier, args.title, args.description, args.priority);
+          return issueService.createIssue(client, args.project_identifier, args.title, args.description, args.priority);
         case 'huly_update_issue':
-          return await issueService.updateIssue(client, args.issue_identifier, args.field, args.value);
+          return issueService.updateIssue(client, args.issue_identifier, args.field, args.value);
         case 'huly_create_subissue':
-          return await issueService.createSubissue(client, args.parent_issue_identifier, args.title, args.description, args.priority);
+          return issueService.createSubissue(client, args.parent_issue_identifier, args.title, args.description, args.priority);
         case 'huly_search_issues':
-          return await issueService.searchIssues(client, args);
+          return issueService.searchIssues(client, args);
         case 'huly_list_comments':
-          return await issueService.listComments(client, args.issue_identifier, args.limit);
+          return issueService.listComments(client, args.issue_identifier, args.limit);
         case 'huly_create_comment':
-          return await issueService.createComment(client, args.issue_identifier, args.message);
+          return issueService.createComment(client, args.issue_identifier, args.message);
         case 'huly_get_issue_details':
-          return await issueService.getIssueDetails(client, args.issue_identifier);
-          
+          return issueService.getIssueDetails(client, args.issue_identifier);
+
         default:
           throw HulyError.invalidValue('tool', toolName, 'a valid tool name');
       }
@@ -252,8 +252,8 @@ export class HttpTransport extends BaseTransport {
     if (error instanceof HulyError) {
       res.status(400).json({
         jsonrpc: '2.0',
-        error: { 
-          code: -32000, 
+        error: {
+          code: -32000,
           message: error.message,
           data: {
             errorCode: error.code,

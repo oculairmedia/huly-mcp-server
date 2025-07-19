@@ -1,6 +1,6 @@
 /**
  * Configuration Manager
- * 
+ *
  * Centralized configuration management with environment variable support
  */
 
@@ -22,7 +22,7 @@ export class ConfigManager {
         version: process.env.MCP_SERVER_VERSION || '1.0.0',
         description: process.env.MCP_SERVER_DESCRIPTION || 'MCP server for Huly project management platform'
       },
-      
+
       // Huly connection configuration
       huly: {
         url: process.env.HULY_URL || 'https://pm.oculair.ca',
@@ -30,7 +30,7 @@ export class ConfigManager {
         password: process.env.HULY_PASSWORD || process.env.HULY_MCP_PASSWORD,
         workspace: process.env.HULY_WORKSPACE || process.env.HULY_MCP_WORKSPACE
       },
-      
+
       // Transport configuration
       transport: {
         defaultType: process.env.DEFAULT_TRANSPORT || 'stdio',
@@ -42,25 +42,25 @@ export class ConfigManager {
           }
         }
       },
-      
+
       // Protocol configuration
       protocol: {
         version: process.env.MCP_PROTOCOL_VERSION || '2024-11-05'
       },
-      
+
       // Logging configuration
       logging: {
         level: process.env.LOG_LEVEL || 'info',
         format: process.env.LOG_FORMAT || 'text'
       },
-      
+
       // Features configuration
       features: {
         connectionPooling: process.env.ENABLE_CONNECTION_POOLING === 'true',
         retryOnError: process.env.ENABLE_RETRY === 'true',
         maxRetries: parseInt(process.env.MAX_RETRIES || '3', 10) || 3
       },
-      
+
       // Defaults and limits
       defaults: {
         issueListLimit: parseInt(process.env.DEFAULT_ISSUE_LIMIT || '50', 10),
@@ -68,7 +68,7 @@ export class ConfigManager {
         searchResultLimit: parseInt(process.env.DEFAULT_SEARCH_LIMIT || '50', 10),
         priority: process.env.DEFAULT_PRIORITY || 'medium'
       },
-      
+
       // Validation patterns
       validation: {
         projectIdentifierMaxLength: parseInt(process.env.PROJECT_ID_MAX_LENGTH || '5', 10),
@@ -87,24 +87,24 @@ export class ConfigManager {
     if (!this.config.huly.email || !this.config.huly.password) {
       throw new Error('Huly credentials are required. Set HULY_EMAIL/HULY_MCP_EMAIL and HULY_PASSWORD/HULY_MCP_PASSWORD environment variables.');
     }
-    
+
     // Validate workspace
     if (!this.config.huly.workspace) {
       throw new Error('Huly workspace is required. Set HULY_WORKSPACE or HULY_MCP_WORKSPACE environment variable.');
     }
-    
+
     // Validate port number
     if (isNaN(this.config.transport.http.port) || this.config.transport.http.port < 1 || this.config.transport.http.port > 65535) {
       throw new Error(`Invalid HTTP port: ${this.config.transport.http.port}. Must be between 1 and 65535.`);
     }
-    
+
     // Validate limits
     const limits = [
       { name: 'issueListLimit', value: this.config.defaults.issueListLimit },
       { name: 'commentListLimit', value: this.config.defaults.commentListLimit },
       { name: 'searchResultLimit', value: this.config.defaults.searchResultLimit }
     ];
-    
+
     for (const limit of limits) {
       if (isNaN(limit.value) || limit.value < 1 || limit.value > 1000) {
         throw new Error(`Invalid ${limit.name}: ${limit.value}. Must be between 1 and 1000.`);
@@ -129,7 +129,7 @@ export class ConfigManager {
   get(path, defaultValue = undefined) {
     const keys = path.split('.');
     let value = this.config;
-    
+
     for (const key of keys) {
       if (value && typeof value === 'object' && key in value) {
         value = value[key];
@@ -137,7 +137,7 @@ export class ConfigManager {
         return defaultValue;
       }
     }
-    
+
     return value;
   }
 
