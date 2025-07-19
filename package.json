@@ -8,7 +8,9 @@
     "start": "node index.js",
     "start:http": "node index.js --transport=http",
     "start:stdio": "node index.js --transport=stdio",
-    "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@hcengineering/activity": "0.6.500",
@@ -25,7 +27,11 @@
     "ws": "^8.16.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.31.0",
     "@jest/globals": "^30.0.4",
+    "eslint": "^9.31.0",
+    "eslint-plugin-jest": "^29.0.1",
+    "eslint-plugin-node": "^11.1.0",
     "jest": "^30.0.4"
   }
 }
