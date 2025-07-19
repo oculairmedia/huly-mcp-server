@@ -22,7 +22,6 @@ import rankModule from '@hcengineering/rank';
 import chunterModule from '@hcengineering/chunter';
 import activityModule from '@hcengineering/activity';
 import collaboratorClientModule from '@hcengineering/collaborator-client';
-import WebSocket from 'ws';
 import statusManager from './StatusManager.js';
 import { 
   HulyError, 
@@ -30,10 +29,9 @@ import {
   PRIORITY_MAP,
   DEFAULTS,
   VALIDATION_PATTERNS,
-  VALID_UPDATE_FIELDS
+  VALID_UPDATE_FIELDS,
+  createHulyClient
 } from './src/core/index.js';
-
-const { connect } = apiClient;
 const tracker = trackerModule.default || trackerModule;
 const chunter = chunterModule.default || chunterModule;
 const activity = activityModule.default || activityModule;
@@ -89,7 +87,13 @@ class HulyMCPServer {
       }
     );
 
-    this.hulyClient = null;
+    this.hulyClientWrapper = createHulyClient({
+      url: HULY_CONFIG.url,
+      email: HULY_CONFIG.email,
+      password: HULY_CONFIG.password,
+      workspace: HULY_CONFIG.workspace
+    });
+    
     this.setupHandlers();
   }
 
@@ -166,8 +170,9 @@ class HulyMCPServer {
         return `[MarkupBlobRef: ${descriptionRef}]`;
       }
       
-      // Use the client's fetchMarkup method to retrieve the content
-      const markup = await this.hulyClient.fetchMarkup(
+      // Get client and use fetchMarkup method to retrieve the content
+      const client = await this.connectToHuly();
+      const markup = await client.fetchMarkup(
         tracker.class.Issue,
         issueId,
         'description',
@@ -183,23 +188,7 @@ class HulyMCPServer {
   }
 
   async connectToHuly() {
-    if (this.hulyClient) {
-      return this.hulyClient;
-    }
-
-    try {
-      this.hulyClient = await connect(HULY_CONFIG.url, {
-        email: HULY_CONFIG.email,
-        password: HULY_CONFIG.password,
-        workspace: HULY_CONFIG.workspace,
-        socketFactory: (url) => new WebSocket(url)
-      });
-      
-      return this.hulyClient;
-    } catch (error) {
-      console.error('Failed to connect to Huly:', error);
-      throw error;
-    }
+    return await this.hulyClientWrapper.getClient();
   }
 
   setupHandlers() {
@@ -563,11 +552,11 @@ class HulyMCPServer {
       const { name, arguments: args } = request.params;
 
       try {
-        const client = await this.connectToHuly();
-
-        switch (name) {
-          case 'huly_list_projects':
-            return await this.listProjects(client);
+        // Use withClient for automatic reconnection on connection errors
+        return await this.hulyClientWrapper.withClient(async (client) => {
+          switch (name) {
+            case 'huly_list_projects':
+              return await this.listProjects(client);
           
           case 'huly_list_issues':
             return await this.listIssues(client, args.project_identifier, args.limit);
@@ -614,9 +603,10 @@ class HulyMCPServer {
           case 'huly_get_issue_details':
             return await this.getIssueDetails(client, args.issue_identifier);
           
-          default:
-            throw HulyError.invalidValue('tool', name, 'a valid tool name');
-        }
+            default:
+              throw HulyError.invalidValue('tool', name, 'a valid tool name');
+          }
+        });
       } catch (error) {
         // Handle HulyError instances with structured responses
         if (error instanceof HulyError) {
@@ -2189,7 +2179,27 @@ class HulyMCPServer {
     }
   }
 
+  async cleanup() {
+    // Disconnect from Huly when shutting down
+    if (this.hulyClientWrapper) {
+      await this.hulyClientWrapper.disconnect();
+    }
+  }
+
   async run(transportType = 'stdio') {
+    // Set up cleanup handlers
+    process.on('SIGINT', async () => {
+      console.log('Shutting down gracefully...');
+      await this.cleanup();
+      process.exit(0);
+    });
+    
+    process.on('SIGTERM', async () => {
+      console.log('Shutting down gracefully...');
+      await this.cleanup();
+      process.exit(0);
+    });
+
     if (transportType === 'http') {
       await this.runHttpServer();
     } else {
