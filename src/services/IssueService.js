@@ -204,9 +204,12 @@ class IssueService {
       kind: tracker.taskTypes.Issue
     };
 
-    const issueId = await client.createDoc(
+    const issueId = await client.addCollection(
       tracker.class.Issue,
       project._id,
+      issueData.attachedTo,
+      tracker.class.Issue,
+      'subIssues',
       issueData
     );
 
@@ -434,9 +437,12 @@ class IssueService {
       kind: tracker.taskTypes.Issue
     };
 
-    const issueId = await client.createDoc(
+    const issueId = await client.addCollection(
       tracker.class.Issue,
       project._id,
+      parentIssue._id,
+      tracker.class.Issue,
+      'subIssues',
       issueData
     );
 
