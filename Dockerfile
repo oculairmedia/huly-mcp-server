@@ -15,6 +15,7 @@ COPY --from=working-deps /app/node_modules ./node_modules
 # Copy source code
 COPY index.js ./
 COPY StatusManager.js ./
+COPY src ./src
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs

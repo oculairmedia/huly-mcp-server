@@ -10,6 +10,10 @@
     "start:stdio": "node index.js --transport=stdio",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:staged": "NODE_OPTIONS='--experimental-vm-modules' jest --bail --findRelatedTests",
+    "test:mcp": "node scripts/test-mcp-tools.js",
+    "test:integration": "node scripts/integration-test-runner.js",
+    "test:integration:smoke": "TEST_SUITE=smoke node scripts/integration-test-runner.js",
+    "test:integration:full": "TEST_SUITE=full node scripts/integration-test-runner.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -33,6 +37,7 @@
   "devDependencies": {
     "@eslint/js": "^9.31.0",
     "@jest/globals": "^30.0.4",
+    "dotenv": "^17.2.0",
     "eslint": "^9.31.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jest": "^29.0.1",
@@ -41,6 +46,7 @@
     "husky": "^9.1.7",
     "jest": "^30.0.4",
     "lint-staged": "^16.1.2",
+    "node-fetch": "^3.3.2",
     "prettier": "^3.6.2"
   },
   "lint-staged": {

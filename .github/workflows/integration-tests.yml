@@ -1,0 +1,56 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+        test-suite: [smoke, full]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run Integration Tests - ${{ matrix.test-suite }}
+      env:
+        TEST_SUITE: ${{ matrix.test-suite }}
+        TEST_ENVIRONMENT: ci
+        TEST_SAVE_RESULTS: true
+        HULY_URL: ${{ secrets.HULY_URL }}
+        HULY_EMAIL: ${{ secrets.HULY_EMAIL }}
+        HULY_PASSWORD: ${{ secrets.HULY_PASSWORD }}
+        HULY_WORKSPACE: ${{ secrets.HULY_WORKSPACE }}
+      run: npm run test:integration:${{ matrix.test-suite }}
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.node-version }}-${{ matrix.test-suite }}
+        path: test-results/
+    
+    - name: Publish Test Report
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Integration Tests - Node ${{ matrix.node-version }} - ${{ matrix.test-suite }}
+        path: 'test-results/junit-*.xml'
+        reporter: 'java-junit'

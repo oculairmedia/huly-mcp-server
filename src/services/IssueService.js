@@ -493,7 +493,7 @@ class IssueService {
 
     // Find all comments attached to this issue
     const comments = await client.findAll(
-      chunter.class.Comment,
+      _activity.class.ActivityMessage,
       {
         attachedTo: issue._id,
         attachedToClass: tracker.class.Issue,
@@ -530,8 +530,8 @@ class IssueService {
       // Extract comment text
       let commentText = 'No content';
       if (comment.message) {
+        // Comments use direct Markup storage, not blob references
         try {
-          // Try to extract text from the message (could be markup)
           commentText = await extractTextFromMarkup(comment.message);
         } catch {
           // If extraction fails, use the raw message
@@ -569,39 +569,17 @@ class IssueService {
       throw HulyError.notFound('issue', issueIdentifier);
     }
 
-    // Create the comment with proper markup
-    let messageContent;
-    try {
-      // Try to create as markup first
-      const markupContent = {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [
-              {
-                type: 'text',
-                text: message,
-              },
-            ],
-          },
-        ],
-      };
-      messageContent = JSON.stringify(markupContent);
-    } catch {
-      // Fallback to plain text
-      messageContent = message;
-    }
-
+    // Create comment with message
     const commentData = {
-      message: messageContent,
+      message: message && message.trim() ? message.trim() : '',
       attachedTo: issue._id,
       attachedToClass: tracker.class.Issue,
       collection: 'comments',
     };
 
+    // Use ChatMessage for comments on issues
     await client.addCollection(
-      chunter.class.Comment,
+      chunter.class.ChatMessage,
       issue.space,
       issue._id,
       tracker.class.Issue,
@@ -719,7 +697,7 @@ class IssueService {
     // Recent comments
     result += '\n\n## Recent Comments\n\n';
     const comments = await client.findAll(
-      chunter.class.Comment,
+      _activity.class.ActivityMessage,
       {
         attachedTo: issue._id,
         attachedToClass: tracker.class.Issue,
@@ -739,6 +717,7 @@ class IssueService {
         // Extract comment text
         let commentText = '';
         if (comment.message) {
+          // Comments use direct Markup storage, not blob references
           try {
             commentText = await extractTextFromMarkup(comment.message);
           } catch {
@@ -1012,19 +991,47 @@ class IssueService {
   async _extractDescription(client, issue) {
     if (!issue.description) return '';
 
+    // Check if description looks like a MarkupRef (blob reference)
+    // MarkupRef can be either:
+    // - A 24-character hex string (e.g., "5f9a1b2c3d4e5f6a7b8c9d0e")
+    // - A compound format: <24-hex>-description-<timestamp>
+    const isMarkupRef =
+      typeof issue.description === 'string' &&
+      (issue.description.match(/^[a-z0-9]{24}$/) ||
+        issue.description.match(/^[a-z0-9]{24}-description-\d+$/));
+
+    if (isMarkupRef) {
+      try {
+        // Use fetchMarkup to retrieve the actual content from the blob reference
+        const descriptionContent = await client.fetchMarkup(
+          tracker.class.Issue,
+          issue._id,
+          'description',
+          issue.description,
+          'markdown'
+        );
+
+        // The content should be returned as markdown text
+        return descriptionContent || '';
+      } catch (error) {
+        console.error('Error fetching markup:', error);
+        // If fetchMarkup fails, return empty string
+        return '';
+      }
+    }
+
+    // Fallback: try to parse as JSON if it's the old format
     try {
-      // First try to parse as JSON (current approach)
       if (typeof issue.description === 'string' && issue.description.startsWith('{')) {
         const parsed = JSON.parse(issue.description);
         return extractTextFromDoc(parsed);
       }
-
-      // Otherwise return as string
-      return typeof issue.description === 'string' ? issue.description : '';
-    } catch (error) {
-      console.error('Error extracting description:', error);
-      return typeof issue.description === 'string' ? issue.description : '';
+    } catch (parseError) {
+      // Ignore parse error
     }
+
+    // Last fallback: return as plain string
+    return typeof issue.description === 'string' ? issue.description : '';
   }
 }
 

@@ -12,6 +12,7 @@ import { MILESTONE_STATUS_MAP, MILESTONE_STATUS_NAMES } from '../core/constants.
 import { isValidProjectIdentifier, isValidISODate } from '../utils/validators.js';
 
 const tracker = trackerModule.default || trackerModule;
+const core = coreModule.default || coreModule;
 const { generateId } = coreModule;
 
 /**
@@ -106,7 +107,7 @@ export class ProjectService {
     // Create the project
     await client.createDoc(
       tracker.class.Project,
-      coreModule.space.Space,
+      core.class.Space,
       {
         name,
         description,
