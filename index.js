@@ -24,6 +24,14 @@ import activityModule from '@hcengineering/activity';
 import collaboratorClientModule from '@hcengineering/collaborator-client';
 import WebSocket from 'ws';
 import statusManager from './StatusManager.js';
+import { 
+  HulyError, 
+  ERROR_CODES,
+  PRIORITY_MAP,
+  DEFAULTS,
+  VALIDATION_PATTERNS,
+  VALID_UPDATE_FIELDS
+} from './src/core/index.js';
 
 const { connect } = apiClient;
 const tracker = trackerModule.default || trackerModule;
@@ -57,42 +65,6 @@ function extractTextFromMarkup(doc) {
   return text.trim();
 }
 
-// Error codes for structured error responses
-const ERROR_CODES = {
-  ISSUE_NOT_FOUND: 'ISSUE_NOT_FOUND',
-  PROJECT_NOT_FOUND: 'PROJECT_NOT_FOUND',
-  COMPONENT_NOT_FOUND: 'COMPONENT_NOT_FOUND',
-  MILESTONE_NOT_FOUND: 'MILESTONE_NOT_FOUND',
-  INVALID_FIELD: 'INVALID_FIELD',
-  INVALID_VALUE: 'INVALID_VALUE',
-  DATABASE_ERROR: 'DATABASE_ERROR',
-  CONNECTION_ERROR: 'CONNECTION_ERROR',
-  PERMISSION_ERROR: 'PERMISSION_ERROR',
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  NETWORK_ERROR: 'NETWORK_ERROR',
-  UNKNOWN_ERROR: 'UNKNOWN_ERROR'
-};
-
-// Error utility class for consistent error handling
-class HulyError extends Error {
-  constructor(code, message, details = {}) {
-    super(message);
-    this.code = code;
-    this.details = details;
-    this.name = 'HulyError';
-  }
-
-  toMCPResponse() {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `❌ Error [${this.code}]: ${this.message}${this.details.context ? `\n\nContext: ${this.details.context}` : ''}${this.details.suggestion ? `\n\nSuggestion: ${this.details.suggestion}` : ''}`
-        }
-      ]
-    };
-  }
-}
 
 // Huly connection configuration
 const HULY_CONFIG = {
@@ -643,7 +615,7 @@ class HulyMCPServer {
             return await this.getIssueDetails(client, args.issue_identifier);
           
           default:
-            throw new Error(`Unknown tool: ${name}`);
+            throw HulyError.invalidValue('tool', name, 'a valid tool name');
         }
       } catch (error) {
         // Handle HulyError instances with structured responses
@@ -703,7 +675,7 @@ class HulyMCPServer {
     );
 
     if (!project) {
-      throw new Error(`Project ${projectIdentifier} not found`);
+      throw HulyError.notFound('project', projectIdentifier);
     }
 
     const issues = await client.findAll(
@@ -802,7 +774,7 @@ class HulyMCPServer {
     );
 
     if (!project) {
-      throw new Error(`Project ${projectIdentifier} not found`);
+      throw HulyError.notFound('project', projectIdentifier);
     }
 
     const issueId = generateId();
@@ -907,49 +879,21 @@ class HulyMCPServer {
     try {
       // Input validation
       if (!issueIdentifier || typeof issueIdentifier !== 'string') {
-        throw new HulyError(
-          ERROR_CODES.VALIDATION_ERROR,
-          'Invalid issue identifier provided',
-          {
-            context: 'Issue identifier must be a non-empty string (e.g., "LMP-1")',
-            suggestion: 'Use the format "PROJECT-NUMBER" where PROJECT is the project identifier'
-          }
-        );
+        throw HulyError.validation('issueIdentifier', issueIdentifier, 'Use the format "PROJECT-NUMBER" where PROJECT is the project identifier');
       }
 
       if (!field || typeof field !== 'string') {
-        throw new HulyError(
-          ERROR_CODES.VALIDATION_ERROR,
-          'Invalid field name provided',
-          {
-            context: 'Field name must be a non-empty string',
-            suggestion: 'Use one of: title, description, status, priority, component, milestone'
-          }
-        );
+        throw HulyError.validation('field', field, 'Use one of: title, description, status, priority, component, milestone');
       }
 
       if (value === null || value === undefined) {
-        throw new HulyError(
-          ERROR_CODES.VALIDATION_ERROR,
-          'Invalid value provided',
-          {
-            context: 'Value cannot be null or undefined',
-            suggestion: 'Provide a valid value for the field being updated'
-          }
-        );
+        throw HulyError.validation('value', value, 'Provide a valid value for the field being updated');
       }
 
       // Validate field names
       const validFields = ['title', 'description', 'status', 'priority', 'component', 'milestone'];
       if (!validFields.includes(field)) {
-        throw new HulyError(
-          ERROR_CODES.INVALID_FIELD,
-          `Invalid field name: ${field}`,
-          {
-            context: `Field '${field}' is not a valid updateable field`,
-            suggestion: `Use one of: ${validFields.join(', ')}`
-          }
-        );
+        throw HulyError.invalidField(field, validFields);
       }
 
       // Find the issue with connection error handling
@@ -962,36 +906,15 @@ class HulyMCPServer {
       } catch (error) {
         // Handle database connection errors
         if (error.message.includes('connection') || error.message.includes('timeout')) {
-          throw new HulyError(
-            ERROR_CODES.DATABASE_ERROR,
-            'Database connection failed while searching for issue',
-            {
-              context: `Could not connect to database to find issue ${issueIdentifier}`,
-              suggestion: 'Check database connection and try again'
-            }
-          );
+          throw HulyError.database('search for issue', new Error('Database connection lost'));
         }
         // Handle other database errors
-        throw new HulyError(
-          ERROR_CODES.DATABASE_ERROR,
-          'Database error while searching for issue',
-          {
-            context: `Database operation failed: ${error.message}`,
-            suggestion: 'Check database status and try again'
-          }
-        );
+        throw HulyError.database('search for issue', error);
       }
 
       // Check if issue exists
       if (!issue) {
-        throw new HulyError(
-          ERROR_CODES.ISSUE_NOT_FOUND,
-          `Issue ${issueIdentifier} not found`,
-          {
-            context: `No issue found with identifier ${issueIdentifier}`,
-            suggestion: 'Check the issue identifier and ensure it exists in the system'
-          }
-        );
+        throw HulyError.notFound('issue', issueIdentifier);
       }
 
       const updateData = {};
@@ -1007,28 +930,14 @@ class HulyMCPServer {
         };
         
         if (!(value in priorityMap)) {
-          throw new HulyError(
-            ERROR_CODES.INVALID_VALUE,
-            `Invalid priority value: ${value}`,
-            {
-              context: `Priority '${value}' is not a valid priority level`,
-              suggestion: `Use one of: ${Object.keys(priorityMap).join(', ')}`
-            }
-          );
+          throw HulyError.invalidValue('priority', value, `one of: ${Object.keys(priorityMap).join(', ')}`);
         }
         updateData[field] = priorityMap[value];
         
       } else if (field === 'milestone') {
         // Handle milestone field by looking up milestone by label
         if (typeof value !== 'string' || value.trim() === '') {
-          throw new HulyError(
-            ERROR_CODES.INVALID_VALUE,
-            'Invalid milestone name provided',
-            {
-              context: 'Milestone name must be a non-empty string',
-              suggestion: 'Provide a valid milestone name'
-            }
-          );
+          throw HulyError.validation('milestone', value, 'Provide a valid milestone name');
         }
 
         let milestone;
@@ -1038,39 +947,18 @@ class HulyMCPServer {
             { label: value, space: issue.space }
           );
         } catch (error) {
-          throw new HulyError(
-            ERROR_CODES.DATABASE_ERROR,
-            'Database error while searching for milestone',
-            {
-              context: `Could not search for milestone: ${error.message}`,
-              suggestion: 'Check database connection and try again'
-            }
-          );
+          throw HulyError.database('search for milestone', error);
         }
 
         if (!milestone) {
-          throw new HulyError(
-            ERROR_CODES.MILESTONE_NOT_FOUND,
-            `Milestone "${value}" not found in project`,
-            {
-              context: `No milestone with name "${value}" exists in the project`,
-              suggestion: 'Check available milestones or create the milestone first'
-            }
-          );
+          throw HulyError.notFound('milestone', value);
         }
         updateData[field] = milestone._id;
         
       } else if (field === 'component') {
         // Handle component field by looking up component by label
         if (typeof value !== 'string' || value.trim() === '') {
-          throw new HulyError(
-            ERROR_CODES.INVALID_VALUE,
-            'Invalid component name provided',
-            {
-              context: 'Component name must be a non-empty string',
-              suggestion: 'Provide a valid component name'
-            }
-          );
+          throw HulyError.validation('component', value, 'Provide a valid component name');
         }
 
         let component;
@@ -1080,50 +968,22 @@ class HulyMCPServer {
             { label: value, space: issue.space }
           );
         } catch (error) {
-          throw new HulyError(
-            ERROR_CODES.DATABASE_ERROR,
-            'Database error while searching for component',
-            {
-              context: `Could not search for component: ${error.message}`,
-              suggestion: 'Check database connection and try again'
-            }
-          );
+          throw HulyError.database('search for component', error);
         }
 
         if (!component) {
-          throw new HulyError(
-            ERROR_CODES.COMPONENT_NOT_FOUND,
-            `Component "${value}" not found in project`,
-            {
-              context: `No component with name "${value}" exists in the project`,
-              suggestion: 'Check available components or create the component first'
-            }
-          );
+          throw HulyError.notFound('component', value);
         }
         updateData[field] = component._id;
         
       } else if (field === 'title' || field === 'description') {
         // Validate text fields
         if (typeof value !== 'string') {
-          throw new HulyError(
-            ERROR_CODES.INVALID_VALUE,
-            `Invalid ${field} value provided`,
-            {
-              context: `${field} must be a string`,
-              suggestion: 'Provide a valid text value'
-            }
-          );
+          throw HulyError.invalidValue(field, value, 'a string value');
         }
         
         if (field === 'title' && value.trim() === '') {
-          throw new HulyError(
-            ERROR_CODES.INVALID_VALUE,
-            'Title cannot be empty',
-            {
-              context: 'Issue title must contain at least one non-whitespace character',
-              suggestion: 'Provide a meaningful title for the issue'
-            }
-          );
+          throw HulyError.validation('title', value, 'Provide a meaningful title for the issue');
         }
         
         if (field === 'description') {
@@ -1137,28 +997,14 @@ class HulyMCPServer {
       } else if (field === 'status') {
         // Handle status field with StatusManager
         if (typeof value !== 'string') {
-          throw new HulyError(
-            ERROR_CODES.INVALID_VALUE,
-            'Invalid status value provided',
-            {
-              context: 'Status must be a string',
-              suggestion: `Use one of: ${statusManager.getValidStatuses().join(', ')} or full format like tracker:status:Backlog`
-            }
-          );
+          throw HulyError.invalidValue('status', value, `one of: ${statusManager.getValidStatuses().join(', ')} or full format like tracker:status:Backlog`);
         }
         
         try {
           // Use StatusManager to convert and validate status
           updateData[field] = statusManager.toFullStatus(value);
         } catch (error) {
-          throw new HulyError(
-            ERROR_CODES.INVALID_VALUE,
-            error.message,
-            {
-              context: `Status validation failed for value: ${value}`,
-              suggestion: `Valid statuses: ${statusManager.getValidStatuses().join(', ')}`
-            }
-          );
+          throw HulyError.invalidValue('status', value, `one of: ${statusManager.getValidStatuses().join(', ')}`);
         }
         
       } else {
@@ -1177,36 +1023,15 @@ class HulyMCPServer {
       } catch (error) {
         // Handle specific update errors
         if (error.message.includes('permission') || error.message.includes('access')) {
-          throw new HulyError(
-            ERROR_CODES.PERMISSION_ERROR,
-            'Insufficient permissions to update issue',
-            {
-              context: `User does not have permission to update issue ${issueIdentifier}`,
-              suggestion: 'Check user permissions for this project'
-            }
-          );
+          throw HulyError.permission('update', `issue ${issueIdentifier}`);
         }
         
         if (error.message.includes('connection') || error.message.includes('timeout')) {
-          throw new HulyError(
-            ERROR_CODES.DATABASE_ERROR,
-            'Database connection failed during update',
-            {
-              context: `Could not update issue ${issueIdentifier}: connection error`,
-              suggestion: 'Check database connection and try again'
-            }
-          );
+          throw HulyError.database('update issue', new Error('Connection failed'));
         }
 
         // Generic database error
-        throw new HulyError(
-          ERROR_CODES.DATABASE_ERROR,
-          'Failed to update issue in database',
-          {
-            context: `Database update failed: ${error.message}`,
-            suggestion: 'Check database status and try again'
-          }
-        );
+        throw HulyError.database('update issue', error);
       }
 
       return {
@@ -1251,7 +1076,15 @@ class HulyMCPServer {
     );
 
     if (existingProject) {
-      throw new Error(`Project with identifier '${identifier}' already exists`);
+      throw new HulyError(
+        ERROR_CODES.VALIDATION_ERROR,
+        `Project with identifier '${identifier}' already exists`,
+        {
+          context: 'Project identifier must be unique',
+          suggestion: 'Use a different identifier',
+          data: { identifier }
+        }
+      );
     }
 
     await client.createDoc(
@@ -1291,7 +1124,7 @@ class HulyMCPServer {
     );
 
     if (!parentIssue) {
-      throw new Error(`Parent issue ${parentIssueIdentifier} not found`);
+      throw HulyError.notFound('issue', parentIssueIdentifier);
     }
 
     const project = await client.findOne(
@@ -1300,7 +1133,7 @@ class HulyMCPServer {
     );
 
     if (!project) {
-      throw new Error(`Project for parent issue ${parentIssueIdentifier} not found`);
+      throw HulyError.notFound('project', `for parent issue ${parentIssueIdentifier}`);
     }
 
     const subissueId = generateId();
@@ -1397,7 +1230,7 @@ class HulyMCPServer {
     );
 
     if (!project) {
-      throw new Error(`Project ${projectIdentifier} not found`);
+      throw HulyError.notFound('project', projectIdentifier);
     }
 
     const componentId = generateId();
@@ -1432,7 +1265,7 @@ class HulyMCPServer {
     );
 
     if (!project) {
-      throw new Error(`Project ${projectIdentifier} not found`);
+      throw HulyError.notFound('project', projectIdentifier);
     }
 
     const components = await client.findAll(
@@ -1467,7 +1300,7 @@ class HulyMCPServer {
     );
 
     if (!project) {
-      throw new Error(`Project ${projectIdentifier} not found`);
+      throw HulyError.notFound('project', projectIdentifier);
     }
 
     // Map status strings to MilestoneStatus enum values
@@ -1482,7 +1315,7 @@ class HulyMCPServer {
     // Parse target date
     const targetTimestamp = new Date(targetDate).getTime();
     if (isNaN(targetTimestamp)) {
-      throw new Error('Invalid target date format. Use ISO 8601 format (e.g., 2024-12-31)');
+      throw HulyError.invalidValue('target_date', target_date, 'ISO 8601 format (e.g., 2024-12-31)');
     }
 
     const milestoneId = generateId();
@@ -1518,7 +1351,7 @@ class HulyMCPServer {
     );
 
     if (!project) {
-      throw new Error(`Project ${projectIdentifier} not found`);
+      throw HulyError.notFound('project', projectIdentifier);
     }
 
     const milestones = await client.findAll(
@@ -1590,7 +1423,7 @@ class HulyMCPServer {
         ]
       };
     } catch (error) {
-      throw new Error(`Failed to list GitHub repositories: ${error.message}`);
+      throw HulyError.database('list GitHub repositories', error);
     }
   }
 
@@ -1603,7 +1436,7 @@ class HulyMCPServer {
       );
 
       if (!project) {
-        throw new Error(`Project ${projectIdentifier} not found`);
+        throw HulyError.notFound('project', projectIdentifier);
       }
 
       // Find the repository by name - support both "owner/repo" and "repo" formats
@@ -1639,18 +1472,30 @@ class HulyMCPServer {
         }
         
         throw new HulyError(
+          ERROR_CODES.REPOSITORY_NOT_FOUND,
           errorMsg,
-          'REPOSITORY_NOT_FOUND',
           { 
-            repositoryName, 
-            availableCount: availableRepos.length,
-            searchedFormats: repositoryName.includes('/') ? ['exact', 'name-only'] : ['exact']
+            context: `Repository '${repositoryName}' not found`,
+            suggestion: availableRepos.length > 0 ? `Available repositories: ${availableRepos.slice(0, 5).map(r => r.name).join(', ')}` : 'No GitHub repositories are available. Please check your GitHub integration.',
+            data: {
+              repositoryName, 
+              availableCount: availableRepos.length,
+              searchedFormats: repositoryName.includes('/') ? ['exact', 'name-only'] : ['exact']
+            }
           }
         );
       }
 
       if (repository.githubProject) {
-        throw new Error(`Repository "${repositoryName}" is already assigned to another project`);
+        throw new HulyError(
+          ERROR_CODES.VALIDATION_ERROR,
+          `Repository "${repositoryName}" is already assigned to another project`,
+          {
+            context: 'Repository can only be assigned to one project',
+            suggestion: 'Unassign from current project first',
+            data: { repositoryName, currentProject: repository.githubProject }
+          }
+        );
       }
 
       // Apply the GithubProject mixin to the project if not already applied
@@ -1708,7 +1553,7 @@ class HulyMCPServer {
         ]
       };
     } catch (error) {
-      throw new Error(`Failed to assign repository to project: ${error.message}`);
+      throw HulyError.database('assign repository to project', error);
     }
   }
 
@@ -1721,14 +1566,7 @@ class HulyMCPServer {
       );
 
       if (!issue) {
-        throw new HulyError(
-          ERROR_CODES.ISSUE_NOT_FOUND,
-          `Issue ${issueIdentifier} not found`,
-          {
-            context: `No issue found with identifier ${issueIdentifier}`,
-            suggestion: 'Check the issue identifier and ensure it exists'
-          }
-        );
+        throw HulyError.notFound('issue', issueIdentifier);
       }
 
       // Get the total comment count from the issue's collection counter
@@ -1820,14 +1658,7 @@ class HulyMCPServer {
       if (error instanceof HulyError) {
         throw error;
       }
-      throw new HulyError(
-        ERROR_CODES.DATABASE_ERROR,
-        `Failed to list comments: ${error.message}`,
-        {
-          context: 'An error occurred while fetching comments',
-          suggestion: 'Check the issue identifier and try again'
-        }
-      );
+      throw HulyError.database('list comments', error);
     }
   }
 
@@ -1835,14 +1666,7 @@ class HulyMCPServer {
     try {
       // Validate inputs
       if (!message || message.trim() === '') {
-        throw new HulyError(
-          ERROR_CODES.VALIDATION_ERROR,
-          'Comment message cannot be empty',
-          {
-            context: 'A non-empty message is required to create a comment',
-            suggestion: 'Provide a meaningful comment message'
-          }
-        );
+        throw HulyError.validation('message', message, 'Provide a meaningful comment message');
       }
 
       // Find the issue
@@ -1852,14 +1676,7 @@ class HulyMCPServer {
       );
 
       if (!issue) {
-        throw new HulyError(
-          ERROR_CODES.ISSUE_NOT_FOUND,
-          `Issue ${issueIdentifier} not found`,
-          {
-            context: `No issue found with identifier ${issueIdentifier}`,
-            suggestion: 'Check the issue identifier and ensure it exists'
-          }
-        );
+        throw HulyError.notFound('issue', issueIdentifier);
       }
 
       // Create the comment as a ChatMessage
@@ -1890,14 +1707,7 @@ class HulyMCPServer {
       if (error instanceof HulyError) {
         throw error;
       }
-      throw new HulyError(
-        ERROR_CODES.DATABASE_ERROR,
-        `Failed to create comment: ${error.message}`,
-        {
-          context: 'An error occurred while creating the comment',
-          suggestion: 'Check your connection and try again'
-        }
-      );
+      throw HulyError.database('create comment', error);
     }
   }
 
@@ -1910,14 +1720,7 @@ class HulyMCPServer {
       );
 
       if (!issue) {
-        throw new HulyError(
-          ERROR_CODES.ISSUE_NOT_FOUND,
-          `Issue ${issueIdentifier} not found`,
-          {
-            context: `No issue found with identifier ${issueIdentifier}`,
-            suggestion: 'Check the issue identifier and ensure it exists'
-          }
-        );
+        throw HulyError.notFound('issue', issueIdentifier);
       }
 
       // Get project information
@@ -2128,14 +1931,7 @@ class HulyMCPServer {
       if (error instanceof HulyError) {
         throw error;
       }
-      throw new HulyError(
-        ERROR_CODES.DATABASE_ERROR,
-        `Failed to get issue details: ${error.message}`,
-        {
-          context: 'An error occurred while fetching issue details',
-          suggestion: 'Check the issue identifier and try again'
-        }
-      );
+      throw HulyError.database('get issue details', error);
     }
   }
 
@@ -2166,7 +1962,7 @@ class HulyMCPServer {
           { identifier: project_identifier }
         );
         if (!project) {
-          throw new Error(`Project ${project_identifier} not found`);
+          throw HulyError.notFound('project', project_identifier);
         }
         searchQuery.space = project._id;
       }
@@ -2389,7 +2185,7 @@ class HulyMCPServer {
       };
 
     } catch (error) {
-      throw new Error(`Search failed: ${error.message}`);
+      throw HulyError.database('search issues', error);
     }
   }
 
