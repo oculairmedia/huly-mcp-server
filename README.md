@@ -28,6 +28,10 @@ A Model Context Protocol (MCP) server for interacting with Huly project manageme
 | `huly_list_milestones` | List all milestones in a project |
 | `huly_list_github_repositories` | List available GitHub repositories |
 | `huly_assign_repository_to_project` | Assign GitHub repositories to projects |
+| `huly_search_issues` | Search and filter issues with advanced capabilities |
+| `huly_get_issue_details` | Get comprehensive details about a specific issue |
+| `huly_list_comments` | List comments on an issue |
+| `huly_create_comment` | Create a comment on an issue |
 
 ## Quick Start
 
@@ -415,6 +419,68 @@ DEBUG=huly-mcp* npm run start:stdio
 3. Make your changes
 4. Add tests if applicable
 5. Submit a pull request
+
+## API Integration Notes
+
+### Key Learnings from Huly API
+
+During the development of this MCP server, we discovered several important aspects of the Huly API:
+
+#### 1. **Class Imports**
+- The Space class is located at `core.class.Space`, not `coreModule.space.Space`
+- Always use the pattern: `const module = moduleImport.default || moduleImport`
+
+#### 2. **Markup Storage**
+Huly uses two different patterns for storing text content:
+
+**Blob References (MarkupRef)**
+- Used for: Issue descriptions, large content
+- Format: `<24-hex-chars>-description-<timestamp>` or just `<24-hex-chars>`
+- Retrieve with: `client.fetchMarkup(class, id, attr, ref, format)`
+- Create with: `client.uploadMarkup(class, id, attr, content, format)`
+
+**Direct Markup Storage**
+- Used for: Comments, chat messages
+- Stored directly in the message field
+- Extract with: `extractTextFromMarkup(content)`
+
+#### 3. **Comment System**
+- Comments are `activity.class.ActivityMessage` not `chunter.class.Comment`
+- Create comments using `chunter.class.ChatMessage`
+- Comments use direct markup storage, not blob references
+
+#### 4. **Status Management**
+- Status values can be human-readable (backlog, todo, in-progress, done, canceled)
+- Or full format (tracker:status:Backlog, etc.)
+- The API accepts both formats
+
+#### 5. **Testing Considerations**
+- Mock-based unit tests cannot catch API contract violations
+- Integration tests with real API calls are essential
+- Test with unique identifiers to avoid conflicts
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run integration tests
+npm run test:mcp
+
+# Run specific test suite
+npm run test:unit
+```
+
+### Test Coverage
+
+The project includes comprehensive test coverage:
+- Unit tests for all service methods
+- Integration tests for all MCP tools
+- Performance tests for API operations
+- Edge case scenarios
 
 ## License
 
