@@ -5,3 +5,4 @@
  */
 
 export { ProjectService, projectService } from './ProjectService.js';
+export { IssueService, createIssueService } from './IssueService.js';
