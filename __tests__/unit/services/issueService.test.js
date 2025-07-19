@@ -97,7 +97,8 @@ describe('IssueService Tests', () => {
       findOne: createMockFn(),
       createDoc: createMockFn(),
       updateDoc: createMockFn(),
-      addCollection: createMockFn()
+      addCollection: createMockFn(),
+      uploadMarkup: createMockFn()
     };
   });
 
@@ -158,7 +159,7 @@ describe('IssueService Tests', () => {
         .mockResolvedValueOnce(mockProject)  // project lookup
         .mockResolvedValueOnce({ number: 5 });  // last issue
 
-      mockClient.createDoc.mockResolvedValueOnce('new-issue-id');
+      mockClient.addCollection.mockResolvedValueOnce('new-issue-id');
 
       const result = await service.createIssue(
         mockClient, 
@@ -168,7 +169,7 @@ describe('IssueService Tests', () => {
 
       expect(result.content[0].text).toContain('TEST-6');
       expect(result.content[0].text).toContain('New Issue');
-      expect(mockClient.createDoc.toHaveBeenCalled()).toBe(true);
+      expect(mockClient.addCollection.getCalls().length).toBeGreaterThan(0);
     });
 
     test('should validate priority', async () => {
@@ -178,6 +179,144 @@ describe('IssueService Tests', () => {
       await expect(
         service.createIssue(mockClient, 'TEST', 'Title', '', 'invalid')
       ).rejects.toThrow();
+    });
+
+    test('should create issue with description', async () => {
+      const mockProject = { 
+        _id: 'proj1', 
+        identifier: 'TEST',
+        name: 'Test Project'
+      };
+
+      mockClient.findOne
+        .mockResolvedValueOnce(mockProject)  // project lookup
+        .mockResolvedValueOnce({ number: 10 });  // last issue
+
+      mockClient.addCollection.mockResolvedValueOnce('new-issue-id');
+      mockClient.uploadMarkup.mockResolvedValueOnce('markup-ref-123');
+      mockClient.updateDoc.mockResolvedValueOnce();
+
+      const result = await service.createIssue(
+        mockClient, 
+        'TEST', 
+        'Issue with Description',
+        'This is a test description'
+      );
+
+      expect(result.content[0].text).toContain('TEST-11');
+      expect(result.content[0].text).toContain('Issue with Description');
+      
+      // Verify uploadMarkup was called with correct parameters
+      const uploadCalls = mockClient.uploadMarkup.getCalls();
+      expect(uploadCalls.length).toBe(1);
+      expect(uploadCalls[0][1]).toBe('new-issue-id');
+      expect(uploadCalls[0][2]).toBe('description');
+      expect(uploadCalls[0][3]).toBe('This is a test description');
+      expect(uploadCalls[0][4]).toBe('markdown');
+      
+      // Verify updateDoc was called to set the description
+      const updateCalls = mockClient.updateDoc.getCalls();
+      expect(updateCalls.length).toBe(1);
+      expect(updateCalls[0][1]).toBe('proj1');
+      expect(updateCalls[0][2]).toBe('new-issue-id');
+      expect(updateCalls[0][3]).toEqual({ description: 'markup-ref-123' });
+    });
+  });
+
+  describe('createSubissue', () => {
+    test('should create subissue with parent link', async () => {
+      const mockParentIssue = {
+        _id: 'parent-id',
+        identifier: 'TEST-1',
+        space: 'proj1',
+        component: 'comp1',
+        milestone: 'mile1',
+        subIssues: 2
+      };
+      
+      const mockProject = { 
+        _id: 'proj1', 
+        identifier: 'TEST',
+        name: 'Test Project'
+      };
+
+      mockClient.findOne
+        .mockResolvedValueOnce(mockParentIssue)  // parent issue lookup
+        .mockResolvedValueOnce(mockProject)  // project lookup
+        .mockResolvedValueOnce({ number: 15 });  // last issue
+
+      mockClient.addCollection.mockResolvedValueOnce('sub-issue-id');
+      mockClient.updateDoc.mockResolvedValueOnce(); // parent subIssues count update
+
+      const result = await service.createSubissue(
+        mockClient, 
+        'TEST-1', 
+        'Subissue Title'
+      );
+
+      expect(result.content[0].text).toContain('TEST-16');
+      expect(result.content[0].text).toContain('Subissue Title');
+      expect(result.content[0].text).toContain('Parent: TEST-1');
+      
+      // Verify addCollection was called with parent ID
+      const addCalls = mockClient.addCollection.getCalls();
+      expect(addCalls.length).toBe(1);
+      expect(addCalls[0][1]).toBe('proj1');
+      expect(addCalls[0][2]).toBe('parent-id'); // parent issue ID instead of NoParent
+      expect(addCalls[0][4]).toBe('subIssues');
+      expect(addCalls[0][5].attachedTo).toBe('parent-id');
+      expect(addCalls[0][5].component).toBe('comp1'); // inherited from parent
+      expect(addCalls[0][5].milestone).toBe('mile1'); // inherited from parent
+      
+      // Verify parent's subIssues count was updated
+      const updateCalls = mockClient.updateDoc.getCalls();
+      expect(updateCalls.length).toBe(1);
+      expect(updateCalls[0][1]).toBe('proj1');
+      expect(updateCalls[0][2]).toBe('parent-id');
+      expect(updateCalls[0][3]).toEqual({ subIssues: 3 });
+    });
+
+    test('should create subissue with description', async () => {
+      const mockParentIssue = {
+        _id: 'parent-id',
+        identifier: 'TEST-1',
+        space: 'proj1',
+        subIssues: 0
+      };
+      
+      const mockProject = { 
+        _id: 'proj1', 
+        identifier: 'TEST',
+        name: 'Test Project'
+      };
+
+      mockClient.findOne
+        .mockResolvedValueOnce(mockParentIssue)  // parent issue lookup
+        .mockResolvedValueOnce(mockProject)  // project lookup
+        .mockResolvedValueOnce({ number: 20 });  // last issue
+
+      mockClient.addCollection.mockResolvedValueOnce('sub-issue-id');
+      mockClient.uploadMarkup.mockResolvedValueOnce('sub-markup-ref');
+      mockClient.updateDoc
+        .mockResolvedValueOnce() // description update
+        .mockResolvedValueOnce(); // parent count update
+
+      const result = await service.createSubissue(
+        mockClient, 
+        'TEST-1', 
+        'Subissue with Description',
+        'Subissue description text'
+      );
+
+      expect(result.content[0].text).toContain('TEST-21');
+      
+      // Verify uploadMarkup was called
+      const uploadCalls = mockClient.uploadMarkup.getCalls();
+      expect(uploadCalls.length).toBe(1);
+      expect(uploadCalls[0][1]).toBe('sub-issue-id');
+      expect(uploadCalls[0][2]).toBe('description');
+      expect(uploadCalls[0][3]).toBe('Subissue description text');
+      expect(uploadCalls[0][4]).toBe('markdown');
     });
   });
 
@@ -222,6 +361,42 @@ describe('IssueService Tests', () => {
 
       expect(result.content[0].text).toContain('status: in-progress');
       expect(mockClient.updateDoc.getCalls()[0][3]).toHaveProperty('status', 'tracker:status:InProgress');
+    });
+
+    test('should update issue description', async () => {
+      const mockIssue = {
+        _id: 'issue1',
+        identifier: 'TEST-1',
+        space: 'proj1'
+      };
+
+      mockClient.findOne.mockResolvedValueOnce(mockIssue);
+      mockClient.uploadMarkup.mockResolvedValueOnce('updated-markup-ref');
+      mockClient.updateDoc.mockResolvedValueOnce();
+
+      const result = await service.updateIssue(
+        mockClient,
+        'TEST-1',
+        'description',
+        'Updated description text'
+      );
+
+      expect(result.content[0].text).toContain('description: Updated description text');
+      
+      // Verify uploadMarkup was called with issue._id
+      const uploadCalls = mockClient.uploadMarkup.getCalls();
+      expect(uploadCalls.length).toBe(1);
+      expect(uploadCalls[0][1]).toBe('issue1'); // The actual issue ID, not identifier
+      expect(uploadCalls[0][2]).toBe('description');
+      expect(uploadCalls[0][3]).toBe('Updated description text');
+      expect(uploadCalls[0][4]).toBe('markdown');
+      
+      // Verify updateDoc was called with the markup reference
+      const updateCalls = mockClient.updateDoc.getCalls();
+      expect(updateCalls.length).toBe(1);
+      expect(updateCalls[0][1]).toBe('proj1');
+      expect(updateCalls[0][2]).toBe('issue1');
+      expect(updateCalls[0][3]).toEqual({ description: 'updated-markup-ref' });
     });
   });
 
