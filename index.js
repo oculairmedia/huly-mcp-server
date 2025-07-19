@@ -13,6 +13,7 @@ import { projectService, createIssueService } from './src/services/index.js';
 import { createMCPHandler, toolDefinitions } from './src/protocol/index.js';
 import { TransportFactory } from './src/transport/index.js';
 import { getConfigManager } from './src/config/index.js';
+import { createLoggerWithConfig } from './src/utils/index.js';
 import statusManager from './StatusManager.js';
 
 // Create issueService instance with statusManager
@@ -21,9 +22,13 @@ const issueService = createIssueService(statusManager);
 // Get configuration manager instance
 const configManager = getConfigManager();
 
+// Create logger instance
+const logger = createLoggerWithConfig(configManager);
+
 class HulyMCPServer {
   constructor() {
     this.configManager = configManager;
+    this.logger = logger;
     const serverInfo = this.configManager.getServerInfo();
     
     this.server = new Server(
@@ -38,8 +43,16 @@ class HulyMCPServer {
         }
       }
     );
+    
+    this.logger.info('Initializing Huly MCP Server');
 
     this.hulyClientWrapper = createHulyClient(this.configManager.getHulyConfig());
+    
+    const hulyConfig = this.configManager.getHulyConfig();
+    this.logger.debug('Huly client configured', { 
+      url: hulyConfig.url, 
+      workspace: hulyConfig.workspace 
+    });
     
     this.services = {
       projectService,
@@ -56,6 +69,8 @@ class HulyMCPServer {
   }
 
   async cleanup() {
+    this.logger.info('Shutting down Huly MCP Server');
+    
     // Stop transport if running
     if (this.transport && this.transport.isRunning()) {
       await this.transport.stop();
@@ -64,29 +79,33 @@ class HulyMCPServer {
     // Disconnect from Huly
     if (this.hulyClientWrapper) {
       await this.hulyClientWrapper.disconnect();
+      this.logger.debug('Disconnected from Huly platform');
     }
   }
 
   async run(transportType = 'stdio') {
     // Set up cleanup handlers
     process.on('SIGINT', async () => {
-      console.log('Shutting down gracefully...');
+      this.logger.info('Received SIGINT signal');
       await this.cleanup();
       process.exit(0);
     });
     
     process.on('SIGTERM', async () => {
-      console.log('Shutting down gracefully...');
+      this.logger.info('Received SIGTERM signal');
       await this.cleanup();
       process.exit(0);
     });
+
+    this.logger.info(`Starting server with ${transportType} transport`);
 
     // Create transport based on type
     const transportOptions = {
       toolDefinitions,
       hulyClientWrapper: this.hulyClientWrapper,
       services: this.services,
-      port: this.configManager.get('transport.http.port')
+      port: this.configManager.get('transport.http.port'),
+      logger: this.logger.child('transport')
     };
     
     this.transport = TransportFactory.create(transportType, this.server, transportOptions);
@@ -97,10 +116,10 @@ class HulyMCPServer {
       
       // Only log for HTTP transport; stdio transport should not log
       if (transportType === 'http') {
-        console.log(`Huly MCP Server started with ${transportType} transport`);
+        this.logger.info(`Huly MCP Server started with ${transportType} transport`);
       }
     } catch (error) {
-      console.error(`Failed to start server: ${error.message}`);
+      this.logger.error('Failed to start server', error);
       process.exit(1);
     }
   }
@@ -113,11 +132,14 @@ const transportType = transportArg ? transportArg.split('=')[1] : configManager.
 
 // Validate transport type
 if (!TransportFactory.isSupported(transportType)) {
-  console.error(`Invalid transport type: ${transportType}`);
-  console.error(`Supported types: ${TransportFactory.getSupportedTypes().join(', ')}`);
+  logger.error(`Invalid transport type: ${transportType}`);
+  logger.error(`Supported types: ${TransportFactory.getSupportedTypes().join(', ')}`);
   process.exit(1);
 }
 
 // Run the server
 const server = new HulyMCPServer();
-server.run(transportType).catch(console.error);
+server.run(transportType).catch((error) => {
+  logger.error('Failed to start server', error);
+  process.exit(1);
+});
