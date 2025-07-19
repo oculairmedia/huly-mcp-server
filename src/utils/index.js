@@ -11,7 +11,7 @@ export {
   extractTextFromJSON,
   extractText,
   truncateText,
-  cleanText
+  cleanText,
 } from './textExtractor.js';
 
 export {
@@ -31,12 +31,7 @@ export {
   sanitizeString,
   createIdentifierValidator,
   validateProjectIdentifier,
-  validateIssueIdentifier
+  validateIssueIdentifier,
 } from './validators.js';
 
-export {
-  Logger,
-  getLogger,
-  createLoggerWithConfig,
-  resetLogger
-} from './Logger.js';
+export { Logger, getLogger, createLoggerWithConfig, resetLogger } from './Logger.js';

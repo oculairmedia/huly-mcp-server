@@ -35,12 +35,12 @@ class HulyMCPServer {
       {
         name: serverInfo.name,
         version: serverInfo.version,
-        description: this.configManager.get('server.description')
+        description: this.configManager.get('server.description'),
       },
       {
         capabilities: {
-          tools: {}
-        }
+          tools: {},
+        },
       }
     );
 
@@ -51,18 +51,18 @@ class HulyMCPServer {
     const hulyConfig = this.configManager.getHulyConfig();
     this.logger.debug('Huly client configured', {
       url: hulyConfig.url,
-      workspace: hulyConfig.workspace
+      workspace: hulyConfig.workspace,
     });
 
     this.services = {
       projectService,
-      issueService
+      issueService,
     };
 
     // Initialize MCP protocol handler
     this.mcpHandler = createMCPHandler(this.server, {
       ...this.services,
-      hulyClientWrapper: this.hulyClientWrapper
+      hulyClientWrapper: this.hulyClientWrapper,
     });
 
     this.transport = null;
@@ -105,7 +105,7 @@ class HulyMCPServer {
       hulyClientWrapper: this.hulyClientWrapper,
       services: this.services,
       port: this.configManager.get('transport.http.port'),
-      logger: this.logger.child('transport')
+      logger: this.logger.child('transport'),
     };
 
     this.transport = TransportFactory.create(transportType, this.server, transportOptions);
@@ -127,8 +127,10 @@ class HulyMCPServer {
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-const transportArg = args.find(arg => arg.startsWith('--transport='));
-const transportType = transportArg ? transportArg.split('=')[1] : configManager.get('transport.defaultType');
+const transportArg = args.find((arg) => arg.startsWith('--transport='));
+const transportType = transportArg
+  ? transportArg.split('=')[1]
+  : configManager.get('transport.defaultType');
 
 // Validate transport type
 if (!TransportFactory.isSupported(transportType)) {

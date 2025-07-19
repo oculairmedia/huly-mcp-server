@@ -108,7 +108,7 @@ export class HttpTransport extends BaseTransport {
         status: 'healthy',
         server: 'huly-mcp-server',
         transport: 'http',
-        uptime: process.uptime()
+        uptime: process.uptime(),
       });
     });
 
@@ -122,7 +122,7 @@ export class HttpTransport extends BaseTransport {
           return res.status(400).json({
             jsonrpc: '2.0',
             error: { code: -32600, message: 'Invalid Request' },
-            id: id || null
+            id: id || null,
           });
         }
 
@@ -133,18 +133,18 @@ export class HttpTransport extends BaseTransport {
             result = {
               protocolVersion: '2024-11-05',
               capabilities: {
-                tools: {}
+                tools: {},
               },
               serverInfo: {
                 name: 'huly-mcp-server',
-                version: '1.0.0'
-              }
+                version: '1.0.0',
+              },
             };
             break;
 
           case 'tools/list':
             result = {
-              tools: this.toolDefinitions
+              tools: this.toolDefinitions,
             };
             break;
 
@@ -156,16 +156,15 @@ export class HttpTransport extends BaseTransport {
             return res.status(400).json({
               jsonrpc: '2.0',
               error: { code: -32601, message: 'Method not found', data: { method } },
-              id
+              id,
             });
         }
 
         res.json({
           jsonrpc: '2.0',
           result,
-          id
+          id,
         });
-
       } catch (error) {
         this.handleError(res, error, req.body.id);
       }
@@ -208,25 +207,53 @@ export class HttpTransport extends BaseTransport {
         case 'huly_list_components':
           return projectService.listComponents(client, args.project_identifier);
         case 'huly_create_component':
-          return projectService.createComponent(client, args.project_identifier, args.label, args.description);
+          return projectService.createComponent(
+            client,
+            args.project_identifier,
+            args.label,
+            args.description
+          );
         case 'huly_list_milestones':
           return projectService.listMilestones(client, args.project_identifier);
         case 'huly_create_milestone':
-          return projectService.createMilestone(client, args.project_identifier, args.label, args.description, args.target_date, args.status);
+          return projectService.createMilestone(
+            client,
+            args.project_identifier,
+            args.label,
+            args.description,
+            args.target_date,
+            args.status
+          );
         case 'huly_list_github_repositories':
           return projectService.listGithubRepositories(client);
         case 'huly_assign_repository_to_project':
-          return projectService.assignRepositoryToProject(client, args.project_identifier, args.repository_name);
+          return projectService.assignRepositoryToProject(
+            client,
+            args.project_identifier,
+            args.repository_name
+          );
 
         // Issue tools
         case 'huly_list_issues':
           return issueService.listIssues(client, args.project_identifier, args.limit);
         case 'huly_create_issue':
-          return issueService.createIssue(client, args.project_identifier, args.title, args.description, args.priority);
+          return issueService.createIssue(
+            client,
+            args.project_identifier,
+            args.title,
+            args.description,
+            args.priority
+          );
         case 'huly_update_issue':
           return issueService.updateIssue(client, args.issue_identifier, args.field, args.value);
         case 'huly_create_subissue':
-          return issueService.createSubissue(client, args.parent_issue_identifier, args.title, args.description, args.priority);
+          return issueService.createSubissue(
+            client,
+            args.parent_issue_identifier,
+            args.title,
+            args.description,
+            args.priority
+          );
         case 'huly_search_issues':
           return issueService.searchIssues(client, args);
         case 'huly_list_comments':
@@ -257,16 +284,16 @@ export class HttpTransport extends BaseTransport {
           message: error.message,
           data: {
             errorCode: error.code,
-            details: error.details
-          }
+            details: error.details,
+          },
         },
-        id
+        id,
       });
     } else {
       res.status(500).json({
         jsonrpc: '2.0',
         error: { code: -32000, message: error.message },
-        id
+        id,
       });
     }
   }

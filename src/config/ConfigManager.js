@@ -20,7 +20,8 @@ export class ConfigManager {
       server: {
         name: process.env.MCP_SERVER_NAME || 'huly-mcp-server',
         version: process.env.MCP_SERVER_VERSION || '1.0.0',
-        description: process.env.MCP_SERVER_DESCRIPTION || 'MCP server for Huly project management platform'
+        description:
+          process.env.MCP_SERVER_DESCRIPTION || 'MCP server for Huly project management platform',
       },
 
       // Huly connection configuration
@@ -28,7 +29,7 @@ export class ConfigManager {
         url: process.env.HULY_URL || 'https://pm.oculair.ca',
         email: process.env.HULY_EMAIL || process.env.HULY_MCP_EMAIL,
         password: process.env.HULY_PASSWORD || process.env.HULY_MCP_PASSWORD,
-        workspace: process.env.HULY_WORKSPACE || process.env.HULY_MCP_WORKSPACE
+        workspace: process.env.HULY_WORKSPACE || process.env.HULY_MCP_WORKSPACE,
       },
 
       // Transport configuration
@@ -38,27 +39,27 @@ export class ConfigManager {
           port: parseInt(process.env.PORT || process.env.HTTP_PORT || '3457', 10),
           cors: {
             enabled: process.env.CORS_ENABLED !== 'false',
-            origin: process.env.CORS_ORIGIN || '*'
-          }
-        }
+            origin: process.env.CORS_ORIGIN || '*',
+          },
+        },
       },
 
       // Protocol configuration
       protocol: {
-        version: process.env.MCP_PROTOCOL_VERSION || '2024-11-05'
+        version: process.env.MCP_PROTOCOL_VERSION || '2024-11-05',
       },
 
       // Logging configuration
       logging: {
         level: process.env.LOG_LEVEL || 'info',
-        format: process.env.LOG_FORMAT || 'text'
+        format: process.env.LOG_FORMAT || 'text',
       },
 
       // Features configuration
       features: {
         connectionPooling: process.env.ENABLE_CONNECTION_POOLING === 'true',
         retryOnError: process.env.ENABLE_RETRY === 'true',
-        maxRetries: parseInt(process.env.MAX_RETRIES || '3', 10) || 3
+        maxRetries: parseInt(process.env.MAX_RETRIES || '3', 10) || 3,
       },
 
       // Defaults and limits
@@ -66,15 +67,15 @@ export class ConfigManager {
         issueListLimit: parseInt(process.env.DEFAULT_ISSUE_LIMIT || '50', 10),
         commentListLimit: parseInt(process.env.DEFAULT_COMMENT_LIMIT || '50', 10),
         searchResultLimit: parseInt(process.env.DEFAULT_SEARCH_LIMIT || '50', 10),
-        priority: process.env.DEFAULT_PRIORITY || 'medium'
+        priority: process.env.DEFAULT_PRIORITY || 'medium',
       },
 
       // Validation patterns
       validation: {
         projectIdentifierMaxLength: parseInt(process.env.PROJECT_ID_MAX_LENGTH || '5', 10),
         maxTitleLength: parseInt(process.env.MAX_TITLE_LENGTH || '255', 10),
-        maxDescriptionLength: parseInt(process.env.MAX_DESCRIPTION_LENGTH || '10000', 10)
-      }
+        maxDescriptionLength: parseInt(process.env.MAX_DESCRIPTION_LENGTH || '10000', 10),
+      },
     };
   }
 
@@ -85,24 +86,34 @@ export class ConfigManager {
   validateConfiguration() {
     // Validate Huly credentials
     if (!this.config.huly.email || !this.config.huly.password) {
-      throw new Error('Huly credentials are required. Set HULY_EMAIL/HULY_MCP_EMAIL and HULY_PASSWORD/HULY_MCP_PASSWORD environment variables.');
+      throw new Error(
+        'Huly credentials are required. Set HULY_EMAIL/HULY_MCP_EMAIL and HULY_PASSWORD/HULY_MCP_PASSWORD environment variables.'
+      );
     }
 
     // Validate workspace
     if (!this.config.huly.workspace) {
-      throw new Error('Huly workspace is required. Set HULY_WORKSPACE or HULY_MCP_WORKSPACE environment variable.');
+      throw new Error(
+        'Huly workspace is required. Set HULY_WORKSPACE or HULY_MCP_WORKSPACE environment variable.'
+      );
     }
 
     // Validate port number
-    if (isNaN(this.config.transport.http.port) || this.config.transport.http.port < 1 || this.config.transport.http.port > 65535) {
-      throw new Error(`Invalid HTTP port: ${this.config.transport.http.port}. Must be between 1 and 65535.`);
+    if (
+      isNaN(this.config.transport.http.port) ||
+      this.config.transport.http.port < 1 ||
+      this.config.transport.http.port > 65535
+    ) {
+      throw new Error(
+        `Invalid HTTP port: ${this.config.transport.http.port}. Must be between 1 and 65535.`
+      );
     }
 
     // Validate limits
     const limits = [
       { name: 'issueListLimit', value: this.config.defaults.issueListLimit },
       { name: 'commentListLimit', value: this.config.defaults.commentListLimit },
-      { name: 'searchResultLimit', value: this.config.defaults.searchResultLimit }
+      { name: 'searchResultLimit', value: this.config.defaults.searchResultLimit },
     ];
 
     for (const limit of limits) {
@@ -157,7 +168,7 @@ export class ConfigManager {
   getServerInfo() {
     return {
       name: this.config.server.name,
-      version: this.config.server.version
+      version: this.config.server.version,
     };
   }
 

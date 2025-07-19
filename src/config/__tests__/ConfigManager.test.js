@@ -187,7 +187,7 @@ describe('ConfigManager', () => {
 
       expect(serverInfo).toEqual({
         name: 'huly-mcp-server',
-        version: '1.0.0'
+        version: '1.0.0',
       });
     });
 
@@ -199,7 +199,7 @@ describe('ConfigManager', () => {
         url: 'https://pm.oculair.ca',
         email: 'test@example.com',
         password: 'testpass',
-        workspace: 'testworkspace'
+        workspace: 'testworkspace',
       });
     });
 
@@ -219,7 +219,7 @@ describe('ConfigManager', () => {
         issueListLimit: 50,
         commentListLimit: 50,
         searchResultLimit: 50,
-        priority: 'medium'
+        priority: 'medium',
       });
     });
 
@@ -230,7 +230,7 @@ describe('ConfigManager', () => {
       expect(validation).toEqual({
         projectIdentifierMaxLength: 5,
         maxTitleLength: 255,
-        maxDescriptionLength: 10000
+        maxDescriptionLength: 10000,
       });
     });
 

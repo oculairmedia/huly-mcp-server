@@ -13,7 +13,7 @@ describe('HulyClient Tests', () => {
     url: 'http://localhost:3333',
     email: 'test@example.com',
     password: 'testpass123',
-    workspace: 'testworkspace'
+    workspace: 'testworkspace',
   };
 
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe('HulyClient Tests', () => {
 
     test('should report not connected when client exists but hierarchy is null', () => {
       client.client = {
-        getHierarchy: () => null
+        getHierarchy: () => null,
       };
 
       expect(client.isConnected()).toBe(false);
@@ -46,7 +46,7 @@ describe('HulyClient Tests', () => {
 
     test('should report connected when client exists and hierarchy is accessible', () => {
       client.client = {
-        getHierarchy: () => ({ someData: true })
+        getHierarchy: () => ({ someData: true }),
       };
 
       expect(client.isConnected()).toBe(true);
@@ -56,7 +56,7 @@ describe('HulyClient Tests', () => {
       client.client = {
         getHierarchy: () => {
           throw new Error('Connection lost');
-        }
+        },
       };
 
       expect(client.isConnected()).toBe(false);
@@ -81,10 +81,10 @@ describe('HulyClient Tests', () => {
         new Error('Permission denied'),
         new Error('Not found'),
         new Error('Validation failed'),
-        new Error('Unknown error')
+        new Error('Unknown error'),
       ];
 
-      otherErrors.forEach(error => {
+      otherErrors.forEach((error) => {
         expect(client._isConnectionError(error)).toBe(false);
       });
     });
@@ -120,8 +120,8 @@ describe('HulyClient Tests', () => {
         config: {
           url: testConfig.url,
           email: testConfig.email,
-          workspace: testConfig.workspace
-        }
+          workspace: testConfig.workspace,
+        },
       });
     });
 
@@ -159,7 +159,7 @@ describe('HulyClient Tests', () => {
         maxAttempts: 3,
         initialDelay: 1000,
         maxDelay: 10000,
-        backoffFactor: 2
+        backoffFactor: 2,
       };
 
       // Calculate expected delays

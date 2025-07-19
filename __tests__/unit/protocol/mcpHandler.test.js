@@ -44,9 +44,8 @@ function createMockFn() {
   fn.getCalls = () => calls;
   fn.toHaveBeenCalled = () => calls.length > 0;
   fn.toHaveBeenCalledWith = (...args) => {
-    return calls.some(call =>
-      call.length === args.length &&
-      call.every((arg, i) => arg === args[i])
+    return calls.some(
+      (call) => call.length === args.length && call.every((arg, i) => arg === args[i])
     );
   };
 
@@ -62,7 +61,7 @@ describe('MCPHandler Tests', () => {
   beforeEach(() => {
     // Create mock server
     mockServer = {
-      setRequestHandler: createMockFn()
+      setRequestHandler: createMockFn(),
     };
 
     // Create mock client
@@ -78,7 +77,7 @@ describe('MCPHandler Tests', () => {
         createMilestone: createMockFn(),
         listMilestones: createMockFn(),
         listGithubRepositories: createMockFn(),
-        assignRepositoryToProject: createMockFn()
+        assignRepositoryToProject: createMockFn(),
       },
       issueService: {
         listIssues: createMockFn(),
@@ -88,11 +87,11 @@ describe('MCPHandler Tests', () => {
         searchIssues: createMockFn(),
         listComments: createMockFn(),
         createComment: createMockFn(),
-        getIssueDetails: createMockFn()
+        getIssueDetails: createMockFn(),
       },
       hulyClientWrapper: {
-        withClient: createMockFn()
-      }
+        withClient: createMockFn(),
+      },
     };
 
     // Mock withClient to execute the callback with mockClient
@@ -139,14 +138,14 @@ describe('MCPHandler Tests', () => {
 
     test('should execute project listing tool', async () => {
       mockServices.projectService.listProjects.mockResolvedValueOnce({
-        content: [{ type: 'text', text: 'Projects listed' }]
+        content: [{ type: 'text', text: 'Projects listed' }],
       });
 
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {}
-        }
+          arguments: {},
+        },
       };
 
       const result = await toolHandler(request);
@@ -157,7 +156,7 @@ describe('MCPHandler Tests', () => {
 
     test('should execute issue creation tool', async () => {
       mockServices.issueService.createIssue.mockResolvedValueOnce({
-        content: [{ type: 'text', text: 'Issue created' }]
+        content: [{ type: 'text', text: 'Issue created' }],
       });
 
       const request = {
@@ -167,9 +166,9 @@ describe('MCPHandler Tests', () => {
             project_identifier: 'TEST',
             title: 'Test Issue',
             description: 'Test description',
-            priority: 'high'
-          }
-        }
+            priority: 'high',
+          },
+        },
       };
 
       const result = await toolHandler(request);
@@ -187,8 +186,8 @@ describe('MCPHandler Tests', () => {
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {}
-        }
+          arguments: {},
+        },
       };
 
       const result = await toolHandler(request);
@@ -206,8 +205,8 @@ describe('MCPHandler Tests', () => {
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {}
-        }
+          arguments: {},
+        },
       };
 
       const result = await toolHandler(request);
@@ -220,8 +219,8 @@ describe('MCPHandler Tests', () => {
       const request = {
         params: {
           name: 'invalid_tool',
-          arguments: {}
-        }
+          arguments: {},
+        },
       };
 
       const result = await toolHandler(request);
@@ -244,35 +243,110 @@ describe('MCPHandler Tests', () => {
     const toolTests = [
       // Project tools
       { name: 'huly_list_projects', service: 'projectService', method: 'listProjects', args: {} },
-      { name: 'huly_create_project', service: 'projectService', method: 'createProject', args: { name: 'Test' } },
-      { name: 'huly_list_components', service: 'projectService', method: 'listComponents', args: { project_identifier: 'TEST' } },
-      { name: 'huly_create_component', service: 'projectService', method: 'createComponent', args: { project_identifier: 'TEST', label: 'UI' } },
-      { name: 'huly_list_milestones', service: 'projectService', method: 'listMilestones', args: { project_identifier: 'TEST' } },
-      { name: 'huly_create_milestone', service: 'projectService', method: 'createMilestone', args: { project_identifier: 'TEST', label: 'v1.0' } },
-      { name: 'huly_list_github_repositories', service: 'projectService', method: 'listGithubRepositories', args: {} },
-      { name: 'huly_assign_repository_to_project', service: 'projectService', method: 'assignRepositoryToProject', args: { project_identifier: 'TEST', repository_name: 'org/repo' } },
+      {
+        name: 'huly_create_project',
+        service: 'projectService',
+        method: 'createProject',
+        args: { name: 'Test' },
+      },
+      {
+        name: 'huly_list_components',
+        service: 'projectService',
+        method: 'listComponents',
+        args: { project_identifier: 'TEST' },
+      },
+      {
+        name: 'huly_create_component',
+        service: 'projectService',
+        method: 'createComponent',
+        args: { project_identifier: 'TEST', label: 'UI' },
+      },
+      {
+        name: 'huly_list_milestones',
+        service: 'projectService',
+        method: 'listMilestones',
+        args: { project_identifier: 'TEST' },
+      },
+      {
+        name: 'huly_create_milestone',
+        service: 'projectService',
+        method: 'createMilestone',
+        args: { project_identifier: 'TEST', label: 'v1.0' },
+      },
+      {
+        name: 'huly_list_github_repositories',
+        service: 'projectService',
+        method: 'listGithubRepositories',
+        args: {},
+      },
+      {
+        name: 'huly_assign_repository_to_project',
+        service: 'projectService',
+        method: 'assignRepositoryToProject',
+        args: { project_identifier: 'TEST', repository_name: 'org/repo' },
+      },
 
       // Issue tools
-      { name: 'huly_list_issues', service: 'issueService', method: 'listIssues', args: { project_identifier: 'TEST' } },
-      { name: 'huly_create_issue', service: 'issueService', method: 'createIssue', args: { project_identifier: 'TEST', title: 'Issue' } },
-      { name: 'huly_update_issue', service: 'issueService', method: 'updateIssue', args: { issue_identifier: 'TEST-1', field: 'title', value: 'New' } },
-      { name: 'huly_create_subissue', service: 'issueService', method: 'createSubissue', args: { parent_issue_identifier: 'TEST-1', title: 'Sub' } },
-      { name: 'huly_search_issues', service: 'issueService', method: 'searchIssues', args: { query: 'test' } },
-      { name: 'huly_list_comments', service: 'issueService', method: 'listComments', args: { issue_identifier: 'TEST-1' } },
-      { name: 'huly_create_comment', service: 'issueService', method: 'createComment', args: { issue_identifier: 'TEST-1', message: 'Comment' } },
-      { name: 'huly_get_issue_details', service: 'issueService', method: 'getIssueDetails', args: { issue_identifier: 'TEST-1' } }
+      {
+        name: 'huly_list_issues',
+        service: 'issueService',
+        method: 'listIssues',
+        args: { project_identifier: 'TEST' },
+      },
+      {
+        name: 'huly_create_issue',
+        service: 'issueService',
+        method: 'createIssue',
+        args: { project_identifier: 'TEST', title: 'Issue' },
+      },
+      {
+        name: 'huly_update_issue',
+        service: 'issueService',
+        method: 'updateIssue',
+        args: { issue_identifier: 'TEST-1', field: 'title', value: 'New' },
+      },
+      {
+        name: 'huly_create_subissue',
+        service: 'issueService',
+        method: 'createSubissue',
+        args: { parent_issue_identifier: 'TEST-1', title: 'Sub' },
+      },
+      {
+        name: 'huly_search_issues',
+        service: 'issueService',
+        method: 'searchIssues',
+        args: { query: 'test' },
+      },
+      {
+        name: 'huly_list_comments',
+        service: 'issueService',
+        method: 'listComments',
+        args: { issue_identifier: 'TEST-1' },
+      },
+      {
+        name: 'huly_create_comment',
+        service: 'issueService',
+        method: 'createComment',
+        args: { issue_identifier: 'TEST-1', message: 'Comment' },
+      },
+      {
+        name: 'huly_get_issue_details',
+        service: 'issueService',
+        method: 'getIssueDetails',
+        args: { issue_identifier: 'TEST-1' },
+      },
     ];
 
     test.each(toolTests)('should execute $name tool', async ({ name, service, method, args }) => {
       mockServices[service][method].mockResolvedValueOnce({
-        content: [{ type: 'text', text: `${name} executed` }]
+        content: [{ type: 'text', text: `${name} executed` }],
       });
 
       const request = {
         params: {
           name,
-          arguments: args
-        }
+          arguments: args,
+        },
       };
 
       const result = await toolHandler(request);

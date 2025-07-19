@@ -15,7 +15,7 @@ import {
   VALIDATION_PATTERNS,
   VALID_UPDATE_FIELDS,
   MCP_PROTOCOL,
-  SERVER_INFO
+  SERVER_INFO,
 } from '../../../src/core/constants.js';
 
 describe('Constants Tests', () => {
@@ -34,10 +34,10 @@ describe('Constants Tests', () => {
         'DATABASE_ERROR',
         'CONNECTION_ERROR',
         'PERMISSION_ERROR',
-        'UNKNOWN_ERROR'
+        'UNKNOWN_ERROR',
       ];
 
-      requiredCodes.forEach(code => {
+      requiredCodes.forEach((code) => {
         expect(ERROR_CODES).toHaveProperty(code);
         expect(ERROR_CODES[code]).toBe(code);
       });
@@ -53,11 +53,11 @@ describe('Constants Tests', () => {
   describe('Priority mappings', () => {
     test('PRIORITY_MAP should have correct mappings', () => {
       expect(PRIORITY_MAP).toEqual({
-        'NoPriority': 0,
-        'urgent': 1,
-        'high': 2,
-        'medium': 3,
-        'low': 4
+        NoPriority: 0,
+        urgent: 1,
+        high: 2,
+        medium: 3,
+        low: 4,
       });
     });
 
@@ -75,10 +75,10 @@ describe('Constants Tests', () => {
   describe('Milestone status mappings', () => {
     test('MILESTONE_STATUS_MAP should have correct mappings', () => {
       expect(MILESTONE_STATUS_MAP).toEqual({
-        'planned': 0,
-        'in_progress': 1,
-        'completed': 2,
-        'canceled': 3
+        planned: 0,
+        in_progress: 1,
+        completed: 2,
+        canceled: 3,
       });
     });
 
@@ -167,7 +167,7 @@ describe('Constants Tests', () => {
         'status',
         'priority',
         'component',
-        'milestone'
+        'milestone',
       ]);
     });
 
@@ -197,7 +197,7 @@ describe('Constants Tests', () => {
 
   describe('Constant relationships', () => {
     test('priority map keys should be lowercase except NoPriority', () => {
-      Object.keys(PRIORITY_MAP).forEach(key => {
+      Object.keys(PRIORITY_MAP).forEach((key) => {
         if (key !== 'NoPriority') {
           expect(key).toBe(key.toLowerCase());
         }
@@ -205,7 +205,7 @@ describe('Constants Tests', () => {
     });
 
     test('milestone status map keys should use underscores', () => {
-      Object.keys(MILESTONE_STATUS_MAP).forEach(key => {
+      Object.keys(MILESTONE_STATUS_MAP).forEach((key) => {
         expect(key).toMatch(/^[a-z_]+$/);
       });
     });

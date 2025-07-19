@@ -43,9 +43,8 @@ function createMockFn() {
   fn.getCalls = () => calls;
   fn.toHaveBeenCalled = () => calls.length > 0;
   fn.toHaveBeenCalledWith = (...args) => {
-    return calls.some(call =>
-      call.length === args.length &&
-      call.every((arg, i) => arg === args[i])
+    return calls.some(
+      (call) => call.length === args.length && call.every((arg, i) => arg === args[i])
     );
   };
 
@@ -60,17 +59,17 @@ const mockStatusManager = {
       'tracker:status:Todo': 'todo',
       'tracker:status:InProgress': 'in-progress',
       'tracker:status:Done': 'done',
-      'tracker:status:Canceled': 'canceled'
+      'tracker:status:Canceled': 'canceled',
     };
     return map[status] || status;
   },
   fromHumanStatus: (status) => {
     const map = {
-      'backlog': 'tracker:status:Backlog',
-      'todo': 'tracker:status:Todo',
+      backlog: 'tracker:status:Backlog',
+      todo: 'tracker:status:Todo',
       'in-progress': 'tracker:status:InProgress',
-      'done': 'tracker:status:Done',
-      'canceled': 'tracker:status:Canceled'
+      done: 'tracker:status:Done',
+      canceled: 'tracker:status:Canceled',
     };
     return map[status] || status;
   },
@@ -81,9 +80,9 @@ const mockStatusManager = {
     'tracker:status:Todo',
     'tracker:status:InProgress',
     'tracker:status:Done',
-    'tracker:status:Canceled'
+    'tracker:status:Canceled',
   ],
-  getHumanStatuses: async () => ['backlog', 'todo', 'in-progress', 'done', 'canceled']
+  getHumanStatuses: async () => ['backlog', 'todo', 'in-progress', 'done', 'canceled'],
 };
 
 describe('IssueService Tests', () => {
@@ -98,7 +97,7 @@ describe('IssueService Tests', () => {
       createDoc: createMockFn(),
       updateDoc: createMockFn(),
       addCollection: createMockFn(),
-      uploadMarkup: createMockFn()
+      uploadMarkup: createMockFn(),
     };
   });
 
@@ -119,15 +118,16 @@ describe('IssueService Tests', () => {
           title: 'Test Issue',
           status: 'tracker:status:Backlog',
           priority: 2,
-          description: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Test description"}]}]}'
-        }
+          description:
+            '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Test description"}]}]}',
+        },
       ];
 
       mockClient.findOne.mockResolvedValueOnce(mockProject);
       mockClient.findAll
-        .mockResolvedValueOnce(mockIssues)  // issues
-        .mockResolvedValueOnce([])  // components
-        .mockResolvedValueOnce([]);  // milestones
+        .mockResolvedValueOnce(mockIssues) // issues
+        .mockResolvedValueOnce([]) // components
+        .mockResolvedValueOnce([]); // milestones
 
       const result = await service.listIssues(mockClient, 'TEST');
 
@@ -141,9 +141,7 @@ describe('IssueService Tests', () => {
     test('should throw when project not found', async () => {
       mockClient.findOne.mockResolvedValueOnce(null);
 
-      await expect(
-        service.listIssues(mockClient, 'NOTFOUND')
-      ).rejects.toThrow();
+      await expect(service.listIssues(mockClient, 'NOTFOUND')).rejects.toThrow();
     });
   });
 
@@ -152,20 +150,16 @@ describe('IssueService Tests', () => {
       const mockProject = {
         _id: 'proj1',
         identifier: 'TEST',
-        name: 'Test Project'
+        name: 'Test Project',
       };
 
       mockClient.findOne
-        .mockResolvedValueOnce(mockProject)  // project lookup
-        .mockResolvedValueOnce({ number: 5 });  // last issue
+        .mockResolvedValueOnce(mockProject) // project lookup
+        .mockResolvedValueOnce({ number: 5 }); // last issue
 
       mockClient.addCollection.mockResolvedValueOnce('new-issue-id');
 
-      const result = await service.createIssue(
-        mockClient,
-        'TEST',
-        'New Issue'
-      );
+      const result = await service.createIssue(mockClient, 'TEST', 'New Issue');
 
       expect(result.content[0].text).toContain('TEST-6');
       expect(result.content[0].text).toContain('New Issue');
@@ -185,12 +179,12 @@ describe('IssueService Tests', () => {
       const mockProject = {
         _id: 'proj1',
         identifier: 'TEST',
-        name: 'Test Project'
+        name: 'Test Project',
       };
 
       mockClient.findOne
-        .mockResolvedValueOnce(mockProject)  // project lookup
-        .mockResolvedValueOnce({ number: 10 });  // last issue
+        .mockResolvedValueOnce(mockProject) // project lookup
+        .mockResolvedValueOnce({ number: 10 }); // last issue
 
       mockClient.addCollection.mockResolvedValueOnce('new-issue-id');
       mockClient.uploadMarkup.mockResolvedValueOnce('markup-ref-123');
@@ -231,28 +225,24 @@ describe('IssueService Tests', () => {
         space: 'proj1',
         component: 'comp1',
         milestone: 'mile1',
-        subIssues: 2
+        subIssues: 2,
       };
 
       const mockProject = {
         _id: 'proj1',
         identifier: 'TEST',
-        name: 'Test Project'
+        name: 'Test Project',
       };
 
       mockClient.findOne
-        .mockResolvedValueOnce(mockParentIssue)  // parent issue lookup
-        .mockResolvedValueOnce(mockProject)  // project lookup
-        .mockResolvedValueOnce({ number: 15 });  // last issue
+        .mockResolvedValueOnce(mockParentIssue) // parent issue lookup
+        .mockResolvedValueOnce(mockProject) // project lookup
+        .mockResolvedValueOnce({ number: 15 }); // last issue
 
       mockClient.addCollection.mockResolvedValueOnce('sub-issue-id');
       mockClient.updateDoc.mockResolvedValueOnce(); // parent subIssues count update
 
-      const result = await service.createSubissue(
-        mockClient,
-        'TEST-1',
-        'Subissue Title'
-      );
+      const result = await service.createSubissue(mockClient, 'TEST-1', 'Subissue Title');
 
       expect(result.content[0].text).toContain('TEST-16');
       expect(result.content[0].text).toContain('Subissue Title');
@@ -281,19 +271,19 @@ describe('IssueService Tests', () => {
         _id: 'parent-id',
         identifier: 'TEST-1',
         space: 'proj1',
-        subIssues: 0
+        subIssues: 0,
       };
 
       const mockProject = {
         _id: 'proj1',
         identifier: 'TEST',
-        name: 'Test Project'
+        name: 'Test Project',
       };
 
       mockClient.findOne
-        .mockResolvedValueOnce(mockParentIssue)  // parent issue lookup
-        .mockResolvedValueOnce(mockProject)  // project lookup
-        .mockResolvedValueOnce({ number: 20 });  // last issue
+        .mockResolvedValueOnce(mockParentIssue) // parent issue lookup
+        .mockResolvedValueOnce(mockProject) // project lookup
+        .mockResolvedValueOnce({ number: 20 }); // last issue
 
       mockClient.addCollection.mockResolvedValueOnce('sub-issue-id');
       mockClient.uploadMarkup.mockResolvedValueOnce('sub-markup-ref');
@@ -325,18 +315,13 @@ describe('IssueService Tests', () => {
       const mockIssue = {
         _id: 'issue1',
         identifier: 'TEST-1',
-        space: 'proj1'
+        space: 'proj1',
       };
 
       mockClient.findOne.mockResolvedValueOnce(mockIssue);
       mockClient.updateDoc.mockResolvedValueOnce();
 
-      const result = await service.updateIssue(
-        mockClient,
-        'TEST-1',
-        'title',
-        'New Title'
-      );
+      const result = await service.updateIssue(mockClient, 'TEST-1', 'title', 'New Title');
 
       expect(result.content[0].text).toContain('Updated issue TEST-1');
       expect(result.content[0].text).toContain('title: New Title');
@@ -346,28 +331,26 @@ describe('IssueService Tests', () => {
       const mockIssue = {
         _id: 'issue1',
         identifier: 'TEST-1',
-        space: 'proj1'
+        space: 'proj1',
       };
 
       mockClient.findOne.mockResolvedValueOnce(mockIssue);
       mockClient.updateDoc.mockResolvedValueOnce();
 
-      const result = await service.updateIssue(
-        mockClient,
-        'TEST-1',
-        'status',
-        'in-progress'
-      );
+      const result = await service.updateIssue(mockClient, 'TEST-1', 'status', 'in-progress');
 
       expect(result.content[0].text).toContain('status: in-progress');
-      expect(mockClient.updateDoc.getCalls()[0][3]).toHaveProperty('status', 'tracker:status:InProgress');
+      expect(mockClient.updateDoc.getCalls()[0][3]).toHaveProperty(
+        'status',
+        'tracker:status:InProgress'
+      );
     });
 
     test('should update issue description', async () => {
       const mockIssue = {
         _id: 'issue1',
         identifier: 'TEST-1',
-        space: 'proj1'
+        space: 'proj1',
       };
 
       mockClient.findOne.mockResolvedValueOnce(mockIssue);
@@ -411,19 +394,18 @@ describe('IssueService Tests', () => {
           status: 'tracker:status:Backlog',
           priority: 2,
           space: 'proj1',
-          modifiedOn: Date.now()
-        }
+          modifiedOn: Date.now(),
+        },
       ];
 
       mockClient.findOne
-        .mockResolvedValueOnce(mockProject)  // initial project lookup
-        .mockResolvedValueOnce(mockProject);  // project lookup in map
-      mockClient.findAll
-        .mockResolvedValueOnce(mockIssues);  // issues
+        .mockResolvedValueOnce(mockProject) // initial project lookup
+        .mockResolvedValueOnce(mockProject); // project lookup in map
+      mockClient.findAll.mockResolvedValueOnce(mockIssues); // issues
 
       const result = await service.searchIssues(mockClient, {
         project_identifier: 'TEST',
-        query: 'Matching'
+        query: 'Matching',
       });
 
       expect(result.content[0].text).toContain('TEST-1');
@@ -439,7 +421,7 @@ describe('IssueService Tests', () => {
         _id: 'issue1',
         identifier: 'TEST-1',
         space: 'proj1',
-        comments: 0
+        comments: 0,
       };
 
       // Test various methods
@@ -452,16 +434,16 @@ describe('IssueService Tests', () => {
         () => service.listIssues(mockClient, 'TEST'),
         () => service.listComments(mockClient, 'TEST-1'),
         () => service.getIssueDetails(mockClient, 'TEST-1'),
-        () => service.searchIssues(mockClient, {})
+        () => service.searchIssues(mockClient, {}),
       ];
 
       for (const method of methods) {
         // Reset mocks for each iteration
         mockClient.findOne.mockResolvedValue(mockProject);
         mockClient.findAll
-          .mockResolvedValueOnce([])  // issues or comments
-          .mockResolvedValueOnce([])  // components
-          .mockResolvedValueOnce([]);  // milestones
+          .mockResolvedValueOnce([]) // issues or comments
+          .mockResolvedValueOnce([]) // components
+          .mockResolvedValueOnce([]); // milestones
 
         // Add extra mock for issue lookup in some methods
         mockClient.findOne.mockResolvedValueOnce(mockProject);

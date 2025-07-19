@@ -5,10 +5,7 @@
  * and request routing to appropriate services.
  */
 
-import {
-  ListToolsRequestSchema,
-  CallToolRequestSchema
-} from '@modelcontextprotocol/sdk/types.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { HulyError } from '../core/HulyError.js';
 import { toolDefinitions } from './toolDefinitions.js';
 
@@ -23,7 +20,7 @@ export class MCPHandler {
     // Handle tool listing requests
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
-        tools: toolDefinitions
+        tools: toolDefinitions,
       };
     });
 
@@ -44,9 +41,9 @@ export class MCPHandler {
           content: [
             {
               type: 'text',
-              text: `❌ Error: ${error.message}`
-            }
-          ]
+              text: `❌ Error: ${error.message}`,
+            },
+          ],
         };
       }
     });
@@ -66,13 +63,25 @@ export class MCPHandler {
           return projectService.createProject(client, args.name, args.description, args.identifier);
 
         case 'huly_create_component':
-          return projectService.createComponent(client, args.project_identifier, args.label, args.description);
+          return projectService.createComponent(
+            client,
+            args.project_identifier,
+            args.label,
+            args.description
+          );
 
         case 'huly_list_components':
           return projectService.listComponents(client, args.project_identifier);
 
         case 'huly_create_milestone':
-          return projectService.createMilestone(client, args.project_identifier, args.label, args.description, args.target_date, args.status);
+          return projectService.createMilestone(
+            client,
+            args.project_identifier,
+            args.label,
+            args.description,
+            args.target_date,
+            args.status
+          );
 
         case 'huly_list_milestones':
           return projectService.listMilestones(client, args.project_identifier);
@@ -81,20 +90,36 @@ export class MCPHandler {
           return projectService.listGithubRepositories(client);
 
         case 'huly_assign_repository_to_project':
-          return projectService.assignRepositoryToProject(client, args.project_identifier, args.repository_name);
+          return projectService.assignRepositoryToProject(
+            client,
+            args.project_identifier,
+            args.repository_name
+          );
 
         // Issue tools
         case 'huly_list_issues':
           return issueService.listIssues(client, args.project_identifier, args.limit);
 
         case 'huly_create_issue':
-          return issueService.createIssue(client, args.project_identifier, args.title, args.description, args.priority);
+          return issueService.createIssue(
+            client,
+            args.project_identifier,
+            args.title,
+            args.description,
+            args.priority
+          );
 
         case 'huly_update_issue':
           return issueService.updateIssue(client, args.issue_identifier, args.field, args.value);
 
         case 'huly_create_subissue':
-          return issueService.createSubissue(client, args.parent_issue_identifier, args.title, args.description, args.priority);
+          return issueService.createSubissue(
+            client,
+            args.parent_issue_identifier,
+            args.title,
+            args.description,
+            args.priority
+          );
 
         case 'huly_search_issues':
           return issueService.searchIssues(client, args);

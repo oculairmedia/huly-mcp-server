@@ -214,10 +214,10 @@ describe('Logger', () => {
         get: (path, defaultValue) => {
           const values = {
             'logging.level': 'warn',
-            'logging.format': 'json'
+            'logging.format': 'json',
           };
           return values[path] || defaultValue;
-        }
+        },
       };
 
       const logger = createLoggerWithConfig(mockConfigManager);
@@ -298,7 +298,7 @@ describe('Logger', () => {
       logger.info('user action', {
         userId: '123',
         action: 'login',
-        metadata: { ip: '127.0.0.1' }
+        metadata: { ip: '127.0.0.1' },
       });
 
       expect(consoleOutput).toHaveLength(1);

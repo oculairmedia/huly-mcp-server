@@ -19,7 +19,7 @@ import {
   sanitizeString,
   createIdentifierValidator,
   validateProjectIdentifier,
-  validateIssueIdentifier
+  validateIssueIdentifier,
 } from '../validators.js';
 import { HulyError } from '../../core/HulyError.js';
 
@@ -67,11 +67,11 @@ describe('Validation Utilities', () => {
     it('should parse valid issue identifiers', () => {
       expect(parseIssueIdentifier('ABC-123')).toEqual({
         project: 'ABC',
-        number: 123
+        number: 123,
       });
       expect(parseIssueIdentifier('X-1')).toEqual({
         project: 'X',
-        number: 1
+        number: 1,
       });
     });
 
@@ -199,7 +199,9 @@ describe('Validation Utilities', () => {
 
     it('should validate pattern', () => {
       expect(validateRequiredString('ABC', 'field', { pattern: /^[A-Z]+$/ })).toBe('ABC');
-      expect(() => validateRequiredString('abc', 'field', { pattern: /^[A-Z]+$/ })).toThrow(HulyError);
+      expect(() => validateRequiredString('abc', 'field', { pattern: /^[A-Z]+$/ })).toThrow(
+        HulyError
+      );
     });
   });
 
@@ -277,7 +279,7 @@ describe('Validation Utilities', () => {
   describe('createIdentifierValidator', () => {
     const validator = createIdentifierValidator({
       validator: (id) => id === 'valid',
-      entityName: 'test'
+      entityName: 'test',
     });
 
     it('should create working validators', () => {

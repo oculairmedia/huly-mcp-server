@@ -17,8 +17,8 @@ const { connect } = apiClient;
 const RETRY_CONFIG = {
   maxAttempts: 3,
   initialDelay: 1000, // 1 second
-  maxDelay: 10000,    // 10 seconds
-  backoffFactor: 2
+  maxDelay: 10000, // 10 seconds
+  backoffFactor: 2,
 };
 
 /**
@@ -119,7 +119,7 @@ export class HulyClient {
         email: this.config.email,
         password: this.config.password,
         workspace: this.config.workspace,
-        socketFactory: (url) => new WebSocket(url)
+        socketFactory: (url) => new WebSocket(url),
       });
 
       // Verify connection is working
@@ -241,7 +241,9 @@ export class HulyClient {
 
         // Check if error is connection-related
         if (this._isConnectionError(error) && attempt < maxRetries) {
-          console.log(`Operation failed due to connection error, reconnecting (attempt ${attempt + 1}/${maxRetries})...`);
+          console.log(
+            `Operation failed due to connection error, reconnecting (attempt ${attempt + 1}/${maxRetries})...`
+          );
           await this.reconnect();
         } else {
           throw error;
@@ -267,11 +269,11 @@ export class HulyClient {
       'enetunreach',
       'socket',
       'websocket',
-      'network'
+      'network',
     ];
 
     const errorMessage = error.message?.toLowerCase() || '';
-    return connectionKeywords.some(keyword => errorMessage.includes(keyword));
+    return connectionKeywords.some((keyword) => errorMessage.includes(keyword));
   }
 
   /**
@@ -281,7 +283,7 @@ export class HulyClient {
    * @returns {Promise<void>}
    */
   _sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -297,8 +299,8 @@ export class HulyClient {
       config: {
         url: this.config.url,
         email: this.config.email,
-        workspace: this.config.workspace
-      }
+        workspace: this.config.workspace,
+      },
     };
   }
 }

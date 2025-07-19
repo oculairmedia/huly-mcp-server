@@ -8,46 +8,46 @@ jobs:
   update-huly:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Extract Issue Number
-      id: extract
-      run: |
-        # Extract HULLY-XX from PR title or body
-        PR_TITLE="${{ github.event.pull_request.title }}"
-        PR_BODY="${{ github.event.pull_request.body }}"
-        
-        # Check title first for [HULLY-XX] format
-        if [[ "$PR_TITLE" =~ \[HULLY-([0-9]+)\] ]]; then
-          echo "issue_number=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
-        # Check body for Closes/Fixes HULLY-XX
-        elif [[ "$PR_BODY" =~ (Closes|Fixes|Resolves)\ HULLY-([0-9]+) ]]; then
-          echo "issue_number=${BASH_REMATCH[2]}" >> $GITHUB_OUTPUT
-        fi
-    
-    - name: Update Huly Issue Status
-      if: steps.extract.outputs.issue_number
-      env:
-        HULY_URL: ${{ secrets.HULY_URL }}
-        HULY_EMAIL: ${{ secrets.HULY_EMAIL }}
-        HULY_PASSWORD: ${{ secrets.HULY_PASSWORD }}
-        HULY_WORKSPACE: ${{ secrets.HULY_WORKSPACE }}
-      run: |
-        ISSUE_NUMBER="${{ steps.extract.outputs.issue_number }}"
-        
-        # Call Huly MCP server to update issue status
-        curl -X POST "${{ secrets.HULY_MCP_URL }}/mcp" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "jsonrpc": "2.0",
-            "method": "tools/call",
-            "params": {
-              "name": "huly_update_issue",
-              "arguments": {
-                "issue_identifier": "HULLY-'$ISSUE_NUMBER'",
-                "field": "status",
-                "value": "done"
-              }
-            },
-            "id": 1
-          }'
+      - name: Extract Issue Number
+        id: extract
+        run: |
+          # Extract HULLY-XX from PR title or body
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+
+          # Check title first for [HULLY-XX] format
+          if [[ "$PR_TITLE" =~ \[HULLY-([0-9]+)\] ]]; then
+            echo "issue_number=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          # Check body for Closes/Fixes HULLY-XX
+          elif [[ "$PR_BODY" =~ (Closes|Fixes|Resolves)\ HULLY-([0-9]+) ]]; then
+            echo "issue_number=${BASH_REMATCH[2]}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update Huly Issue Status
+        if: steps.extract.outputs.issue_number
+        env:
+          HULY_URL: ${{ secrets.HULY_URL }}
+          HULY_EMAIL: ${{ secrets.HULY_EMAIL }}
+          HULY_PASSWORD: ${{ secrets.HULY_PASSWORD }}
+          HULY_WORKSPACE: ${{ secrets.HULY_WORKSPACE }}
+        run: |
+          ISSUE_NUMBER="${{ steps.extract.outputs.issue_number }}"
+
+          # Call Huly MCP server to update issue status
+          curl -X POST "${{ secrets.HULY_MCP_URL }}/mcp" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "jsonrpc": "2.0",
+              "method": "tools/call",
+              "params": {
+                "name": "huly_update_issue",
+                "arguments": {
+                  "issue_identifier": "HULLY-'$ISSUE_NUMBER'",
+                  "field": "status",
+                  "value": "done"
+                }
+              },
+              "id": 1
+            }'

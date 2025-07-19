@@ -42,9 +42,9 @@ export class HulyError extends Error {
       content: [
         {
           type: 'text',
-          text: this.formatErrorMessage()
-        }
-      ]
+          text: this.formatErrorMessage(),
+        },
+      ],
     };
   }
 
@@ -76,7 +76,7 @@ export class HulyError extends Error {
       code: this.code,
       message: this.message,
       details: this.details,
-      stack: this.stack
+      stack: this.stack,
     };
   }
 
@@ -97,15 +97,11 @@ export class HulyError extends Error {
    * @returns {HulyError} Validation error instance
    */
   static validation(field, value, suggestion) {
-    return new HulyError(
-      ERROR_CODES.VALIDATION_ERROR,
-      `Validation failed for field '${field}'`,
-      {
-        context: `Invalid value: ${JSON.stringify(value)}`,
-        suggestion: suggestion || 'Please provide a valid value',
-        data: { field, value }
-      }
-    );
+    return new HulyError(ERROR_CODES.VALIDATION_ERROR, `Validation failed for field '${field}'`, {
+      context: `Invalid value: ${JSON.stringify(value)}`,
+      suggestion: suggestion || 'Please provide a valid value',
+      data: { field, value },
+    });
   }
 
   /**
@@ -121,20 +117,16 @@ export class HulyError extends Error {
       component: ERROR_CODES.COMPONENT_NOT_FOUND,
       milestone: ERROR_CODES.MILESTONE_NOT_FOUND,
       comment: ERROR_CODES.COMMENT_NOT_FOUND,
-      repository: ERROR_CODES.REPOSITORY_NOT_FOUND
+      repository: ERROR_CODES.REPOSITORY_NOT_FOUND,
     };
 
     const code = codeMap[resourceType.toLowerCase()] || ERROR_CODES.UNKNOWN_ERROR;
 
-    return new HulyError(
-      code,
-      `${resourceType} ${identifier} not found`,
-      {
-        context: `No ${resourceType.toLowerCase()} found with identifier ${identifier}`,
-        suggestion: `Check the ${resourceType.toLowerCase()} identifier and ensure it exists`,
-        data: { resourceType, identifier }
-      }
-    );
+    return new HulyError(code, `${resourceType} ${identifier} not found`, {
+      context: `No ${resourceType.toLowerCase()} found with identifier ${identifier}`,
+      suggestion: `Check the ${resourceType.toLowerCase()} identifier and ensure it exists`,
+      data: { resourceType, identifier },
+    });
   }
 
   /**
@@ -144,15 +136,11 @@ export class HulyError extends Error {
    * @returns {HulyError} Database error instance
    */
   static database(operation, originalError) {
-    return new HulyError(
-      ERROR_CODES.DATABASE_ERROR,
-      `Database operation failed: ${operation}`,
-      {
-        context: originalError.message,
-        suggestion: 'Check database connection and try again',
-        data: { operation, originalError: originalError.message }
-      }
-    );
+    return new HulyError(ERROR_CODES.DATABASE_ERROR, `Database operation failed: ${operation}`, {
+      context: originalError.message,
+      suggestion: 'Check database connection and try again',
+      data: { operation, originalError: originalError.message },
+    });
   }
 
   /**
@@ -162,15 +150,11 @@ export class HulyError extends Error {
    * @returns {HulyError} Connection error instance
    */
   static connection(service, originalError) {
-    return new HulyError(
-      ERROR_CODES.CONNECTION_ERROR,
-      `Failed to connect to ${service}`,
-      {
-        context: originalError.message,
-        suggestion: 'Check network connection and service availability',
-        data: { service, originalError: originalError.message }
-      }
-    );
+    return new HulyError(ERROR_CODES.CONNECTION_ERROR, `Failed to connect to ${service}`, {
+      context: originalError.message,
+      suggestion: 'Check network connection and service availability',
+      data: { service, originalError: originalError.message },
+    });
   }
 
   /**
@@ -180,15 +164,11 @@ export class HulyError extends Error {
    * @returns {HulyError} Permission error instance
    */
   static permission(action, resource) {
-    return new HulyError(
-      ERROR_CODES.PERMISSION_ERROR,
-      `Permission denied for ${action}`,
-      {
-        context: `User does not have permission to ${action} ${resource}`,
-        suggestion: 'Check user permissions and access rights',
-        data: { action, resource }
-      }
-    );
+    return new HulyError(ERROR_CODES.PERMISSION_ERROR, `Permission denied for ${action}`, {
+      context: `User does not have permission to ${action} ${resource}`,
+      suggestion: 'Check user permissions and access rights',
+      data: { action, resource },
+    });
   }
 
   /**
@@ -198,15 +178,11 @@ export class HulyError extends Error {
    * @returns {HulyError} Invalid field error instance
    */
   static invalidField(field, validFields) {
-    return new HulyError(
-      ERROR_CODES.INVALID_FIELD,
-      `Invalid field name: ${field}`,
-      {
-        context: `Field '${field}' is not a valid field`,
-        suggestion: `Use one of: ${validFields.join(', ')}`,
-        data: { field, validFields }
-      }
-    );
+    return new HulyError(ERROR_CODES.INVALID_FIELD, `Invalid field name: ${field}`, {
+      context: `Field '${field}' is not a valid field`,
+      suggestion: `Use one of: ${validFields.join(', ')}`,
+      data: { field, validFields },
+    });
   }
 
   /**
@@ -217,15 +193,11 @@ export class HulyError extends Error {
    * @returns {HulyError} Invalid value error instance
    */
   static invalidValue(field, value, expectedType) {
-    return new HulyError(
-      ERROR_CODES.INVALID_VALUE,
-      `Invalid value for field '${field}'`,
-      {
-        context: `Value '${value}' is not valid for field '${field}'`,
-        suggestion: `Expected ${expectedType}`,
-        data: { field, value, expectedType }
-      }
-    );
+    return new HulyError(ERROR_CODES.INVALID_VALUE, `Invalid value for field '${field}'`, {
+      context: `Value '${value}' is not valid for field '${field}'`,
+      suggestion: `Expected ${expectedType}`,
+      data: { field, value, expectedType },
+    });
   }
 }
 

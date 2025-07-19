@@ -46,7 +46,7 @@ export function parseIssueIdentifier(identifier) {
   const [project, numberStr] = identifier.split('-');
   return {
     project,
-    number: parseInt(numberStr, 10)
+    number: parseInt(numberStr, 10),
   };
 }
 
@@ -82,13 +82,13 @@ export function normalizePriority(priority) {
 
   const normalized = priority.toLowerCase();
   const priorityMap = {
-    'low': 'low',
-    'medium': 'medium',
-    'high': 'high',
-    'urgent': 'urgent',
-    'nopriority': 'NoPriority',
+    low: 'low',
+    medium: 'medium',
+    high: 'high',
+    urgent: 'urgent',
+    nopriority: 'NoPriority',
     'no-priority': 'NoPriority',
-    'none': 'NoPriority'
+    none: 'NoPriority',
   };
 
   return priorityMap[normalized] || null;
@@ -149,26 +149,18 @@ export function isValidMilestoneStatus(status) {
  */
 export function validateRequiredString(value, fieldName, options = {}) {
   if (!value || typeof value !== 'string') {
-    throw new HulyError(
-      'MISSING_REQUIRED_FIELD',
-      `${fieldName} is required`,
-      {
-        context: `Field '${fieldName}' must be provided`,
-        data: { fieldName }
-      }
-    );
+    throw new HulyError('MISSING_REQUIRED_FIELD', `${fieldName} is required`, {
+      context: `Field '${fieldName}' must be provided`,
+      data: { fieldName },
+    });
   }
 
   const trimmed = value.trim();
   if (!trimmed) {
-    throw new HulyError(
-      'MISSING_REQUIRED_FIELD',
-      `${fieldName} cannot be empty`,
-      {
-        context: `Field '${fieldName}' must not be empty`,
-        data: { fieldName }
-      }
-    );
+    throw new HulyError('MISSING_REQUIRED_FIELD', `${fieldName} cannot be empty`, {
+      context: `Field '${fieldName}' must not be empty`,
+      data: { fieldName },
+    });
   }
 
   if (options.minLength && trimmed.length < options.minLength) {
@@ -180,19 +172,11 @@ export function validateRequiredString(value, fieldName, options = {}) {
   }
 
   if (options.maxLength && trimmed.length > options.maxLength) {
-    throw HulyError.validation(
-      fieldName,
-      value,
-      `Must be at most ${options.maxLength} characters`
-    );
+    throw HulyError.validation(fieldName, value, `Must be at most ${options.maxLength} characters`);
   }
 
   if (options.pattern && !options.pattern.test(trimmed)) {
-    throw HulyError.validation(
-      fieldName,
-      value,
-      `Invalid format`
-    );
+    throw HulyError.validation(fieldName, value, `Invalid format`);
   }
 
   return trimmed;
@@ -228,14 +212,10 @@ export function validateEnum(value, fieldName, validValues, defaultValue) {
     if (defaultValue !== undefined) {
       return defaultValue;
     }
-    throw new HulyError(
-      'MISSING_REQUIRED_FIELD',
-      `${fieldName} is required`,
-      {
-        context: `Field '${fieldName}' must be provided`,
-        data: { fieldName }
-      }
-    );
+    throw new HulyError('MISSING_REQUIRED_FIELD', `${fieldName} is required`, {
+      context: `Field '${fieldName}' must be provided`,
+      data: { fieldName },
+    });
   }
 
   if (!validValues.includes(value)) {
@@ -261,14 +241,10 @@ export function validatePositiveInteger(value, fieldName, options = {}) {
     if (options.defaultValue !== undefined) {
       return options.defaultValue;
     }
-    throw new HulyError(
-      'MISSING_REQUIRED_FIELD',
-      `${fieldName} is required`,
-      {
-        context: `Field '${fieldName}' must be provided`,
-        data: { fieldName }
-      }
-    );
+    throw new HulyError('MISSING_REQUIRED_FIELD', `${fieldName} is required`, {
+      context: `Field '${fieldName}' must be provided`,
+      data: { fieldName },
+    });
   }
 
   const num = Number(value);
@@ -311,16 +287,12 @@ export function sanitizeString(input) {
  * @returns {Function} Validator function
  */
 export function createIdentifierValidator(config) {
-  return function(identifier) {
+  return function (identifier) {
     if (!identifier) {
-      throw new HulyError(
-        'MISSING_REQUIRED_FIELD',
-        `${config.entityName} identifier is required`,
-        {
-          context: `${config.entityName} identifier must be provided`,
-          data: { entityName: config.entityName }
-        }
-      );
+      throw new HulyError('MISSING_REQUIRED_FIELD', `${config.entityName} identifier is required`, {
+        context: `${config.entityName} identifier must be provided`,
+        data: { entityName: config.entityName },
+      });
     }
 
     if (!config.validator(identifier)) {
@@ -338,10 +310,10 @@ export function createIdentifierValidator(config) {
 // Pre-configured validators
 export const validateProjectIdentifier = createIdentifierValidator({
   validator: isValidProjectIdentifier,
-  entityName: 'project'
+  entityName: 'project',
 });
 
 export const validateIssueIdentifier = createIdentifierValidator({
   validator: isValidIssueIdentifier,
-  entityName: 'issue'
+  entityName: 'issue',
 });

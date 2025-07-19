@@ -9,16 +9,16 @@ const LOG_LEVELS = {
   debug: 0,
   info: 1,
   warn: 2,
-  error: 3
+  error: 3,
 };
 
 // ANSI color codes for terminal output
 const COLORS = {
   debug: '\x1b[36m', // Cyan
-  info: '\x1b[32m',  // Green
-  warn: '\x1b[33m',  // Yellow
+  info: '\x1b[32m', // Green
+  warn: '\x1b[33m', // Yellow
   error: '\x1b[31m', // Red
-  reset: '\x1b[0m'   // Reset
+  reset: '\x1b[0m', // Reset
 };
 
 // Log level emojis for better visibility
@@ -26,7 +26,7 @@ const LEVEL_EMOJIS = {
   debug: '🐛',
   info: '📘',
   warn: '⚠️',
-  error: '❌'
+  error: '❌',
 };
 
 export class Logger {
@@ -78,8 +78,8 @@ export class Logger {
           message: context.message,
           stack: context.stack,
           name: context.name,
-          ...context
-        }
+          ...context,
+        },
       };
     }
     this._log('error', message, context);
@@ -93,8 +93,8 @@ export class Logger {
    */
   child(childName, defaultContext = {}) {
     const child = new Logger(`${this.name}:${childName}`, {
-      level: Object.keys(LOG_LEVELS).find(key => LOG_LEVELS[key] === this.level),
-      format: this.format
+      level: Object.keys(LOG_LEVELS).find((key) => LOG_LEVELS[key] === this.level),
+      format: this.format,
     });
     child.defaultContext = { ...this.defaultContext, ...defaultContext };
     child.useColors = this.useColors;
@@ -118,7 +118,7 @@ export class Logger {
       logger: this.name,
       message,
       ...this.defaultContext,
-      ...context
+      ...context,
     };
 
     // Format and output based on configuration
@@ -171,7 +171,7 @@ export class Logger {
       // Remove default context from display
       const displayContext = { ...context };
       if (this.defaultContext) {
-        Object.keys(this.defaultContext).forEach(key => {
+        Object.keys(this.defaultContext).forEach((key) => {
           if (displayContext[key] === this.defaultContext[key]) {
             delete displayContext[key];
           }
@@ -217,7 +217,7 @@ export function getLogger(options = {}) {
 export function createLoggerWithConfig(configManager) {
   const options = {
     level: configManager.get('logging.level', 'info'),
-    format: configManager.get('logging.format', 'text')
+    format: configManager.get('logging.format', 'text'),
   };
   return new Logger('huly-mcp', options);
 }

@@ -12,7 +12,7 @@ import {
   extractTextFromJSON,
   extractText,
   truncateText,
-  cleanText
+  cleanText,
 } from '../../../src/utils/textExtractor.js';
 
 describe('Text Extractor Tests', () => {
@@ -32,7 +32,7 @@ describe('Text Extractor Tests', () => {
     test('should extract text from simple text node', () => {
       const doc = {
         type: 'text',
-        text: 'Hello, world!'
+        text: 'Hello, world!',
       };
       expect(extractTextFromMarkup(doc)).toBe('Hello, world!');
     });
@@ -43,17 +43,13 @@ describe('Text Extractor Tests', () => {
         content: [
           {
             type: 'paragraph',
-            content: [
-              { type: 'text', text: 'First paragraph' }
-            ]
+            content: [{ type: 'text', text: 'First paragraph' }],
           },
           {
             type: 'paragraph',
-            content: [
-              { type: 'text', text: 'Second paragraph' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'Second paragraph' }],
+          },
+        ],
       };
       expect(extractTextFromMarkup(doc)).toBe('First paragraphSecond paragraph');
     });
@@ -61,7 +57,7 @@ describe('Text Extractor Tests', () => {
     test('should handle empty content arrays', () => {
       const doc = {
         type: 'doc',
-        content: []
+        content: [],
       };
       expect(extractTextFromMarkup(doc)).toBe('');
     });
@@ -72,8 +68,8 @@ describe('Text Extractor Tests', () => {
         content: [
           { type: 'horizontalRule' },
           { type: 'text', text: 'Text content' },
-          { type: 'image', attrs: { src: 'image.png' } }
-        ]
+          { type: 'image', attrs: { src: 'image.png' } },
+        ],
       };
       expect(extractTextFromMarkup(doc)).toBe('Text content');
     });
@@ -91,17 +87,13 @@ describe('Text Extractor Tests', () => {
         content: [
           {
             type: 'paragraph',
-            content: [
-              { type: 'text', text: 'First paragraph' }
-            ]
+            content: [{ type: 'text', text: 'First paragraph' }],
           },
           {
             type: 'paragraph',
-            content: [
-              { type: 'text', text: 'Second paragraph' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'Second paragraph' }],
+          },
+        ],
       };
       expect(extractTextFromDoc(doc)).toBe('First paragraph\nSecond paragraph');
     });
@@ -112,17 +104,13 @@ describe('Text Extractor Tests', () => {
           {
             type: 'heading',
             attrs: { level: 1 },
-            content: [
-              { type: 'text', text: 'Main Title' }
-            ]
+            content: [{ type: 'text', text: 'Main Title' }],
           },
           {
             type: 'paragraph',
-            content: [
-              { type: 'text', text: 'Content below' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'Content below' }],
+          },
+        ],
       };
       expect(extractTextFromDoc(doc)).toBe('Main Title\nContent below');
     });
@@ -136,14 +124,12 @@ describe('Text Extractor Tests', () => {
               { type: 'text', text: 'Text with ' },
               {
                 type: 'strong',
-                content: [
-                  { type: 'text', text: 'bold' }
-                ]
+                content: [{ type: 'text', text: 'bold' }],
               },
-              { type: 'text', text: ' content' }
-            ]
-          }
-        ]
+              { type: 'text', text: ' content' },
+            ],
+          },
+        ],
       };
       expect(extractTextFromDoc(doc)).toBe('Text with bold content');
     });
@@ -152,10 +138,8 @@ describe('Text Extractor Tests', () => {
       const doc = {
         content: {
           type: 'paragraph',
-          content: [
-            { type: 'text', text: 'Single paragraph' }
-          ]
-        }
+          content: [{ type: 'text', text: 'Single paragraph' }],
+        },
       };
       expect(extractTextFromDoc(doc)).toBe('Single paragraph');
     });
@@ -167,11 +151,9 @@ describe('Text Extractor Tests', () => {
         content: [
           {
             type: 'paragraph',
-            content: [
-              { type: 'text', text: 'Plain text' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'Plain text' }],
+          },
+        ],
       };
       expect(extractTextAdvanced(doc)).toBe('Plain text');
     });
@@ -185,14 +167,13 @@ describe('Text Extractor Tests', () => {
               {
                 type: 'text',
                 text: 'bold text',
-                marks: [{ type: 'bold' }]
-              }
-            ]
-          }
-        ]
+                marks: [{ type: 'bold' }],
+              },
+            ],
+          },
+        ],
       };
-      expect(extractTextAdvanced(doc, { preserveFormatting: true }))
-        .toBe('**bold text**');
+      expect(extractTextAdvanced(doc, { preserveFormatting: true })).toBe('**bold text**');
     });
 
     test('should preserve italic formatting when requested', () => {
@@ -204,14 +185,13 @@ describe('Text Extractor Tests', () => {
               {
                 type: 'text',
                 text: 'italic text',
-                marks: [{ type: 'italic' }]
-              }
-            ]
-          }
-        ]
+                marks: [{ type: 'italic' }],
+              },
+            ],
+          },
+        ],
       };
-      expect(extractTextAdvanced(doc, { preserveFormatting: true }))
-        .toBe('*italic text*');
+      expect(extractTextAdvanced(doc, { preserveFormatting: true })).toBe('*italic text*');
     });
 
     test('should preserve code formatting when requested', () => {
@@ -223,14 +203,13 @@ describe('Text Extractor Tests', () => {
               {
                 type: 'text',
                 text: 'code snippet',
-                marks: [{ type: 'code' }]
-              }
-            ]
-          }
-        ]
+                marks: [{ type: 'code' }],
+              },
+            ],
+          },
+        ],
       };
-      expect(extractTextAdvanced(doc, { preserveFormatting: true }))
-        .toBe('`code snippet`');
+      expect(extractTextAdvanced(doc, { preserveFormatting: true })).toBe('`code snippet`');
     });
 
     test('should handle links with includeLinks option', () => {
@@ -242,14 +221,15 @@ describe('Text Extractor Tests', () => {
               {
                 type: 'text',
                 text: 'click here',
-                marks: [{ type: 'link', attrs: { href: 'https://example.com' } }]
-              }
-            ]
-          }
-        ]
+                marks: [{ type: 'link', attrs: { href: 'https://example.com' } }],
+              },
+            ],
+          },
+        ],
       };
-      expect(extractTextAdvanced(doc, { preserveFormatting: true, includeLinks: true }))
-        .toBe('[click here](https://example.com)');
+      expect(extractTextAdvanced(doc, { preserveFormatting: true, includeLinks: true })).toBe(
+        '[click here](https://example.com)'
+      );
     });
 
     test('should handle headings with formatting', () => {
@@ -258,14 +238,11 @@ describe('Text Extractor Tests', () => {
           {
             type: 'heading',
             attrs: { level: 2 },
-            content: [
-              { type: 'text', text: 'Section Title' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'Section Title' }],
+          },
+        ],
       };
-      expect(extractTextAdvanced(doc, { preserveFormatting: true }))
-        .toBe('## Section Title');
+      expect(extractTextAdvanced(doc, { preserveFormatting: true })).toBe('## Section Title');
     });
 
     test('should handle bullet lists', () => {
@@ -276,22 +253,19 @@ describe('Text Extractor Tests', () => {
             content: [
               {
                 type: 'listItem',
-                content: [
-                  { type: 'text', text: 'First item' }
-                ]
+                content: [{ type: 'text', text: 'First item' }],
               },
               {
                 type: 'listItem',
-                content: [
-                  { type: 'text', text: 'Second item' }
-                ]
-              }
-            ]
-          }
-        ]
+                content: [{ type: 'text', text: 'Second item' }],
+              },
+            ],
+          },
+        ],
       };
-      expect(extractTextAdvanced(doc, { preserveFormatting: true }))
-        .toBe('- First item\n- Second item');
+      expect(extractTextAdvanced(doc, { preserveFormatting: true })).toBe(
+        '- First item\n- Second item'
+      );
     });
 
     test('should handle code blocks', () => {
@@ -300,14 +274,13 @@ describe('Text Extractor Tests', () => {
           {
             type: 'codeBlock',
             attrs: { language: 'javascript' },
-            content: [
-              { type: 'text', text: 'const x = 42;' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'const x = 42;' }],
+          },
+        ],
       };
-      expect(extractTextAdvanced(doc, { preserveFormatting: true }))
-        .toBe('```javascript\nconst x = 42;\n```');
+      expect(extractTextAdvanced(doc, { preserveFormatting: true })).toBe(
+        '```javascript\nconst x = 42;\n```'
+      );
     });
 
     test('should handle blockquotes', () => {
@@ -318,16 +291,13 @@ describe('Text Extractor Tests', () => {
             content: [
               {
                 type: 'paragraph',
-                content: [
-                  { type: 'text', text: 'Quoted text' }
-                ]
-              }
-            ]
-          }
-        ]
+                content: [{ type: 'text', text: 'Quoted text' }],
+              },
+            ],
+          },
+        ],
       };
-      expect(extractTextAdvanced(doc, { preserveFormatting: true }))
-        .toBe('> Quoted text');
+      expect(extractTextAdvanced(doc, { preserveFormatting: true })).toBe('> Quoted text');
     });
 
     test('should handle horizontal rules', () => {
@@ -335,11 +305,10 @@ describe('Text Extractor Tests', () => {
         content: [
           { type: 'paragraph', content: [{ type: 'text', text: 'Before' }] },
           { type: 'horizontalRule' },
-          { type: 'paragraph', content: [{ type: 'text', text: 'After' }] }
-        ]
+          { type: 'paragraph', content: [{ type: 'text', text: 'After' }] },
+        ],
       };
-      expect(extractTextAdvanced(doc, { preserveFormatting: true }))
-        .toBe('Before\n\n---\n\nAfter');
+      expect(extractTextAdvanced(doc, { preserveFormatting: true })).toBe('Before\n\n---\n\nAfter');
     });
   });
 
@@ -357,11 +326,9 @@ describe('Text Extractor Tests', () => {
         content: [
           {
             type: 'paragraph',
-            content: [
-              { type: 'text', text: 'JSON content' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'JSON content' }],
+          },
+        ],
       });
       expect(extractTextFromJSON(json)).toBe('JSON content');
     });
@@ -383,11 +350,9 @@ describe('Text Extractor Tests', () => {
         content: [
           {
             type: 'paragraph',
-            content: [
-              { type: 'text', text: 'JSON text' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'JSON text' }],
+          },
+        ],
       });
       expect(extractText(json)).toBe('JSON text');
     });
@@ -398,11 +363,9 @@ describe('Text Extractor Tests', () => {
         content: [
           {
             type: 'paragraph',
-            content: [
-              { type: 'text', text: 'Object text' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'Object text' }],
+          },
+        ],
       };
       expect(extractText(doc)).toBe('Object text');
     });
@@ -414,11 +377,9 @@ describe('Text Extractor Tests', () => {
           {
             type: 'heading',
             attrs: { level: 1 },
-            content: [
-              { type: 'text', text: 'Title' }
-            ]
-          }
-        ]
+            content: [{ type: 'text', text: 'Title' }],
+          },
+        ],
       };
       expect(extractText(doc, { preserveFormatting: true })).toBe('# Title');
     });
@@ -473,13 +434,11 @@ describe('Text Extractor Tests', () => {
     });
 
     test('should remove special characters when requested', () => {
-      expect(cleanText('Text!@#$%^&*()_+', { removeSpecialChars: true }))
-        .toBe('Text!_');
+      expect(cleanText('Text!@#$%^&*()_+', { removeSpecialChars: true })).toBe('Text!_');
     });
 
     test('should convert to lowercase when requested', () => {
-      expect(cleanText('UPPERCASE Text', { lowercase: true }))
-        .toBe('uppercase text');
+      expect(cleanText('UPPERCASE Text', { lowercase: true })).toBe('uppercase text');
     });
 
     test('should handle null or empty text', () => {

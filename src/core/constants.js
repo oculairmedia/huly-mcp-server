@@ -39,26 +39,26 @@ export const ERROR_CODES = {
 
   // Generic errors
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
-  INTERNAL_ERROR: 'INTERNAL_ERROR'
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
 };
 
 // Priority mappings
 export const PRIORITY_MAP = {
-  'NoPriority': 0,
-  'urgent': 1,
-  'high': 2,
-  'medium': 3,
-  'low': 4
+  NoPriority: 0,
+  urgent: 1,
+  high: 2,
+  medium: 3,
+  low: 4,
 };
 
 export const PRIORITY_NAMES = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
 
 // Milestone status mappings
 export const MILESTONE_STATUS_MAP = {
-  'planned': 0,
-  'in_progress': 1,
-  'completed': 2,
-  'canceled': 3
+  planned: 0,
+  in_progress: 1,
+  completed: 2,
+  canceled: 3,
 };
 
 export const MILESTONE_STATUS_NAMES = ['Planned', 'In Progress', 'Completed', 'Canceled'];
@@ -70,28 +70,35 @@ export const DEFAULTS = {
   SEARCH_LIMIT: 50,
   DESCRIPTION_TRUNCATE_LENGTH: 200,
   DEFAULT_PRIORITY: 'medium',
-  DEFAULT_MILESTONE_STATUS: 'planned'
+  DEFAULT_MILESTONE_STATUS: 'planned',
 };
 
 // Validation patterns
 export const VALIDATION_PATTERNS = {
   PROJECT_IDENTIFIER: /^[A-Z]{1,5}$/,
   ISSUE_IDENTIFIER: /^([A-Z]+)-(\d+)$/,
-  ISO_DATE: /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/
+  ISO_DATE: /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/,
 };
 
 // Field names for validation
-export const VALID_UPDATE_FIELDS = ['title', 'description', 'status', 'priority', 'component', 'milestone'];
+export const VALID_UPDATE_FIELDS = [
+  'title',
+  'description',
+  'status',
+  'priority',
+  'component',
+  'milestone',
+];
 
 // MCP protocol constants
 export const MCP_PROTOCOL = {
   VERSION: '2024-11-05',
-  JSON_RPC_VERSION: '2.0'
+  JSON_RPC_VERSION: '2.0',
 };
 
 // Server info
 export const SERVER_INFO = {
   name: 'huly-mcp-server',
   version: '1.0.0',
-  description: 'MCP server for Huly project management platform'
+  description: 'MCP server for Huly project management platform',
 };

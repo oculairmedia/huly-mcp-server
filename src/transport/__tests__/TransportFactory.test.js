@@ -37,8 +37,9 @@ describe('TransportFactory', () => {
     });
 
     it('should throw error for unknown transport type', () => {
-      expect(() => TransportFactory.create('unknown', mockServer))
-        .toThrow('Unknown transport type: unknown. Supported types: stdio, http');
+      expect(() => TransportFactory.create('unknown', mockServer)).toThrow(
+        'Unknown transport type: unknown. Supported types: stdio, http'
+      );
     });
   });
 

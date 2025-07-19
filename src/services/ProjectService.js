@@ -9,10 +9,7 @@ import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
 import { HulyError } from '../core/HulyError.js';
 import { MILESTONE_STATUS_MAP, MILESTONE_STATUS_NAMES } from '../core/constants.js';
-import {
-  isValidProjectIdentifier,
-  isValidISODate
-} from '../utils/validators.js';
+import { isValidProjectIdentifier, isValidISODate } from '../utils/validators.js';
 
 const tracker = trackerModule.default || trackerModule;
 const { generateId } = coreModule;
@@ -34,19 +31,12 @@ export class ProjectService {
    * @returns {Promise<Object>} Formatted project list response
    */
   async listProjects(client) {
-    const projects = await client.findAll(
-      tracker.class.Project,
-      {},
-      { sort: { modifiedOn: -1 } }
-    );
+    const projects = await client.findAll(tracker.class.Project, {}, { sort: { modifiedOn: -1 } });
 
     let result = `Found ${projects.length} projects:\n\n`;
 
     for (const project of projects) {
-      const issueCount = await client.findAll(
-        tracker.class.Issue,
-        { space: project._id }
-      );
+      const issueCount = await client.findAll(tracker.class.Issue, { space: project._id });
 
       result += `📁 ${project.name} (${project.identifier})\n`;
       if (project.description) {
@@ -68,9 +58,9 @@ export class ProjectService {
       content: [
         {
           type: 'text',
-          text: result
-        }
-      ]
+          text: result,
+        },
+      ],
     };
   }
 
@@ -87,7 +77,10 @@ export class ProjectService {
 
     // Generate identifier if not provided
     if (!identifier) {
-      identifier = name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().substring(0, 5);
+      identifier = name
+        .replace(/[^A-Za-z0-9]/g, '')
+        .toUpperCase()
+        .substring(0, 5);
     }
 
     // Validate identifier format
@@ -96,10 +89,7 @@ export class ProjectService {
     }
 
     // Check if identifier already exists
-    const existingProject = await client.findOne(
-      tracker.class.Project,
-      { identifier }
-    );
+    const existingProject = await client.findOne(tracker.class.Project, { identifier });
 
     if (existingProject) {
       throw new HulyError(
@@ -108,7 +98,7 @@ export class ProjectService {
         {
           context: 'Project identifier must be unique',
           suggestion: 'Use a different identifier',
-          data: { identifier }
+          data: { identifier },
         }
       );
     }
@@ -125,7 +115,7 @@ export class ProjectService {
         archived: false,
         members: [],
         sequence: 0,
-        owners: []
+        owners: [],
       },
       projectId
     );
@@ -134,9 +124,9 @@ export class ProjectService {
       content: [
         {
           type: 'text',
-          text: `✅ Created project: ${name} (${identifier})\n\nProject ID: ${projectId}${description ? `\nDescription: ${description}` : ''}`
-        }
-      ]
+          text: `✅ Created project: ${name} (${identifier})\n\nProject ID: ${projectId}${description ? `\nDescription: ${description}` : ''}`,
+        },
+      ],
     };
   }
 
@@ -148,10 +138,7 @@ export class ProjectService {
    * @throws {HulyError} If project not found
    */
   async findProject(client, projectIdentifier) {
-    const project = await client.findOne(
-      tracker.class.Project,
-      { identifier: projectIdentifier }
-    );
+    const project = await client.findOne(tracker.class.Project, { identifier: projectIdentifier });
 
     if (!project) {
       throw HulyError.notFound('project', projectIdentifier);
@@ -180,7 +167,7 @@ export class ProjectService {
         description,
         lead: null,
         attachments: 0,
-        comments: 0
+        comments: 0,
       },
       componentId
     );
@@ -189,9 +176,9 @@ export class ProjectService {
       content: [
         {
           type: 'text',
-          text: `✅ Created component "${label}" in project ${projectIdentifier}\n\nComponent ID: ${componentId}${description ? `\nDescription: ${description}` : ''}`
-        }
-      ]
+          text: `✅ Created component "${label}" in project ${projectIdentifier}\n\nComponent ID: ${componentId}${description ? `\nDescription: ${description}` : ''}`,
+        },
+      ],
     };
   }
 
@@ -204,10 +191,7 @@ export class ProjectService {
   async listComponents(client, projectIdentifier) {
     const project = await this.findProject(client, projectIdentifier);
 
-    const components = await client.findAll(
-      tracker.class.Component,
-      { space: project._id }
-    );
+    const components = await client.findAll(tracker.class.Component, { space: project._id });
 
     let result = `Found ${components.length} components in project ${projectIdentifier}:\n\n`;
 
@@ -226,9 +210,9 @@ export class ProjectService {
       content: [
         {
           type: 'text',
-          text: result
-        }
-      ]
+          text: result,
+        },
+      ],
     };
   }
 
@@ -242,7 +226,14 @@ export class ProjectService {
    * @param {string} status - Milestone status
    * @returns {Promise<Object>} Created milestone response
    */
-  async createMilestone(client, projectIdentifier, label, description = '', targetDate, status = 'planned') {
+  async createMilestone(
+    client,
+    projectIdentifier,
+    label,
+    description = '',
+    targetDate,
+    status = 'planned'
+  ) {
     const project = await this.findProject(client, projectIdentifier);
 
     // Map status strings to MilestoneStatus enum values
@@ -265,7 +256,7 @@ export class ProjectService {
         status: statusValue,
         targetDate: targetTimestamp,
         attachments: 0,
-        comments: 0
+        comments: 0,
       },
       milestoneId
     );
@@ -276,9 +267,9 @@ export class ProjectService {
       content: [
         {
           type: 'text',
-          text: `✅ Created milestone "${label}" in project ${projectIdentifier}\n\nMilestone ID: ${milestoneId}\nStatus: ${statusName}\nTarget Date: ${new Date(targetTimestamp).toISOString().split('T')[0]}${description ? `\nDescription: ${description}` : ''}`
-        }
-      ]
+          text: `✅ Created milestone "${label}" in project ${projectIdentifier}\n\nMilestone ID: ${milestoneId}\nStatus: ${statusName}\nTarget Date: ${new Date(targetTimestamp).toISOString().split('T')[0]}${description ? `\nDescription: ${description}` : ''}`,
+        },
+      ],
     };
   }
 
@@ -291,10 +282,7 @@ export class ProjectService {
   async listMilestones(client, projectIdentifier) {
     const project = await this.findProject(client, projectIdentifier);
 
-    const milestones = await client.findAll(
-      tracker.class.Milestone,
-      { space: project._id }
-    );
+    const milestones = await client.findAll(tracker.class.Milestone, { space: project._id });
 
     let result = `Found ${milestones.length} milestones in project ${projectIdentifier}:\n\n`;
 
@@ -315,9 +303,9 @@ export class ProjectService {
       content: [
         {
           type: 'text',
-          text: result
-        }
-      ]
+          text: result,
+        },
+      ],
     };
   }
 
@@ -329,10 +317,7 @@ export class ProjectService {
   async listGithubRepositories(client) {
     try {
       // List all GitHub integration repositories using string class reference
-      const repositories = await client.findAll(
-        'github:class:GithubIntegrationRepository',
-        {}
-      );
+      const repositories = await client.findAll('github:class:GithubIntegrationRepository', {});
 
       let result = `Found ${repositories.length} GitHub repositories available:\n\n`;
 
@@ -340,10 +325,7 @@ export class ProjectService {
         result += `📦 ${repo.name}`;
         if (repo.githubProject) {
           // Find the associated project
-          const project = await client.findOne(
-            tracker.class.Project,
-            { _id: repo.githubProject }
-          );
+          const project = await client.findOne(tracker.class.Project, { _id: repo.githubProject });
           if (project) {
             result += ` → Assigned to project: ${project.identifier}`;
           }
@@ -366,9 +348,9 @@ export class ProjectService {
         content: [
           {
             type: 'text',
-            text: result
-          }
-        ]
+            text: result,
+          },
+        ],
       };
     } catch (error) {
       throw HulyError.database('list GitHub repositories', error);
@@ -388,20 +370,17 @@ export class ProjectService {
       const project = await this.findProject(client, projectIdentifier);
 
       // Find the repository by name
-      const availableRepos = await client.findAll(
-        'github:class:GithubIntegrationRepository',
-        {}
-      );
+      const availableRepos = await client.findAll('github:class:GithubIntegrationRepository', {});
 
       let repository = null;
 
       // First try exact match
-      repository = availableRepos.find(r => r.name === repositoryName);
+      repository = availableRepos.find((r) => r.name === repositoryName);
 
       // If not found, try without organization prefix
       if (!repository && repositoryName.includes('/')) {
         const repoNameOnly = repositoryName.split('/').pop();
-        repository = availableRepos.find(r => {
+        repository = availableRepos.find((r) => {
           const nameOnly = r.name.split('/').pop();
           return nameOnly === repoNameOnly;
         });
@@ -413,26 +392,29 @@ export class ProjectService {
 
         if (availableRepos.length > 0) {
           errorMsg += '\n\nAvailable repositories:\n';
-          availableRepos.forEach(r => {
+          availableRepos.forEach((r) => {
             errorMsg += `- ${r.name}${r.githubProject ? ' (already assigned)' : ''}\n`;
           });
         } else {
-          errorMsg += ' No GitHub repositories are available. Please check your GitHub integration.';
+          errorMsg +=
+            ' No GitHub repositories are available. Please check your GitHub integration.';
         }
 
-        throw new HulyError(
-          'REPOSITORY_NOT_FOUND',
-          errorMsg,
-          {
-            context: `Repository '${repositoryName}' not found`,
-            suggestion: availableRepos.length > 0 ? `Available repositories: ${availableRepos.slice(0, 5).map(r => r.name).join(', ')}` : 'No GitHub repositories are available. Please check your GitHub integration.',
-            data: {
-              repositoryName,
-              availableCount: availableRepos.length,
-              searchedFormats: repositoryName.includes('/') ? ['exact', 'name-only'] : ['exact']
-            }
-          }
-        );
+        throw new HulyError('REPOSITORY_NOT_FOUND', errorMsg, {
+          context: `Repository '${repositoryName}' not found`,
+          suggestion:
+            availableRepos.length > 0
+              ? `Available repositories: ${availableRepos
+                  .slice(0, 5)
+                  .map((r) => r.name)
+                  .join(', ')}`
+              : 'No GitHub repositories are available. Please check your GitHub integration.',
+          data: {
+            repositoryName,
+            availableCount: availableRepos.length,
+            searchedFormats: repositoryName.includes('/') ? ['exact', 'name-only'] : ['exact'],
+          },
+        });
       }
 
       // Check if already assigned
@@ -443,7 +425,7 @@ export class ProjectService {
           {
             context: 'Repository can only be assigned to one project',
             suggestion: 'Unassign from current project first',
-            data: { repositoryName, currentProject: repository.githubProject }
+            data: { repositoryName, currentProject: repository.githubProject },
           }
         );
       }
@@ -454,29 +436,24 @@ export class ProjectService {
         repository.space,
         repository._id,
         {
-          githubProject: project._id
+          githubProject: project._id,
         }
       );
 
       // Also ensure the project has the integration enabled
       if (!project.githubIntegration) {
-        await client.updateDoc(
-          tracker.class.Project,
-          project.space,
-          project._id,
-          {
-            githubIntegration: true
-          }
-        );
+        await client.updateDoc(tracker.class.Project, project.space, project._id, {
+          githubIntegration: true,
+        });
       }
 
       return {
         content: [
           {
             type: 'text',
-            text: `✅ Successfully assigned repository "${repositoryName}" to project ${projectIdentifier}\n\nThe GitHub integration is now active for this project. Issues and pull requests from this repository will be synchronized.`
-          }
-        ]
+            text: `✅ Successfully assigned repository "${repositoryName}" to project ${projectIdentifier}\n\nThe GitHub integration is now active for this project. Issues and pull requests from this repository will be synchronized.`,
+          },
+        ],
       };
     } catch (error) {
       if (error instanceof HulyError) {

@@ -35,7 +35,7 @@ export class StatusManager {
       ['low', 'tracker:status:Backlog'],
       ['medium', 'tracker:status:Todo'],
       ['high', 'tracker:status:InProgress'],
-      ['urgent', 'tracker:status:InProgress']
+      ['urgent', 'tracker:status:InProgress'],
     ]);
 
     // Reverse map for converting full format back to human-readable
@@ -44,7 +44,7 @@ export class StatusManager {
       ['tracker:status:Todo', 'todo'],
       ['tracker:status:InProgress', 'in-progress'],
       ['tracker:status:Done', 'done'],
-      ['tracker:status:Canceled', 'canceled']
+      ['tracker:status:Canceled', 'canceled'],
     ]);
 
     // Valid status values for validation
@@ -80,7 +80,9 @@ export class StatusManager {
     const fullStatus = this.statusMap.get(normalizedStatus);
 
     if (!fullStatus) {
-      throw new Error(`Invalid status: ${status}. Valid statuses: ${this.validStatuses.join(', ')}`);
+      throw new Error(
+        `Invalid status: ${status}. Valid statuses: ${this.validStatuses.join(', ')}`
+      );
     }
 
     return fullStatus;
@@ -158,8 +160,14 @@ export class StatusManager {
       defaultHumanStatus: this.defaultHumanStatus,
       examples: {
         humanReadable: ['backlog', 'todo', 'in-progress', 'done', 'canceled'],
-        fullFormat: ['tracker:status:Backlog', 'tracker:status:Todo', 'tracker:status:InProgress', 'tracker:status:Done', 'tracker:status:Canceled']
-      }
+        fullFormat: [
+          'tracker:status:Backlog',
+          'tracker:status:Todo',
+          'tracker:status:InProgress',
+          'tracker:status:Done',
+          'tracker:status:Canceled',
+        ],
+      },
     };
   }
 
@@ -180,11 +188,11 @@ export class StatusManager {
   getStatusDescription(status) {
     const humanStatus = this.toHumanStatus(status);
     const descriptions = {
-      'backlog': 'Backlog - Not yet started',
-      'todo': 'To Do - Ready to start',
+      backlog: 'Backlog - Not yet started',
+      todo: 'To Do - Ready to start',
       'in-progress': 'In Progress - Currently being worked on',
-      'done': 'Done - Completed successfully',
-      'canceled': 'Canceled - Work abandoned'
+      done: 'Done - Completed successfully',
+      canceled: 'Canceled - Work abandoned',
     };
 
     return descriptions[humanStatus] || humanStatus;

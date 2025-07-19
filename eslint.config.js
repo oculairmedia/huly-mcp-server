@@ -1,6 +1,8 @@
 import js from '@eslint/js';
 import nodePlugin from 'eslint-plugin-node';
 import jestPlugin from 'eslint-plugin-jest';
+import prettierPlugin from 'eslint-plugin-prettier';
+import prettierConfig from 'eslint-config-prettier';
 
 export default [
   {
@@ -14,8 +16,8 @@ export default [
       'worktrees/**',
       '.env',
       '.env.*',
-      'package-lock.json'
-    ]
+      'package-lock.json',
+    ],
   },
   js.configs.recommended,
   {
@@ -33,26 +35,33 @@ export default [
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         setInterval: 'readonly',
-        clearInterval: 'readonly'
-      }
+        clearInterval: 'readonly',
+      },
     },
     plugins: {
       node: nodePlugin,
-      jest: jestPlugin
+      jest: jestPlugin,
+      prettier: prettierPlugin,
     },
     rules: {
+      // Prettier integration
+      'prettier/prettier': 'error',
+
       // Error prevention
       'no-console': 'off', // Allow console for logging
-      'no-unused-vars': ['error', {
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_'
-      }],
+      'no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
       'no-undef': 'error',
       'no-constant-condition': 'warn',
       'no-debugger': 'error',
 
       // Best practices
-      'eqeqeq': ['error', 'always'],
+      eqeqeq: ['error', 'always'],
       'no-eval': 'error',
       'no-implied-eval': 'error',
       'no-new-func': 'error',
@@ -61,38 +70,23 @@ export default [
       'prefer-arrow-callback': 'error',
       'no-var': 'error',
 
-      // Style
-      'semi': ['error', 'always'],
-      'quotes': ['error', 'single', {
-        avoidEscape: true,
-        allowTemplateLiterals: true
-      }],
-      'indent': ['error', 2, {
-        SwitchCase: 1
-      }],
-      'comma-dangle': ['error', 'never'],
-      'no-trailing-spaces': 'error',
-      'no-multiple-empty-lines': ['error', {
-        max: 2,
-        maxEOF: 1
-      }],
-
       // ES6
-      'arrow-spacing': 'error',
       'no-duplicate-imports': 'error',
       'prefer-template': 'error',
-      'template-curly-spacing': ['error', 'never'],
 
       // Node.js specific
       'node/no-unsupported-features/es-syntax': 'off', // We're using ES modules
       'node/no-missing-import': 'off', // Doesn't work well with ES modules
-      'node/no-unpublished-import': 'off'
-    }
+      'node/no-unpublished-import': 'off',
+
+      // Disable formatting rules that conflict with Prettier
+      ...prettierConfig.rules,
+    },
   },
   {
     files: ['**/*.test.js', '**/__tests__/**/*.js'],
     plugins: {
-      jest: jestPlugin
+      jest: jestPlugin,
     },
     languageOptions: {
       globals: {
@@ -104,13 +98,13 @@ export default [
         beforeAll: 'readonly',
         afterAll: 'readonly',
         jest: 'readonly',
-        it: 'readonly'
-      }
+        it: 'readonly',
+      },
     },
     rules: {
       'jest/no-disabled-tests': 'warn',
       'jest/no-focused-tests': 'error',
-      'jest/valid-expect': 'error'
-    }
-  }
+      'jest/valid-expect': 'error',
+    },
+  },
 ];

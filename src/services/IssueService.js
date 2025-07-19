@@ -12,7 +12,7 @@ import {
   validateEnum,
   getValidPriorities,
   normalizePriority,
-  isValidUpdateField
+  isValidUpdateField,
 } from '../utils/validators.js';
 import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
@@ -35,10 +35,7 @@ class IssueService {
    * List issues in a project
    */
   async listIssues(client, projectIdentifier, limit = DEFAULTS.LIST_LIMIT) {
-    const project = await client.findOne(
-      tracker.class.Project,
-      { identifier: projectIdentifier }
-    );
+    const project = await client.findOne(tracker.class.Project, { identifier: projectIdentifier });
 
     if (!project) {
       throw HulyError.notFound('project', projectIdentifier);
@@ -49,23 +46,17 @@ class IssueService {
       { space: project._id },
       {
         limit,
-        sort: { modifiedOn: -1 }
+        sort: { modifiedOn: -1 },
       }
     );
 
     // Fetch all components and milestones for this project to resolve references
-    const components = await client.findAll(
-      tracker.class.Component,
-      { space: project._id }
-    );
-    const milestones = await client.findAll(
-      tracker.class.Milestone,
-      { space: project._id }
-    );
+    const components = await client.findAll(tracker.class.Component, { space: project._id });
+    const milestones = await client.findAll(tracker.class.Milestone, { space: project._id });
 
     // Create lookup maps for efficient access
-    const componentMap = new Map(components.map(c => [c._id, c]));
-    const milestoneMap = new Map(milestones.map(m => [m._id, m]));
+    const componentMap = new Map(components.map((c) => [c._id, c]));
+    const milestoneMap = new Map(milestones.map((m) => [m._id, m]));
 
     let result = `Found ${issues.length} issues in ${project.name}:\n\n`;
 
@@ -108,9 +99,7 @@ class IssueService {
         try {
           const descText = await this._extractDescription(client, issue);
           if (descText && descText.trim()) {
-            const preview = descText.length > 100 ?
-              `${descText.substring(0, 100)}...` :
-              descText;
+            const preview = descText.length > 100 ? `${descText.substring(0, 100)}...` : descText;
             result += `   Description: ${preview}\n`;
           }
         } catch (error) {
@@ -125,9 +114,9 @@ class IssueService {
       content: [
         {
           type: 'text',
-          text: result
-        }
-      ]
+          text: result,
+        },
+      ],
     };
   }
 
@@ -138,10 +127,7 @@ class IssueService {
     // Validate priority
     priority = validateEnum(priority, 'priority', getValidPriorities(), 'NoPriority');
 
-    const project = await client.findOne(
-      tracker.class.Project,
-      { identifier: projectIdentifier }
-    );
+    const project = await client.findOne(tracker.class.Project, { identifier: projectIdentifier });
 
     if (!project) {
       throw HulyError.notFound('project', projectIdentifier);
@@ -185,7 +171,7 @@ class IssueService {
       estimation: 0,
       reportedTime: 0,
       childInfo: [],
-      kind: tracker.taskTypes.Issue
+      kind: tracker.taskTypes.Issue,
     };
 
     const issueId = await client.addCollection(
@@ -209,12 +195,9 @@ class IssueService {
         );
 
         // Update the issue with the description reference
-        await client.updateDoc(
-          tracker.class.Issue,
-          project._id,
-          issueId,
-          { description: descriptionRef }
-        );
+        await client.updateDoc(tracker.class.Issue, project._id, issueId, {
+          description: descriptionRef,
+        });
       } catch (error) {
         console.error('Error creating description:', error);
         // Continue without description rather than failing
@@ -229,15 +212,17 @@ class IssueService {
       console.error('Error converting status:', error);
     }
 
-    const priorityName = Object.keys(PRIORITY_MAP).find(key => PRIORITY_MAP[key] === issueData.priority) || 'NoPriority';
+    const priorityName =
+      Object.keys(PRIORITY_MAP).find((key) => PRIORITY_MAP[key] === issueData.priority) ||
+      'NoPriority';
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Created issue ${identifier}: "${title}"\n\nPriority: ${priorityName}\nStatus: ${statusName}\nProject: ${project.name}`
-        }
-      ]
+          text: `✅ Created issue ${identifier}: "${title}"\n\nPriority: ${priorityName}\nStatus: ${statusName}\nProject: ${project.name}`,
+        },
+      ],
     };
   }
 
@@ -247,13 +232,14 @@ class IssueService {
   async updateIssue(client, issueIdentifier, field, value) {
     // Validate field name
     if (!isValidUpdateField(field)) {
-      throw HulyError.invalidValue('field', field, 'title, description, status, priority, component, or milestone');
+      throw HulyError.invalidValue(
+        'field',
+        field,
+        'title, description, status, priority, component, or milestone'
+      );
     }
 
-    const issue = await client.findOne(
-      tracker.class.Issue,
-      { identifier: issueIdentifier }
-    );
+    const issue = await client.findOne(tracker.class.Issue, { identifier: issueIdentifier });
 
     if (!issue) {
       throw HulyError.notFound('issue', issueIdentifier);
@@ -275,7 +261,9 @@ class IssueService {
             descriptionRef = await this._createDescriptionMarkup(client, issue._id, value);
           } catch (error) {
             console.error('Error creating description:', error);
-            throw HulyError.operationFailed('Failed to update description', { error: error.message });
+            throw HulyError.operationFailed('Failed to update description', {
+              error: error.message,
+            });
           }
         }
         updateData.description = descriptionRef;
@@ -308,23 +296,29 @@ class IssueService {
         // Normalize and validate priority
         const normalizedPriority = normalizePriority(value);
         if (!normalizedPriority) {
-          throw HulyError.invalidValue('priority', value, 'low, medium, high, urgent, or nopriority');
+          throw HulyError.invalidValue(
+            'priority',
+            value,
+            'low, medium, high, urgent, or nopriority'
+          );
         }
 
-        updateData.priority = tracker.component.Priority[normalizedPriority === 'NoPriority' ? 'NoPriority' : normalizedPriority.charAt(0).toUpperCase() + normalizedPriority.slice(1)];
+        updateData.priority =
+          tracker.component.Priority[
+            normalizedPriority === 'NoPriority'
+              ? 'NoPriority'
+              : normalizedPriority.charAt(0).toUpperCase() + normalizedPriority.slice(1)
+          ];
         displayValue = normalizedPriority === 'NoPriority' ? 'No Priority' : normalizedPriority;
         break;
       }
 
       case 'component': {
         // Find component by label
-        const component = await client.findOne(
-          tracker.class.Component,
-          {
-            space: issue.space,
-            label: value
-          }
-        );
+        const component = await client.findOne(tracker.class.Component, {
+          space: issue.space,
+          label: value,
+        });
 
         if (!component && value) {
           throw HulyError.notFound('component', value);
@@ -336,13 +330,10 @@ class IssueService {
 
       case 'milestone': {
         // Find milestone by label
-        const milestone = await client.findOne(
-          tracker.class.Milestone,
-          {
-            space: issue.space,
-            label: value
-          }
-        );
+        const milestone = await client.findOne(tracker.class.Milestone, {
+          space: issue.space,
+          label: value,
+        });
 
         if (!milestone && value) {
           throw HulyError.notFound('milestone', value);
@@ -353,47 +344,48 @@ class IssueService {
       }
 
       default:
-        throw HulyError.invalidValue('field', field, 'title, description, status, priority, component, or milestone');
+        throw HulyError.invalidValue(
+          'field',
+          field,
+          'title, description, status, priority, component, or milestone'
+        );
     }
 
-    await client.updateDoc(
-      tracker.class.Issue,
-      issue.space,
-      issue._id,
-      updateData
-    );
+    await client.updateDoc(tracker.class.Issue, issue.space, issue._id, updateData);
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Updated issue ${issueIdentifier}\n\n${field}: ${displayValue}`
-        }
-      ]
+          text: `✅ Updated issue ${issueIdentifier}\n\n${field}: ${displayValue}`,
+        },
+      ],
     };
   }
 
   /**
    * Create a subissue
    */
-  async createSubissue(client, parentIssueIdentifier, title, description = '', priority = 'NoPriority') {
+  async createSubissue(
+    client,
+    parentIssueIdentifier,
+    title,
+    description = '',
+    priority = 'NoPriority'
+  ) {
     // Validate priority
     priority = validateEnum(priority, 'priority', getValidPriorities(), 'NoPriority');
 
-    const parentIssue = await client.findOne(
-      tracker.class.Issue,
-      { identifier: parentIssueIdentifier }
-    );
+    const parentIssue = await client.findOne(tracker.class.Issue, {
+      identifier: parentIssueIdentifier,
+    });
 
     if (!parentIssue) {
       throw HulyError.notFound('parent issue', parentIssueIdentifier);
     }
 
     // Get project from parent issue's space
-    const project = await client.findOne(
-      tracker.class.Project,
-      { _id: parentIssue.space }
-    );
+    const project = await client.findOne(tracker.class.Project, { _id: parentIssue.space });
 
     if (!project) {
       throw HulyError.notFound('project', 'for parent issue');
@@ -421,8 +413,8 @@ class IssueService {
       title,
       description: '', // Will be updated after issue creation
       assignee: null,
-      component: parentIssue.component,  // Inherit from parent
-      milestone: parentIssue.milestone,  // Inherit from parent
+      component: parentIssue.component, // Inherit from parent
+      milestone: parentIssue.milestone, // Inherit from parent
       number,
       identifier,
       priority: PRIORITY_MAP[priority],
@@ -430,13 +422,13 @@ class IssueService {
       status: defaultStatus,
       doneState: null,
       dueTo: null,
-      attachedTo: parentIssue._id,  // Link to parent
+      attachedTo: parentIssue._id, // Link to parent
       comments: 0,
       subIssues: 0,
       estimation: 0,
       reportedTime: 0,
       childInfo: [],
-      kind: tracker.taskTypes.Issue
+      kind: tracker.taskTypes.Issue,
     };
 
     const issueId = await client.addCollection(
@@ -460,12 +452,9 @@ class IssueService {
         );
 
         // Update the issue with the description reference
-        await client.updateDoc(
-          tracker.class.Issue,
-          project._id,
-          issueId,
-          { description: descriptionRef }
-        );
+        await client.updateDoc(tracker.class.Issue, project._id, issueId, {
+          description: descriptionRef,
+        });
       } catch (error) {
         console.error('Error creating description:', error);
         // Continue without description rather than failing
@@ -473,22 +462,21 @@ class IssueService {
     }
 
     // Update parent's subIssues count
-    await client.updateDoc(
-      tracker.class.Issue,
-      parentIssue.space,
-      parentIssue._id,
-      { subIssues: (parentIssue.subIssues || 0) + 1 }
-    );
+    await client.updateDoc(tracker.class.Issue, parentIssue.space, parentIssue._id, {
+      subIssues: (parentIssue.subIssues || 0) + 1,
+    });
 
-    const priorityName = Object.keys(PRIORITY_MAP).find(key => PRIORITY_MAP[key] === issueData.priority) || 'NoPriority';
+    const priorityName =
+      Object.keys(PRIORITY_MAP).find((key) => PRIORITY_MAP[key] === issueData.priority) ||
+      'NoPriority';
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Created subissue ${identifier}: "${title}"\n\nParent: ${parentIssueIdentifier}\nPriority: ${priorityName}\nProject: ${project.name}`
-        }
-      ]
+          text: `✅ Created subissue ${identifier}: "${title}"\n\nParent: ${parentIssueIdentifier}\nPriority: ${priorityName}\nProject: ${project.name}`,
+        },
+      ],
     };
   }
 
@@ -497,10 +485,7 @@ class IssueService {
    */
   async listComments(client, issueIdentifier, limit = DEFAULTS.LIST_LIMIT) {
     // Find the issue
-    const issue = await client.findOne(
-      tracker.class.Issue,
-      { identifier: issueIdentifier }
-    );
+    const issue = await client.findOne(tracker.class.Issue, { identifier: issueIdentifier });
 
     if (!issue) {
       throw HulyError.notFound('issue', issueIdentifier);
@@ -511,11 +496,11 @@ class IssueService {
       chunter.class.Comment,
       {
         attachedTo: issue._id,
-        attachedToClass: tracker.class.Issue
+        attachedToClass: tracker.class.Issue,
       },
       {
         sort: { createdOn: -1 },
-        limit
+        limit,
       }
     );
 
@@ -524,9 +509,9 @@ class IssueService {
         content: [
           {
             type: 'text',
-            text: `No comments found on issue ${issueIdentifier}`
-          }
-        ]
+            text: `No comments found on issue ${issueIdentifier}`,
+          },
+        ],
       };
     }
 
@@ -550,7 +535,8 @@ class IssueService {
           commentText = await extractTextFromMarkup(comment.message);
         } catch {
           // If extraction fails, use the raw message
-          commentText = typeof comment.message === 'string' ? comment.message : JSON.stringify(comment.message);
+          commentText =
+            typeof comment.message === 'string' ? comment.message : JSON.stringify(comment.message);
         }
       }
 
@@ -566,9 +552,9 @@ class IssueService {
       content: [
         {
           type: 'text',
-          text: result
-        }
-      ]
+          text: result,
+        },
+      ],
     };
   }
 
@@ -577,10 +563,7 @@ class IssueService {
    */
   async createComment(client, issueIdentifier, message) {
     // Find the issue
-    const issue = await client.findOne(
-      tracker.class.Issue,
-      { identifier: issueIdentifier }
-    );
+    const issue = await client.findOne(tracker.class.Issue, { identifier: issueIdentifier });
 
     if (!issue) {
       throw HulyError.notFound('issue', issueIdentifier);
@@ -598,11 +581,11 @@ class IssueService {
             content: [
               {
                 type: 'text',
-                text: message
-              }
-            ]
-          }
-        ]
+                text: message,
+              },
+            ],
+          },
+        ],
       };
       messageContent = JSON.stringify(markupContent);
     } catch {
@@ -614,7 +597,7 @@ class IssueService {
       message: messageContent,
       attachedTo: issue._id,
       attachedToClass: tracker.class.Issue,
-      collection: 'comments'
+      collection: 'comments',
     };
 
     await client.addCollection(
@@ -627,20 +610,17 @@ class IssueService {
     );
 
     // Update the issue's comment count
-    await client.updateDoc(
-      tracker.class.Issue,
-      issue.space,
-      issue._id,
-      { comments: (issue.comments || 0) + 1 }
-    );
+    await client.updateDoc(tracker.class.Issue, issue.space, issue._id, {
+      comments: (issue.comments || 0) + 1,
+    });
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Added comment to issue ${issueIdentifier}`
-        }
-      ]
+          text: `✅ Added comment to issue ${issueIdentifier}`,
+        },
+      ],
     };
   }
 
@@ -649,20 +629,14 @@ class IssueService {
    */
   async getIssueDetails(client, issueIdentifier) {
     // Find the issue
-    const issue = await client.findOne(
-      tracker.class.Issue,
-      { identifier: issueIdentifier }
-    );
+    const issue = await client.findOne(tracker.class.Issue, { identifier: issueIdentifier });
 
     if (!issue) {
       throw HulyError.notFound('issue', issueIdentifier);
     }
 
     // Get project information
-    const project = await client.findOne(
-      tracker.class.Project,
-      { _id: issue.space }
-    );
+    const project = await client.findOne(tracker.class.Project, { _id: issue.space });
 
     let result = `# ${issue.identifier}: ${issue.title}\n\n`;
 
@@ -748,11 +722,11 @@ class IssueService {
       chunter.class.Comment,
       {
         attachedTo: issue._id,
-        attachedToClass: tracker.class.Issue
+        attachedToClass: tracker.class.Issue,
       },
       {
         sort: { createdOn: -1 },
-        limit: 5
+        limit: 5,
       }
     );
 
@@ -768,7 +742,8 @@ class IssueService {
           try {
             commentText = await extractTextFromMarkup(comment.message);
           } catch {
-            commentText = typeof comment.message === 'string' ? comment.message : 'Unable to display comment';
+            commentText =
+              typeof comment.message === 'string' ? comment.message : 'Unable to display comment';
           }
         }
         result += `${commentText}\n\n`;
@@ -796,9 +771,9 @@ class IssueService {
       content: [
         {
           type: 'text',
-          text: result
-        }
-      ]
+          text: result,
+        },
+      ],
     };
   }
 
@@ -818,7 +793,7 @@ class IssueService {
       created_before,
       modified_after,
       modified_before,
-      limit = DEFAULTS.LIST_LIMIT
+      limit = DEFAULTS.LIST_LIMIT,
     } = args;
 
     // Build search criteria
@@ -826,10 +801,9 @@ class IssueService {
 
     // Project filter
     if (project_identifier) {
-      const project = await client.findOne(
-        tracker.class.Project,
-        { identifier: project_identifier }
-      );
+      const project = await client.findOne(tracker.class.Project, {
+        identifier: project_identifier,
+      });
       if (!project) {
         throw HulyError.notFound('project', project_identifier);
       }
@@ -851,11 +825,11 @@ class IssueService {
     // Priority filter
     if (priority) {
       const priorityMap = {
-        'low': tracker.component.Priority.Low,
-        'medium': tracker.component.Priority.Medium,
-        'high': tracker.component.Priority.High,
-        'urgent': tracker.component.Priority.Urgent,
-        'nopriority': tracker.component.Priority.NoPriority
+        low: tracker.component.Priority.Low,
+        medium: tracker.component.Priority.Medium,
+        high: tracker.component.Priority.High,
+        urgent: tracker.component.Priority.Urgent,
+        nopriority: tracker.component.Priority.NoPriority,
       };
       const normalizedPriority = priority.toLowerCase();
       if (priorityMap[normalizedPriority] !== undefined) {
@@ -888,47 +862,34 @@ class IssueService {
     }
 
     // Search for issues
-    let issues = await client.findAll(
-      tracker.class.Issue,
-      searchCriteria,
-      {
-        sort: { modifiedOn: -1 },
-        limit: limit * 2  // Get extra to filter client-side if needed
-      }
-    );
+    let issues = await client.findAll(tracker.class.Issue, searchCriteria, {
+      sort: { modifiedOn: -1 },
+      limit: limit * 2, // Get extra to filter client-side if needed
+    });
 
     // Client-side filtering for complex criteria
     if (assignee) {
       // Find account by email
-      const account = await client.findOne(
-        core.class.Account,
-        { email: assignee }
-      );
+      const account = await client.findOne(core.class.Account, { email: assignee });
       if (account) {
-        issues = issues.filter(issue => issue.assignee === account._id);
+        issues = issues.filter((issue) => issue.assignee === account._id);
       } else {
-        issues = [];  // No matching assignee
+        issues = []; // No matching assignee
       }
     }
 
     if (component) {
       // Find all matching components across projects
-      const components = await client.findAll(
-        tracker.class.Component,
-        { label: component }
-      );
-      const componentIds = components.map(c => c._id);
-      issues = issues.filter(issue => componentIds.includes(issue.component));
+      const components = await client.findAll(tracker.class.Component, { label: component });
+      const componentIds = components.map((c) => c._id);
+      issues = issues.filter((issue) => componentIds.includes(issue.component));
     }
 
     if (milestone) {
       // Find all matching milestones across projects
-      const milestones = await client.findAll(
-        tracker.class.Milestone,
-        { label: milestone }
-      );
-      const milestoneIds = milestones.map(m => m._id);
-      issues = issues.filter(issue => milestoneIds.includes(issue.milestone));
+      const milestones = await client.findAll(tracker.class.Milestone, { label: milestone });
+      const milestoneIds = milestones.map((m) => m._id);
+      issues = issues.filter((issue) => milestoneIds.includes(issue.milestone));
     }
 
     // Text search in title and description
@@ -968,18 +929,18 @@ class IssueService {
         content: [
           {
             type: 'text',
-            text: 'No issues found matching the search criteria.'
-          }
-        ]
+            text: 'No issues found matching the search criteria.',
+          },
+        ],
       };
     }
 
     // Get project information for all issues
-    const projectIds = [...new Set(issues.map(i => i.space))];
+    const projectIds = [...new Set(issues.map((i) => i.space))];
     const projects = await Promise.all(
-      projectIds.map(id => client.findOne(tracker.class.Project, { _id: id }))
+      projectIds.map((id) => client.findOne(tracker.class.Project, { _id: id }))
     );
-    const projectMap = new Map(projects.map(p => [p._id, p]));
+    const projectMap = new Map(projects.map((p) => [p._id, p]));
 
     let result = `Found ${issues.length} issues:\n\n`;
 
@@ -1011,9 +972,9 @@ class IssueService {
       content: [
         {
           type: 'text',
-          text: result
-        }
-      ]
+          text: result,
+        },
+      ],
     };
   }
 

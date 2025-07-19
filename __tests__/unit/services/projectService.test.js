@@ -43,9 +43,8 @@ function createMockFn() {
   fn.getCalls = () => calls;
   fn.toHaveBeenCalled = () => calls.length > 0;
   fn.toHaveBeenCalledWith = (...args) => {
-    return calls.some(call =>
-      call.length === args.length &&
-      call.every((arg, i) => arg === args[i])
+    return calls.some(
+      (call) => call.length === args.length && call.every((arg, i) => arg === args[i])
     );
   };
 
@@ -62,7 +61,7 @@ describe('ProjectService Tests', () => {
       findAll: createMockFn(),
       findOne: createMockFn(),
       createDoc: createMockFn(),
-      updateDoc: createMockFn()
+      updateDoc: createMockFn(),
     };
   });
 
@@ -82,13 +81,11 @@ describe('ProjectService Tests', () => {
           description: 'First project',
           private: false,
           archived: false,
-          owners: []
-        }
+          owners: [],
+        },
       ];
 
-      mockClient.findAll
-        .mockResolvedValueOnce(mockProjects)
-        .mockResolvedValueOnce({ length: 5 });
+      mockClient.findAll.mockResolvedValueOnce(mockProjects).mockResolvedValueOnce({ length: 5 });
 
       const result = await service.listProjects(mockClient);
 
@@ -112,17 +109,15 @@ describe('ProjectService Tests', () => {
     test('should throw when project not found', async () => {
       mockClient.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.findProject(mockClient, 'NOTFOUND')
-      ).rejects.toThrow();
+      await expect(service.findProject(mockClient, 'NOTFOUND')).rejects.toThrow();
     });
   });
 
   describe('Response Format', () => {
     test('listProjects should return MCP-compatible response', async () => {
       mockClient.findAll
-        .mockResolvedValueOnce([])  // projects
-        .mockResolvedValueOnce({ length: 0 });  // count
+        .mockResolvedValueOnce([]) // projects
+        .mockResolvedValueOnce({ length: 0 }); // count
 
       const result = await service.listProjects(mockClient);
       expect(result).toHaveProperty('content');
@@ -133,7 +128,7 @@ describe('ProjectService Tests', () => {
 
     test('listComponents should return MCP-compatible response', async () => {
       mockClient.findOne.mockResolvedValueOnce({ _id: 'test', identifier: 'TEST' });
-      mockClient.findAll.mockResolvedValueOnce([]);  // components
+      mockClient.findAll.mockResolvedValueOnce([]); // components
 
       const result = await service.listComponents(mockClient, 'TEST');
       expect(result).toHaveProperty('content');
@@ -144,7 +139,7 @@ describe('ProjectService Tests', () => {
 
     test('listMilestones should return MCP-compatible response', async () => {
       mockClient.findOne.mockResolvedValueOnce({ _id: 'test', identifier: 'TEST' });
-      mockClient.findAll.mockResolvedValueOnce([]);  // milestones
+      mockClient.findAll.mockResolvedValueOnce([]); // milestones
 
       const result = await service.listMilestones(mockClient, 'TEST');
       expect(result).toHaveProperty('content');
@@ -154,7 +149,7 @@ describe('ProjectService Tests', () => {
     });
 
     test('listGithubRepositories should return MCP-compatible response', async () => {
-      mockClient.findAll.mockResolvedValueOnce([]);  // repositories
+      mockClient.findAll.mockResolvedValueOnce([]); // repositories
 
       const result = await service.listGithubRepositories(mockClient);
       expect(result).toHaveProperty('content');
@@ -168,9 +163,7 @@ describe('ProjectService Tests', () => {
     test('should handle database errors', async () => {
       mockClient.findAll.mockRejectedValue(new Error('DB Error'));
 
-      await expect(
-        service.listGithubRepositories(mockClient)
-      ).rejects.toThrow();
+      await expect(service.listGithubRepositories(mockClient)).rejects.toThrow();
     });
 
     test('should validate milestone dates', async () => {
@@ -185,12 +178,14 @@ describe('ProjectService Tests', () => {
   describe('GitHub Repository Assignment', () => {
     test('should match repository by full name', async () => {
       const mockProject = { _id: 'proj1' };
-      const mockRepos = [{
-        _id: 'repo1',
-        space: 'space1',
-        name: 'org/repo',
-        githubProject: null
-      }];
+      const mockRepos = [
+        {
+          _id: 'repo1',
+          space: 'space1',
+          name: 'org/repo',
+          githubProject: null,
+        },
+      ];
 
       mockClient.findOne.mockResolvedValue(mockProject);
       mockClient.findAll.mockResolvedValue(mockRepos);
@@ -202,19 +197,21 @@ describe('ProjectService Tests', () => {
 
     test('should throw error when repository not found by partial name', async () => {
       const mockProject = { _id: 'proj1' };
-      const mockRepos = [{
-        _id: 'repo1',
-        space: 'space1',
-        name: 'organization/myrepo',
-        githubProject: null
-      }];
+      const mockRepos = [
+        {
+          _id: 'repo1',
+          space: 'space1',
+          name: 'organization/myrepo',
+          githubProject: null,
+        },
+      ];
 
       mockClient.findOne.mockResolvedValue(mockProject);
       mockClient.findAll.mockResolvedValue(mockRepos);
 
-      await expect(
-        service.assignRepositoryToProject(mockClient, 'TEST', 'myrepo')
-      ).rejects.toThrow('Repository "myrepo" not found');
+      await expect(service.assignRepositoryToProject(mockClient, 'TEST', 'myrepo')).rejects.toThrow(
+        'Repository "myrepo" not found'
+      );
     });
   });
 });

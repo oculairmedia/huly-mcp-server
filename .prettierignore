@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.build/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Package files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Coverage
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/
+.idea/
+
+# Worktrees
+worktrees/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Other
+*.md
+*.min.js
+*.min.css

@@ -98,10 +98,7 @@ export function extractTextFromDoc(doc) {
 export function extractTextAdvanced(doc, options = {}) {
   if (!doc || !doc.content) return '';
 
-  const {
-    preserveFormatting = false,
-    includeLinks = false
-  } = options;
+  const { preserveFormatting = false, includeLinks = false } = options;
 
   let text = '';
   let listLevel = 0;
@@ -115,7 +112,7 @@ export function extractTextAdvanced(doc, options = {}) {
           // Handle marks (bold, italic, etc.)
           let nodeText = node.text;
           if (preserveFormatting && node.marks) {
-            node.marks.forEach(mark => {
+            node.marks.forEach((mark) => {
               switch (mark.type) {
                 case 'bold':
                 case 'strong':
@@ -194,7 +191,7 @@ export function extractTextAdvanced(doc, options = {}) {
           processChildren(node);
           const quotedText = text;
           text = tempText;
-          quotedText.split('\n').forEach(line => {
+          quotedText.split('\n').forEach((line) => {
             if (line.trim()) {
               text += `> ${line}\n`;
             }
@@ -220,21 +217,21 @@ export function extractTextAdvanced(doc, options = {}) {
 
   const processChildren = (node) => {
     if (node.content && Array.isArray(node.content)) {
-      node.content.forEach(child => processNode(child));
+      node.content.forEach((child) => processNode(child));
     }
   };
 
   // Process the document
   if (Array.isArray(doc.content)) {
-    doc.content.forEach(node => processNode(node));
+    doc.content.forEach((node) => processNode(node));
   } else if (doc.content) {
     processNode(doc.content);
   }
 
   // Clean up extra whitespace
   return text
-    .replace(/\n{3,}/g, '\n\n')  // Replace multiple newlines with double
-    .replace(/[ \t]+$/gm, '')     // Remove trailing spaces
+    .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double
+    .replace(/[ \t]+$/gm, '') // Remove trailing spaces
     .trim();
 }
 

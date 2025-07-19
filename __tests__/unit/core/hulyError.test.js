@@ -24,7 +24,7 @@ describe('HulyError Tests', () => {
       const details = {
         context: 'Testing context',
         suggestion: 'Try something else',
-        data: { field: 'test', value: 123 }
+        data: { field: 'test', value: 123 },
       };
       const error = new HulyError('DETAILED_ERROR', 'Error with details', details);
 
@@ -63,13 +63,13 @@ describe('HulyError Tests', () => {
       expect(response.content).toHaveLength(1);
       expect(response.content[0]).toEqual({
         type: 'text',
-        text: '❌ Error [BASIC_ERROR]: Basic error message'
+        text: '❌ Error [BASIC_ERROR]: Basic error message',
       });
     });
 
     test('should include context in response', () => {
       const error = new HulyError('CONTEXT_ERROR', 'Error with context', {
-        context: 'While processing user request'
+        context: 'While processing user request',
       });
       const response = error.toMCPResponse();
 
@@ -79,22 +79,25 @@ describe('HulyError Tests', () => {
 
     test('should include suggestion in response', () => {
       const error = new HulyError('SUGGESTION_ERROR', 'Error with suggestion', {
-        suggestion: 'Please check your input format'
+        suggestion: 'Please check your input format',
       });
       const response = error.toMCPResponse();
 
-      expect(response.content[0].text).toContain('❌ Error [SUGGESTION_ERROR]: Error with suggestion');
+      expect(response.content[0].text).toContain(
+        '❌ Error [SUGGESTION_ERROR]: Error with suggestion'
+      );
       expect(response.content[0].text).toContain('\n\nSuggestion: Please check your input format');
     });
 
     test('should include both context and suggestion', () => {
       const error = new HulyError('FULL_ERROR', 'Complete error', {
         context: 'During API call',
-        suggestion: 'Retry with valid credentials'
+        suggestion: 'Retry with valid credentials',
       });
       const response = error.toMCPResponse();
 
-      const expectedText = '❌ Error [FULL_ERROR]: Complete error\n\nContext: During API call\n\nSuggestion: Retry with valid credentials';
+      const expectedText =
+        '❌ Error [FULL_ERROR]: Complete error\n\nContext: During API call\n\nSuggestion: Retry with valid credentials';
       expect(response.content[0].text).toBe(expectedText);
     });
   });
@@ -103,7 +106,7 @@ describe('HulyError Tests', () => {
     test('formatErrorMessage should format correctly', () => {
       const error = new HulyError('FORMAT_TEST', 'Test formatting', {
         context: 'Test context',
-        suggestion: 'Test suggestion'
+        suggestion: 'Test suggestion',
       });
 
       const formatted = error.formatErrorMessage();
@@ -114,7 +117,7 @@ describe('HulyError Tests', () => {
 
     test('toJSON should serialize properly', () => {
       const error = new HulyError('JSON_TEST', 'JSON test', {
-        data: { test: true }
+        data: { test: true },
       });
 
       const json = error.toJSON();
@@ -195,7 +198,11 @@ describe('HulyError Tests', () => {
     });
 
     test('invalidValue should create value error', () => {
-      const error = HulyError.invalidValue('priority', 'invalid', 'one of: low, medium, high, urgent');
+      const error = HulyError.invalidValue(
+        'priority',
+        'invalid',
+        'one of: low, medium, high, urgent'
+      );
 
       expect(error.code).toBe(ERROR_CODES.INVALID_VALUE);
       expect(error.message).toBe("Invalid value for field 'priority'");
@@ -249,7 +256,7 @@ describe('HulyError Tests', () => {
     test('should handle special characters in messages', () => {
       const error = new HulyError('SPECIAL_CHARS', 'Error with "quotes" and \nnewlines', {
         context: 'Context with <tags> & symbols',
-        suggestion: 'Use `backticks` or \'quotes\''
+        suggestion: "Use `backticks` or 'quotes'",
       });
 
       const response = error.toMCPResponse();
@@ -263,7 +270,7 @@ describe('HulyError Tests', () => {
       circular.self = circular;
 
       const error = new HulyError('CIRCULAR', 'Circular test', {
-        data: circular
+        data: circular,
       });
 
       // Should not throw when accessing details
