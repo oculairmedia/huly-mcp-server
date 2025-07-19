@@ -128,13 +128,16 @@ class HulyMCPServer {
     }
     
     try {
-      // Create the CollaborativeDoc reference
-      const collabDoc = makeCollabId(tracker.class.Issue, issueId, 'description');
-      // Create the MarkupBlobRef ID
-      const markupBlobRef = makeCollabJsonId(collabDoc);
+      // Use the client's uploadMarkup method to properly store the content
+      const markupRef = await client.uploadMarkup(
+        tracker.class.Issue,
+        issueId,
+        'description',
+        text.trim()
+      );
       
-      console.log('Created MarkupBlobRef:', markupBlobRef);
-      return markupBlobRef;
+      console.log('Created MarkupBlobRef:', markupRef);
+      return markupRef;
     } catch (error) {
       console.error('Failed to create markup:', error);
       // Fallback to empty string if markup creation fails
@@ -149,32 +152,22 @@ class HulyMCPServer {
     }
     
     try {
-      // Get collaborator client
-      const workspaceId = HULY_CONFIG.workspace;
-      const token = this.hulyClient?.token || '';
-      const collaboratorUrl = HULY_CONFIG.url.replace('https://', 'wss://') + '/collaborator';
+      // Use the client's fetchMarkup method to retrieve the content
+      const markup = await this.hulyClient.fetchMarkup(descriptionRef);
       
-      const collabClient = getCollaboratorClient(workspaceId, token, collaboratorUrl);
-      
-      // Create CollaborativeDoc from the reference
-      const issueId = descriptionRef.split('-')[0];
-      const collabDoc = {
-        objectClass: tracker.class.Issue,
-        objectId: issueId,
-        objectAttr: 'description'
-      };
-      
-      // Get the markup content
-      const markup = await collabClient.getMarkup(collabDoc, descriptionRef);
-      
-      // Convert markup JSON to text if needed
-      if (typeof markup === 'string' && markup.startsWith('{')) {
-        try {
-          const doc = JSON.parse(markup);
-          return extractTextFromMarkup(doc);
-        } catch (e) {
-          return markup;
+      // The markup might be returned as plain text or as JSON
+      if (typeof markup === 'string') {
+        // If it starts with '{', it might be JSON markup
+        if (markup.startsWith('{')) {
+          try {
+            const doc = JSON.parse(markup);
+            return extractTextFromMarkup(doc);
+          } catch (e) {
+            // Not JSON, return as is
+            return markup;
+          }
         }
+        return markup;
       }
       
       return markup || '';
@@ -809,8 +802,8 @@ class HulyMCPServer {
     };
     const priorityValue = priorityMap[priority] ?? 0;
 
-    // Create the description markup reference
-    const descriptionRef = await this.createDescriptionMarkup(client, issueId, description);
+    // For now, create issue without description and update it after
+    // This is because the collaborator client needs the issue to exist first
     
     // Create issue
     await client.addCollection(
@@ -821,7 +814,7 @@ class HulyMCPServer {
       'issues',
       {
         title,
-        description: descriptionRef,
+        description: '', // Start with empty description
         identifier: `${project.identifier}-${sequence}`,
         number: sequence,
         status: project.defaultIssueStatus || statusManager.getDefaultStatus('full'),
@@ -844,6 +837,24 @@ class HulyMCPServer {
       },
       issueId
     );
+
+    // Now update the issue with the description if provided
+    if (description && description.trim() !== '') {
+      try {
+        const descriptionRef = await this.createDescriptionMarkup(client, issueId, description);
+        if (descriptionRef) {
+          await client.updateDoc(
+            tracker.class.Issue,
+            project._id,
+            issueId,
+            { description: descriptionRef }
+          );
+        }
+      } catch (error) {
+        console.error('Failed to update issue description:', error);
+        // Continue even if description update fails
+      }
+    }
 
     const issueStatus = project.defaultIssueStatus || statusManager.getDefaultStatus('full');
     const humanStatus = statusManager.toHumanStatus(issueStatus);
@@ -1082,7 +1093,13 @@ class HulyMCPServer {
           );
         }
         
-        updateData[field] = value;
+        if (field === 'description') {
+          // Handle description as a collaborative document
+          const descriptionRef = await this.createDescriptionMarkup(client, issue._id, value);
+          updateData[field] = descriptionRef;
+        } else {
+          updateData[field] = value;
+        }
         
       } else if (field === 'status') {
         // Handle status field with StatusManager
