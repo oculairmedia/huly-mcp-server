@@ -11,3 +11,6 @@ export * from './updateIssue.js';
 export * from './createSubissue.js';
 export * from './searchIssues.js';
 export * from './getIssueDetails.js';
+export * from './deleteIssue.js';
+export * from './bulkCreateIssues.js';
+export * from './bulkUpdateIssues.js';
