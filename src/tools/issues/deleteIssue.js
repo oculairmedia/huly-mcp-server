@@ -5,7 +5,7 @@
  */
 
 import { createErrorResponse } from '../base/ToolInterface.js';
-import { validateIdentifier } from '../../utils/validators.js';
+import { isValidIssueIdentifier } from '../../utils/validators.js';
 import { HulyError } from '../../core/HulyError.js';
 
 /**
@@ -56,7 +56,7 @@ export async function handler(args, context) {
     logger.debug('Deleting issue', args);
 
     // Validate issue identifier format
-    if (!validateIdentifier(issue_identifier)) {
+    if (!isValidIssueIdentifier(issue_identifier)) {
       throw HulyError.invalidValue('issue_identifier', issue_identifier, 'format like "PROJ-123"');
     }
 
