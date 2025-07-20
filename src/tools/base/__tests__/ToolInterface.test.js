@@ -14,9 +14,9 @@ describe('BaseTool', () => {
         inputSchema: {
           type: 'object',
           properties: {
-            param1: { type: 'string' }
-          }
-        }
+            param1: { type: 'string' },
+          },
+        },
       };
 
       const tool = new BaseTool(definition);
@@ -26,7 +26,7 @@ describe('BaseTool', () => {
     it('should throw error when name is missing', () => {
       const definition = {
         description: 'A test tool',
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       };
 
       expect(() => new BaseTool(definition)).toThrow('Tool name is required');
@@ -36,7 +36,7 @@ describe('BaseTool', () => {
       const definition = {
         name: '',
         description: 'A test tool',
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       };
 
       expect(() => new BaseTool(definition)).toThrow('Tool name is required');
@@ -45,7 +45,7 @@ describe('BaseTool', () => {
     it('should throw error when description is missing', () => {
       const definition = {
         name: 'test_tool',
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       };
 
       expect(() => new BaseTool(definition)).toThrow('Tool description is required');
@@ -55,7 +55,7 @@ describe('BaseTool', () => {
       const definition = {
         name: 'test_tool',
         description: '',
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       };
 
       expect(() => new BaseTool(definition)).toThrow('Tool description is required');
@@ -64,7 +64,7 @@ describe('BaseTool', () => {
     it('should throw error when inputSchema is missing', () => {
       const definition = {
         name: 'test_tool',
-        description: 'A test tool'
+        description: 'A test tool',
       };
 
       expect(() => new BaseTool(definition)).toThrow('Tool inputSchema is required');
@@ -74,7 +74,7 @@ describe('BaseTool', () => {
       const definition = {
         name: 'test_tool',
         description: 'A test tool',
-        inputSchema: { type: 'string' }
+        inputSchema: { type: 'string' },
       };
 
       expect(() => new BaseTool(definition)).toThrow('Tool inputSchema must be an object schema');
@@ -84,7 +84,7 @@ describe('BaseTool', () => {
       const definition = {
         name: 'test_tool',
         description: 'A test tool',
-        inputSchema: { type: 'array' }
+        inputSchema: { type: 'array' },
       };
 
       expect(() => new BaseTool(definition)).toThrow('Tool inputSchema must be an object schema');
@@ -94,7 +94,7 @@ describe('BaseTool', () => {
       const definition = {
         name: 'test_tool',
         description: 'A test tool',
-        inputSchema: { properties: {} }
+        inputSchema: { properties: {} },
       };
 
       expect(() => new BaseTool(definition)).toThrow('Tool inputSchema must be an object schema');
@@ -108,7 +108,7 @@ describe('BaseTool', () => {
       tool = new BaseTool({
         name: 'test_tool',
         description: 'A test tool',
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       });
     });
 
@@ -125,7 +125,7 @@ describe('BaseTool', () => {
       const customTool = new BaseTool({
         name: 'custom_tool_name',
         description: 'A custom tool',
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       });
 
       await expect(customTool.handler({}, {})).rejects.toThrow(
@@ -141,7 +141,7 @@ describe('BaseTool', () => {
       tool = new BaseTool({
         name: 'test_tool',
         description: 'A test tool',
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       });
     });
 
@@ -156,12 +156,12 @@ describe('BaseTool', () => {
     });
 
     it('should return null for any args', () => {
-      const result = tool.validate({ 
+      const result = tool.validate({
         string: 'test',
         number: 123,
         boolean: true,
         array: [1, 2, 3],
-        object: { nested: 'value' }
+        object: { nested: 'value' },
       });
       expect(result).toBeNull();
     });
@@ -174,13 +174,13 @@ describe('BaseTool', () => {
       tool = new BaseTool({
         name: 'test_tool',
         description: 'A test tool',
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       });
     });
 
     it('should return correct structure', () => {
       const exported = tool.export();
-      
+
       expect(exported).toHaveProperty('definition');
       expect(exported).toHaveProperty('handler');
       expect(exported).toHaveProperty('validate');
@@ -191,7 +191,7 @@ describe('BaseTool', () => {
 
     it('should bind handler method correctly', async () => {
       const exported = tool.export();
-      
+
       await expect(exported.handler({}, {})).rejects.toThrow(
         'Handler not implemented for tool: test_tool'
       );
@@ -200,7 +200,7 @@ describe('BaseTool', () => {
     it('should bind validate method correctly', () => {
       const exported = tool.export();
       const result = exported.validate({ test: 'value' });
-      
+
       expect(result).toBeNull();
     });
 
@@ -224,11 +224,11 @@ describe('BaseTool', () => {
       const customTool = new CustomTool({
         name: 'custom_tool',
         description: 'A custom tool',
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       });
 
       const exported = customTool.export();
-      
+
       expect(await exported.handler({}, {})).toBe('custom value');
       expect(exported.validate({})).toBe('custom value');
     });
@@ -238,69 +238,69 @@ describe('BaseTool', () => {
 describe('createToolResponse', () => {
   it('should create response with correct structure', () => {
     const response = createToolResponse('Test response');
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: 'Test response'
-        }
-      ]
+          text: 'Test response',
+        },
+      ],
     });
   });
 
   it('should handle empty string', () => {
     const response = createToolResponse('');
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: ''
-        }
-      ]
+          text: '',
+        },
+      ],
     });
   });
 
   it('should handle multiline text', () => {
     const multilineText = 'Line 1\nLine 2\nLine 3';
     const response = createToolResponse(multilineText);
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: multilineText
-        }
-      ]
+          text: multilineText,
+        },
+      ],
     });
   });
 
   it('should handle special characters', () => {
     const specialText = 'Special chars: !@#$%^&*()_+-={}[]|\\:";\'<>?,./';
     const response = createToolResponse(specialText);
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: specialText
-        }
-      ]
+          text: specialText,
+        },
+      ],
     });
   });
 
   it('should handle unicode characters', () => {
     const unicodeText = 'Unicode: 你好世界 🌍 🚀 ✨';
     const response = createToolResponse(unicodeText);
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: unicodeText
-        }
-      ]
+          text: unicodeText,
+        },
+      ],
     });
   });
 });
@@ -309,54 +309,54 @@ describe('createErrorResponse', () => {
   it('should handle Error object', () => {
     const error = new Error('Test error message');
     const response = createErrorResponse(error);
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: 'Error: Test error message'
-        }
-      ]
+          text: 'Error: Test error message',
+        },
+      ],
     });
   });
 
   it('should handle string error', () => {
     const response = createErrorResponse('String error message');
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: 'Error: String error message'
-        }
-      ]
+          text: 'Error: String error message',
+        },
+      ],
     });
   });
 
   it('should handle Error with empty message', () => {
     const error = new Error('');
     const response = createErrorResponse(error);
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: 'Error: '
-        }
-      ]
+          text: 'Error: ',
+        },
+      ],
     });
   });
 
   it('should handle empty string error', () => {
     const response = createErrorResponse('');
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: 'Error: '
-        }
-      ]
+          text: 'Error: ',
+        },
+      ],
     });
   });
 
@@ -370,28 +370,28 @@ describe('createErrorResponse', () => {
 
     const error = new CustomError('Custom error message');
     const response = createErrorResponse(error);
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: 'Error: Custom error message'
-        }
-      ]
+          text: 'Error: Custom error message',
+        },
+      ],
     });
   });
 
   it('should handle Error with multiline message', () => {
     const error = new Error('Line 1\nLine 2\nLine 3');
     const response = createErrorResponse(error);
-    
+
     expect(response).toEqual({
       content: [
         {
           type: 'text',
-          text: 'Error: Line 1\nLine 2\nLine 3'
-        }
-      ]
+          text: 'Error: Line 1\nLine 2\nLine 3',
+        },
+      ],
     });
   });
 
@@ -400,7 +400,7 @@ describe('createErrorResponse', () => {
     const errorText = 'Test error';
     const errorResponse = createErrorResponse(errorText);
     const toolResponse = createToolResponse(`Error: ${errorText}`);
-    
+
     expect(errorResponse).toEqual(toolResponse);
   });
 });

@@ -1,10 +1,10 @@
 /**
  * Create Milestone Tool
- * 
+ *
  * Creates a new milestone in a project
  */
 
-import { createToolResponse, createErrorResponse } from '../base/ToolInterface.js';
+import { createErrorResponse } from '../base/ToolInterface.js';
 
 /**
  * Tool definition
@@ -17,29 +17,36 @@ export const definition = {
     properties: {
       project_identifier: {
         type: 'string',
-        description: 'Project identifier (e.g., "WEBHOOK")'
+        description: 'Project identifier (e.g., "WEBHOOK")',
       },
       label: {
         type: 'string',
-        description: 'Milestone name'
+        description: 'Milestone name',
       },
       description: {
         type: 'string',
-        description: 'Milestone description'
+        description: 'Milestone description',
       },
       target_date: {
         type: 'string',
-        description: 'Target date (ISO 8601 format)'
+        description: 'Target date (ISO 8601 format)',
       },
       status: {
         type: 'string',
         description: 'Milestone status',
         enum: ['planned', 'in_progress', 'completed', 'canceled'],
-        default: 'planned'
-      }
+        default: 'planned',
+      },
     },
-    required: ['project_identifier', 'label', 'target_date']
-  }
+    required: ['project_identifier', 'label', 'target_date'],
+  },
+  annotations: {
+    title: 'Create Project Milestone',
+    readOnlyHint: false, // Creates new data
+    destructiveHint: false, // Does not delete any data
+    idempotentHint: false, // Creates new milestone each time
+    openWorldHint: true, // Interacts with external Huly system
+  },
 };
 
 /**
@@ -51,10 +58,10 @@ export const definition = {
 export async function handler(args, context) {
   const { client, services, logger } = context;
   const { projectService } = services;
-  
+
   try {
     logger.debug('Creating new milestone', args);
-    
+
     const result = await projectService.createMilestone(
       client,
       args.project_identifier,
@@ -63,7 +70,7 @@ export async function handler(args, context) {
       args.target_date,
       args.status
     );
-    
+
     return result;
   } catch (error) {
     logger.error('Failed to create milestone:', error);
@@ -78,17 +85,17 @@ export async function handler(args, context) {
  */
 export function validate(args) {
   const errors = {};
-  
+
   // Validate project identifier
   if (!args.project_identifier || args.project_identifier.trim().length === 0) {
     errors.project_identifier = 'Project identifier is required';
   }
-  
+
   // Validate label
   if (!args.label || args.label.trim().length === 0) {
     errors.label = 'Milestone label is required';
   }
-  
+
   // Validate target date
   if (!args.target_date || args.target_date.trim().length === 0) {
     errors.target_date = 'Target date is required';
@@ -96,7 +103,8 @@ export function validate(args) {
     // Validate ISO 8601 format
     const dateRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/;
     if (!dateRegex.test(args.target_date)) {
-      errors.target_date = 'Target date must be in ISO 8601 format (e.g., "2024-12-31" or "2024-12-31T23:59:59Z")';
+      errors.target_date =
+        'Target date must be in ISO 8601 format (e.g., "2024-12-31" or "2024-12-31T23:59:59Z")';
     } else {
       const date = new Date(args.target_date);
       if (isNaN(date.getTime())) {
@@ -104,7 +112,7 @@ export function validate(args) {
       }
     }
   }
-  
+
   // Validate status if provided
   if (args.status) {
     const validStatuses = ['planned', 'in_progress', 'completed', 'canceled'];
@@ -112,6 +120,6 @@ export function validate(args) {
       errors.status = `Status must be one of: ${validStatuses.join(', ')}`;
     }
   }
-  
+
   return Object.keys(errors).length > 0 ? errors : null;
 }

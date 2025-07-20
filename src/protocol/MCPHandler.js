@@ -7,11 +7,11 @@
 
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { HulyError } from '../core/HulyError.js';
-import { 
-  initializeTools, 
-  getAllToolDefinitions, 
+import {
+  initializeTools,
+  getAllToolDefinitions,
   executeTool as executeRegisteredTool,
-  hasTool 
+  hasTool,
 } from '../tools/index.js';
 import { createLoggerWithConfig } from '../utils/index.js';
 import { getConfigManager } from '../config/index.js';
@@ -27,7 +27,7 @@ export class MCPHandler {
 
   async initialize() {
     if (this.initialized) return;
-    
+
     try {
       // Initialize the new tool system
       await initializeTools();
@@ -43,7 +43,7 @@ export class MCPHandler {
     // Handle tool listing requests
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       await this.initialize();
-      
+
       // Use new tool system
       const tools = getAllToolDefinitions();
       return { tools };
@@ -52,22 +52,22 @@ export class MCPHandler {
     // Handle tool execution requests
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
-      
+
       await this.initialize();
 
       try {
         if (!hasTool(name)) {
           throw HulyError.invalidValue('tool', name, 'a valid tool name');
         }
-        
+
         // Use new tool system
         const context = {
           client: null, // Will be set in withClient
           services: this.services,
           config: getConfigManager().getHulyConfig(),
-          logger: this.logger.child(name)
+          logger: this.logger.child(name),
         };
-        
+
         // Execute with client wrapper for reconnection support
         const { hulyClientWrapper } = this.services;
         return await hulyClientWrapper.withClient(async (client) => {

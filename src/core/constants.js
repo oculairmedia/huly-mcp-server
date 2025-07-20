@@ -73,6 +73,10 @@ export const DEFAULTS = {
   DEFAULT_MILESTONE_STATUS: 'planned',
 };
 
+// Timeout constants (in milliseconds)
+export const OPERATION_TIMEOUT = 30000; // 30 seconds
+export const BULK_OPERATION_TIMEOUT = 300000; // 5 minutes
+
 // Validation patterns
 export const VALIDATION_PATTERNS = {
   PROJECT_IDENTIFIER: /^[A-Z]{1,5}$/,

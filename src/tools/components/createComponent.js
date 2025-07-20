@@ -1,10 +1,10 @@
 /**
  * Create Component Tool
- * 
+ *
  * Creates a new component in a project
  */
 
-import { createToolResponse, createErrorResponse } from '../base/ToolInterface.js';
+import { createErrorResponse } from '../base/ToolInterface.js';
 
 /**
  * Tool definition
@@ -17,19 +17,26 @@ export const definition = {
     properties: {
       project_identifier: {
         type: 'string',
-        description: 'Project identifier (e.g., "WEBHOOK")'
+        description: 'Project identifier (e.g., "WEBHOOK")',
       },
       label: {
         type: 'string',
-        description: 'Component name'
+        description: 'Component name',
       },
       description: {
         type: 'string',
-        description: 'Component description'
-      }
+        description: 'Component description',
+      },
     },
-    required: ['project_identifier', 'label']
-  }
+    required: ['project_identifier', 'label'],
+  },
+  annotations: {
+    title: 'Create Component',
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
 };
 
 /**
@@ -41,17 +48,17 @@ export const definition = {
 export async function handler(args, context) {
   const { client, services, logger } = context;
   const { projectService } = services;
-  
+
   try {
     logger.debug('Creating new component', args);
-    
+
     const result = await projectService.createComponent(
       client,
       args.project_identifier,
       args.label,
       args.description
     );
-    
+
     return result;
   } catch (error) {
     logger.error('Failed to create component:', error);
@@ -66,16 +73,16 @@ export async function handler(args, context) {
  */
 export function validate(args) {
   const errors = {};
-  
+
   // Validate project identifier
   if (!args.project_identifier || args.project_identifier.trim().length === 0) {
     errors.project_identifier = 'Project identifier is required';
   }
-  
+
   // Validate label
   if (!args.label || args.label.trim().length === 0) {
     errors.label = 'Component label is required';
   }
-  
+
   return Object.keys(errors).length > 0 ? errors : null;
 }

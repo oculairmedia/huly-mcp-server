@@ -1,10 +1,10 @@
 /**
  * List GitHub Repositories Tool
- * 
+ *
  * Lists all GitHub repositories available in integrations
  */
 
-import { createToolResponse, createErrorResponse } from '../base/ToolInterface.js';
+import { createErrorResponse } from '../base/ToolInterface.js';
 
 /**
  * Tool definition
@@ -15,8 +15,15 @@ export const definition = {
   inputSchema: {
     type: 'object',
     properties: {},
-    required: []
-  }
+    required: [],
+  },
+  annotations: {
+    title: 'List GitHub Repositories',
+    readOnlyHint: true, // Only reads repository data
+    destructiveHint: false, // Does not delete any data
+    idempotentHint: true, // Same request returns same results
+    openWorldHint: true, // Interacts with external Huly/GitHub systems
+  },
 };
 
 /**
@@ -28,12 +35,12 @@ export const definition = {
 export async function handler(args, context) {
   const { client, services, logger } = context;
   const { projectService } = services;
-  
+
   try {
     logger.debug('Listing GitHub repositories');
-    
+
     const result = await projectService.listGithubRepositories(client);
-    
+
     return result;
   } catch (error) {
     logger.error('Failed to list GitHub repositories:', error);

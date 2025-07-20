@@ -1,10 +1,10 @@
 /**
  * Create Subissue Tool
- * 
+ *
  * Creates a subissue under an existing parent issue
  */
 
-import { createToolResponse, createErrorResponse } from '../base/ToolInterface.js';
+import { createErrorResponse } from '../base/ToolInterface.js';
 
 /**
  * Tool definition
@@ -17,25 +17,32 @@ export const definition = {
     properties: {
       parent_issue_identifier: {
         type: 'string',
-        description: 'Parent issue identifier (e.g., "LMP-1")'
+        description: 'Parent issue identifier (e.g., "LMP-1")',
       },
       title: {
         type: 'string',
-        description: 'Subissue title'
+        description: 'Subissue title',
       },
       description: {
         type: 'string',
-        description: 'Subissue description'
+        description: 'Subissue description',
       },
       priority: {
         type: 'string',
         description: 'Issue priority (low, medium, high, urgent)',
         enum: ['low', 'medium', 'high', 'urgent'],
-        default: 'medium'
-      }
+        default: 'medium',
+      },
     },
-    required: ['parent_issue_identifier', 'title']
-  }
+    required: ['parent_issue_identifier', 'title'],
+  },
+  annotations: {
+    title: 'Create Subissue',
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
 };
 
 /**
@@ -47,10 +54,10 @@ export const definition = {
 export async function handler(args, context) {
   const { client, services, logger } = context;
   const { issueService } = services;
-  
+
   try {
     logger.debug('Creating subissue', args);
-    
+
     const result = await issueService.createSubissue(
       client,
       args.parent_issue_identifier,
@@ -58,7 +65,7 @@ export async function handler(args, context) {
       args.description,
       args.priority
     );
-    
+
     return result;
   } catch (error) {
     logger.error('Failed to create subissue:', error);
@@ -73,22 +80,22 @@ export async function handler(args, context) {
  */
 export function validate(args) {
   const errors = {};
-  
+
   // Validate parent_issue_identifier
   if (!args.parent_issue_identifier || args.parent_issue_identifier.trim().length === 0) {
     errors.parent_issue_identifier = 'Parent issue identifier is required';
   }
-  
+
   // Validate title
   if (!args.title || args.title.trim().length === 0) {
     errors.title = 'Subissue title is required';
   }
-  
+
   // Validate priority if provided
   const validPriorities = ['low', 'medium', 'high', 'urgent'];
   if (args.priority && !validPriorities.includes(args.priority)) {
     errors.priority = `Priority must be one of: ${validPriorities.join(', ')}`;
   }
-  
+
   return Object.keys(errors).length > 0 ? errors : null;
 }

@@ -1,6 +1,6 @@
 /**
  * Tool Registry System
- * 
+ *
  * Manages registration, discovery, and execution of MCP tools
  */
 
@@ -14,7 +14,7 @@ export class ToolRegistry {
   constructor() {
     /** @type {Map<string, import('./ToolInterface').Tool>} */
     this.tools = new Map();
-    
+
     /** @type {Map<string, string>} */
     this.categories = new Map();
   }
@@ -31,7 +31,7 @@ export class ToolRegistry {
     }
 
     const { name } = tool.definition;
-    
+
     if (this.tools.has(name)) {
       throw new Error(`Tool already registered: ${name}`);
     }
@@ -79,7 +79,7 @@ export class ToolRegistry {
    * @returns {Array<import('./ToolInterface').ToolDefinition>}
    */
   getAllDefinitions() {
-    return Array.from(this.tools.values()).map(tool => tool.definition);
+    return Array.from(this.tools.values()).map((tool) => tool.definition);
   }
 
   /**
@@ -115,7 +115,7 @@ export class ToolRegistry {
    */
   async execute(name, args, context) {
     const tool = this.get(name);
-    
+
     if (!tool) {
       throw new Error(`Unknown tool: ${name}`);
     }
@@ -159,7 +159,10 @@ export class ToolRegistry {
       throw new Error('Tool inputSchema.type must be "object"');
     }
 
-    if (!definition.inputSchema.properties || typeof definition.inputSchema.properties !== 'object') {
+    if (
+      !definition.inputSchema.properties ||
+      typeof definition.inputSchema.properties !== 'object'
+    ) {
       throw new Error('Tool inputSchema.properties must be an object');
     }
   }
@@ -180,14 +183,14 @@ export class ToolRegistry {
   getStats() {
     const categories = this.getCategories();
     const categoryStats = {};
-    
+
     for (const category of categories) {
       categoryStats[category] = this.getByCategory(category).length;
     }
 
     return {
       totalTools: this.tools.size,
-      categories: categoryStats
+      categories: categoryStats,
     };
   }
 }

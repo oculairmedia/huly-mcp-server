@@ -21,17 +21,17 @@ jest.unstable_mockModule('../../../src/tools/index.js', () => ({
   initializeTools: mockInitializeTools,
   getAllToolDefinitions: mockGetAllToolDefinitions,
   executeTool: mockExecuteTool,
-  hasTool: mockHasTool
+  hasTool: mockHasTool,
 }));
 
 const mockGetConfigManager = jest.fn();
 jest.unstable_mockModule('../../../src/config/index.js', () => ({
-  getConfigManager: mockGetConfigManager
+  getConfigManager: mockGetConfigManager,
 }));
 
 const mockCreateLoggerWithConfig = jest.fn();
 jest.unstable_mockModule('../../../src/utils/index.js', () => ({
-  createLoggerWithConfig: mockCreateLoggerWithConfig
+  createLoggerWithConfig: mockCreateLoggerWithConfig,
 }));
 
 // Import modules after mocks are set up
@@ -56,7 +56,7 @@ describe('MCPHandler Tests', () => {
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
-      child: jest.fn(() => mockLogger)
+      child: jest.fn(() => mockLogger),
     };
 
     // Set up mock config
@@ -64,13 +64,13 @@ describe('MCPHandler Tests', () => {
       email: 'test@example.com',
       password: 'test-password',
       workspace: 'test-workspace',
-      url: 'https://test.huly.io'
+      url: 'https://test.huly.io',
     };
 
     // Configure mocks
     mockCreateLoggerWithConfig.mockReturnValue(mockLogger);
     mockGetConfigManager.mockReturnValue({
-      getHulyConfig: () => mockConfig
+      getHulyConfig: () => mockConfig,
     });
 
     // Reset tool mocks
@@ -79,7 +79,7 @@ describe('MCPHandler Tests', () => {
       {
         name: 'huly_list_projects',
         description: 'List all projects',
-        inputSchema: { type: 'object', properties: {}, required: [] }
+        inputSchema: { type: 'object', properties: {}, required: [] },
       },
       {
         name: 'huly_create_issue',
@@ -90,16 +90,16 @@ describe('MCPHandler Tests', () => {
             project_identifier: { type: 'string' },
             title: { type: 'string' },
             description: { type: 'string' },
-            priority: { type: 'string' }
+            priority: { type: 'string' },
           },
-          required: ['project_identifier', 'title']
-        }
-      }
+          required: ['project_identifier', 'title'],
+        },
+      },
     ]);
 
     // Create mock server
     mockServer = {
-      setRequestHandler: jest.fn()
+      setRequestHandler: jest.fn(),
     };
 
     // Create mock client
@@ -110,8 +110,8 @@ describe('MCPHandler Tests', () => {
       projectService: {},
       issueService: {},
       hulyClientWrapper: {
-        withClient: jest.fn(async (callback) => callback(mockClient))
-      }
+        withClient: jest.fn(async (callback) => callback(mockClient)),
+      },
     };
 
     // Create handler instance
@@ -154,14 +154,14 @@ describe('MCPHandler Tests', () => {
     test('should execute project listing tool', async () => {
       mockHasTool.mockReturnValue(true);
       mockExecuteTool.mockResolvedValueOnce({
-        content: [{ type: 'text', text: 'Projects listed' }]
+        content: [{ type: 'text', text: 'Projects listed' }],
       });
 
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {}
-        }
+          arguments: {},
+        },
       };
 
       const result = await toolHandler(request);
@@ -176,7 +176,7 @@ describe('MCPHandler Tests', () => {
           client: mockClient,
           services: mockServices,
           config: mockConfig,
-          logger: expect.any(Object)
+          logger: expect.any(Object),
         })
       );
       expect(result.content[0].text).toBe('Projects listed');
@@ -185,7 +185,7 @@ describe('MCPHandler Tests', () => {
     test('should execute issue creation tool', async () => {
       mockHasTool.mockReturnValue(true);
       mockExecuteTool.mockResolvedValueOnce({
-        content: [{ type: 'text', text: 'Issue created' }]
+        content: [{ type: 'text', text: 'Issue created' }],
       });
 
       const request = {
@@ -195,9 +195,9 @@ describe('MCPHandler Tests', () => {
             project_identifier: 'TEST',
             title: 'Test Issue',
             description: 'Test description',
-            priority: 'high'
-          }
-        }
+            priority: 'high',
+          },
+        },
       };
 
       const result = await toolHandler(request);
@@ -209,13 +209,13 @@ describe('MCPHandler Tests', () => {
           project_identifier: 'TEST',
           title: 'Test Issue',
           description: 'Test description',
-          priority: 'high'
+          priority: 'high',
         },
         expect.objectContaining({
           client: mockClient,
           services: mockServices,
           config: mockConfig,
-          logger: expect.any(Object)
+          logger: expect.any(Object),
         })
       );
       expect(result.content[0].text).toBe('Issue created');
@@ -229,8 +229,8 @@ describe('MCPHandler Tests', () => {
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {}
-        }
+          arguments: {},
+        },
       };
 
       const result = await toolHandler(request);
@@ -249,8 +249,8 @@ describe('MCPHandler Tests', () => {
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {}
-        }
+          arguments: {},
+        },
       };
 
       const result = await toolHandler(request);
@@ -265,8 +265,8 @@ describe('MCPHandler Tests', () => {
       const request = {
         params: {
           name: 'invalid_tool',
-          arguments: {}
-        }
+          arguments: {},
+        },
       };
 
       const result = await toolHandler(request);
@@ -285,8 +285,8 @@ describe('MCPHandler Tests', () => {
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {}
-        }
+          arguments: {},
+        },
       };
 
       const result = await toolHandler(request);
@@ -299,7 +299,7 @@ describe('MCPHandler Tests', () => {
   describe('Initialize', () => {
     test('should initialize tools only once', async () => {
       const listToolsHandler = mockServer.setRequestHandler.mock.calls[0][1];
-      
+
       // Call multiple times
       await listToolsHandler();
       await listToolsHandler();
@@ -311,9 +311,9 @@ describe('MCPHandler Tests', () => {
 
     test('should handle initialization errors', async () => {
       mockInitializeTools.mockRejectedValueOnce(new Error('Init failed'));
-      
+
       const listToolsHandler = mockServer.setRequestHandler.mock.calls[0][1];
-      
+
       await expect(listToolsHandler()).rejects.toThrow('Init failed');
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to initialize tool system:',

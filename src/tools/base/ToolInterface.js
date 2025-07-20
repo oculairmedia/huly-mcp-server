@@ -1,6 +1,6 @@
 /**
  * Base interfaces and types for MCP tools
- * 
+ *
  * This module defines the core interfaces that all tools must implement
  * to be compatible with the tool registry system.
  */
@@ -97,7 +97,7 @@ export class BaseTool {
     return {
       definition: this.definition,
       handler: this.handler.bind(this),
-      validate: this.validate.bind(this)
+      validate: this.validate.bind(this),
     };
   }
 }
@@ -120,9 +120,9 @@ export function createToolResponse(text) {
     content: [
       {
         type: 'text',
-        text
-      }
-    ]
+        text,
+      },
+    ],
   };
 }
 

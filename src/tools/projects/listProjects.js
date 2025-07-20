@@ -1,6 +1,6 @@
 /**
  * List Projects Tool
- * 
+ *
  * Lists all projects in the Huly workspace
  */
 
@@ -15,8 +15,15 @@ export const definition = {
   inputSchema: {
     type: 'object',
     properties: {},
-    required: []
-  }
+    required: [],
+  },
+  annotations: {
+    title: 'List Projects',
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
 };
 
 /**
@@ -28,19 +35,19 @@ export const definition = {
 export async function handler(args, context) {
   const { client, services, logger } = context;
   const { projectService } = services;
-  
+
   try {
     logger.debug('Listing all projects');
-    
+
     const projects = await projectService.listProjects(client);
-    
+
     if (!projects || projects.length === 0) {
       return createToolResponse('No projects found in workspace');
     }
 
     // Format project list
     const projectList = projects
-      .map(project => {
+      .map((project) => {
         const description = project.description ? ` - ${project.description}` : '';
         return `- ${project.name} (${project.identifier})${description}`;
       })

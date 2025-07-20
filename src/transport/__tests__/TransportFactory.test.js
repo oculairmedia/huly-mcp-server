@@ -30,14 +30,12 @@ describe('TransportFactory', () => {
     });
 
     it('should pass options to HttpTransport', () => {
-      const mockToolDefinitions = [
-        { name: 'test_tool', description: 'Test tool' }
-      ];
-      const options = { 
-        port: 4000, 
+      const mockToolDefinitions = [{ name: 'test_tool', description: 'Test tool' }];
+      const options = {
+        port: 4000,
         toolDefinitions: mockToolDefinitions,
         hulyClientWrapper: { withClient: jest.fn() },
-        services: { projectService: {}, issueService: {} }
+        services: { projectService: {}, issueService: {} },
       };
       const transport = TransportFactory.create('http', mockServer, options);
       expect(transport.port).toBe(4000);

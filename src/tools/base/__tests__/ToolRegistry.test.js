@@ -17,13 +17,13 @@ describe('ToolRegistry', () => {
       inputSchema: {
         type: 'object',
         properties: {
-          param1: { type: 'string' }
+          param1: { type: 'string' },
         },
-        required: ['param1']
-      }
+        required: ['param1'],
+      },
     },
     handler: jest.fn(async (_args, _context) => createToolResponse('Tool 1 executed')),
-    validate: jest.fn(() => null)
+    validate: jest.fn(() => null),
   };
 
   const mockTool2 = {
@@ -33,11 +33,11 @@ describe('ToolRegistry', () => {
       inputSchema: {
         type: 'object',
         properties: {
-          param2: { type: 'number' }
-        }
-      }
+          param2: { type: 'number' },
+        },
+      },
     },
-    handler: jest.fn(async (_args, _context) => createToolResponse('Tool 2 executed'))
+    handler: jest.fn(async (_args, _context) => createToolResponse('Tool 2 executed')),
   };
 
   const invalidTool = {
@@ -46,10 +46,10 @@ describe('ToolRegistry', () => {
       description: 'Invalid tool',
       inputSchema: {
         type: 'string', // Invalid - should be 'object'
-        properties: {}
-      }
+        properties: {},
+      },
     },
-    handler: jest.fn()
+    handler: jest.fn(),
   };
 
   beforeEach(() => {
@@ -76,7 +76,7 @@ describe('ToolRegistry', () => {
   describe('register', () => {
     test('should register a valid tool with default category', () => {
       registry.register(mockTool1);
-      
+
       expect(registry.tools.has('test_tool_1')).toBe(true);
       expect(registry.categories.get('test_tool_1')).toBe('general');
       expect(console.log).toHaveBeenCalledWith('Registered tool: test_tool_1 (general)');
@@ -84,24 +84,30 @@ describe('ToolRegistry', () => {
 
     test('should register a valid tool with custom category', () => {
       registry.register(mockTool1, 'custom');
-      
+
       expect(registry.tools.has('test_tool_1')).toBe(true);
       expect(registry.categories.get('test_tool_1')).toBe('custom');
       expect(console.log).toHaveBeenCalledWith('Registered tool: test_tool_1 (custom)');
     });
 
     test('should throw error for null tool', () => {
-      expect(() => registry.register(null)).toThrow('Invalid tool: must have definition and handler');
+      expect(() => registry.register(null)).toThrow(
+        'Invalid tool: must have definition and handler'
+      );
     });
 
     test('should throw error for tool without definition', () => {
       const toolWithoutDef = { handler: jest.fn() };
-      expect(() => registry.register(toolWithoutDef)).toThrow('Invalid tool: must have definition and handler');
+      expect(() => registry.register(toolWithoutDef)).toThrow(
+        'Invalid tool: must have definition and handler'
+      );
     });
 
     test('should throw error for tool without handler', () => {
       const toolWithoutHandler = { definition: mockTool1.definition };
-      expect(() => registry.register(toolWithoutHandler)).toThrow('Invalid tool: must have definition and handler');
+      expect(() => registry.register(toolWithoutHandler)).toThrow(
+        'Invalid tool: must have definition and handler'
+      );
     });
 
     test('should throw error for duplicate tool name', () => {
@@ -110,7 +116,9 @@ describe('ToolRegistry', () => {
     });
 
     test('should throw error for invalid tool definition', () => {
-      expect(() => registry.register(invalidTool)).toThrow('Tool inputSchema.type must be "object"');
+      expect(() => registry.register(invalidTool)).toThrow(
+        'Tool inputSchema.type must be "object"'
+      );
     });
   });
 
@@ -118,7 +126,7 @@ describe('ToolRegistry', () => {
     test('should register multiple tools', () => {
       const tools = [
         { tool: mockTool1, category: 'category1' },
-        { tool: mockTool2, category: 'category2' }
+        { tool: mockTool2, category: 'category2' },
       ];
 
       registry.registerMany(tools);
@@ -129,10 +137,7 @@ describe('ToolRegistry', () => {
     });
 
     test('should use default category when not specified', () => {
-      const tools = [
-        { tool: mockTool1 },
-        { tool: mockTool2, category: 'custom' }
-      ];
+      const tools = [{ tool: mockTool1 }, { tool: mockTool2, category: 'custom' }];
 
       registry.registerMany(tools);
 
@@ -141,10 +146,7 @@ describe('ToolRegistry', () => {
     });
 
     test('should throw error if any tool is invalid', () => {
-      const tools = [
-        { tool: mockTool1 },
-        { tool: invalidTool }
-      ];
+      const tools = [{ tool: mockTool1 }, { tool: invalidTool }];
 
       expect(() => registry.registerMany(tools)).toThrow('Tool inputSchema.type must be "object"');
       // First tool should still be registered
@@ -193,7 +195,7 @@ describe('ToolRegistry', () => {
       registry.register(mockTool2);
 
       const definitions = registry.getAllDefinitions();
-      
+
       expect(definitions).toHaveLength(2);
       expect(definitions).toContainEqual(mockTool1.definition);
       expect(definitions).toContainEqual(mockTool2.definition);
@@ -208,7 +210,7 @@ describe('ToolRegistry', () => {
 
     test('should return tools in specified category', () => {
       const tools = registry.getByCategory('category1');
-      
+
       expect(tools).toHaveLength(1);
       expect(tools[0]).toBe(mockTool1);
     });
@@ -223,13 +225,13 @@ describe('ToolRegistry', () => {
         definition: {
           name: 'test_tool_3',
           description: 'Test tool 3',
-          inputSchema: { type: 'object', properties: {} }
+          inputSchema: { type: 'object', properties: {} },
         },
-        handler: jest.fn()
+        handler: jest.fn(),
       };
 
       registry.register(mockTool3, 'category1');
-      
+
       const tools = registry.getByCategory('category1');
       expect(tools).toHaveLength(2);
       expect(tools).toContain(mockTool1);
@@ -246,19 +248,19 @@ describe('ToolRegistry', () => {
     test('should return unique categories', () => {
       registry.register(mockTool1, 'category1');
       registry.register(mockTool2, 'category1');
-      
+
       const mockTool3 = {
         definition: {
           name: 'test_tool_3',
           description: 'Test tool 3',
-          inputSchema: { type: 'object', properties: {} }
+          inputSchema: { type: 'object', properties: {} },
         },
-        handler: jest.fn()
+        handler: jest.fn(),
       };
       registry.register(mockTool3, 'category2');
 
       const categories = registry.getCategories();
-      
+
       expect(categories).toHaveLength(2);
       expect(categories).toContain('category1');
       expect(categories).toContain('category2');
@@ -270,7 +272,7 @@ describe('ToolRegistry', () => {
       client: {},
       services: {},
       config: {},
-      logger: {}
+      logger: {},
     };
 
     beforeEach(() => {
@@ -287,8 +289,9 @@ describe('ToolRegistry', () => {
     });
 
     test('should throw error for unknown tool', async () => {
-      await expect(registry.execute('non_existent', {}, mockContext))
-        .rejects.toThrow('Unknown tool: non_existent');
+      await expect(registry.execute('non_existent', {}, mockContext)).rejects.toThrow(
+        'Unknown tool: non_existent'
+      );
     });
 
     test('should return error response when validation fails', async () => {
@@ -312,7 +315,7 @@ describe('ToolRegistry', () => {
 
     test('should work with tools without validate method', async () => {
       registry.register(mockTool2);
-      
+
       const args = { param2: 123 };
       const result = await registry.execute('test_tool_2', args, mockContext);
 
@@ -328,65 +331,74 @@ describe('ToolRegistry', () => {
 
     test('should throw for missing name', () => {
       const def = { ...mockTool1.definition, name: '' };
-      expect(() => registry.validateToolDefinition(def))
-        .toThrow('Tool name must be a non-empty string');
+      expect(() => registry.validateToolDefinition(def)).toThrow(
+        'Tool name must be a non-empty string'
+      );
     });
 
     test('should throw for non-string name', () => {
       const def = { ...mockTool1.definition, name: 123 };
-      expect(() => registry.validateToolDefinition(def))
-        .toThrow('Tool name must be a non-empty string');
+      expect(() => registry.validateToolDefinition(def)).toThrow(
+        'Tool name must be a non-empty string'
+      );
     });
 
     test('should throw for missing description', () => {
       const def = { ...mockTool1.definition, description: '' };
-      expect(() => registry.validateToolDefinition(def))
-        .toThrow('Tool description must be a non-empty string');
+      expect(() => registry.validateToolDefinition(def)).toThrow(
+        'Tool description must be a non-empty string'
+      );
     });
 
     test('should throw for non-string description', () => {
       const def = { ...mockTool1.definition, description: null };
-      expect(() => registry.validateToolDefinition(def))
-        .toThrow('Tool description must be a non-empty string');
+      expect(() => registry.validateToolDefinition(def)).toThrow(
+        'Tool description must be a non-empty string'
+      );
     });
 
     test('should throw for missing inputSchema', () => {
       const def = { ...mockTool1.definition, inputSchema: null };
-      expect(() => registry.validateToolDefinition(def))
-        .toThrow('Tool inputSchema must be an object');
+      expect(() => registry.validateToolDefinition(def)).toThrow(
+        'Tool inputSchema must be an object'
+      );
     });
 
     test('should throw for non-object inputSchema', () => {
       const def = { ...mockTool1.definition, inputSchema: 'string' };
-      expect(() => registry.validateToolDefinition(def))
-        .toThrow('Tool inputSchema must be an object');
+      expect(() => registry.validateToolDefinition(def)).toThrow(
+        'Tool inputSchema must be an object'
+      );
     });
 
     test('should throw for non-object inputSchema type', () => {
       const def = {
         ...mockTool1.definition,
-        inputSchema: { type: 'array', properties: {} }
+        inputSchema: { type: 'array', properties: {} },
       };
-      expect(() => registry.validateToolDefinition(def))
-        .toThrow('Tool inputSchema.type must be "object"');
+      expect(() => registry.validateToolDefinition(def)).toThrow(
+        'Tool inputSchema.type must be "object"'
+      );
     });
 
     test('should throw for missing inputSchema properties', () => {
       const def = {
         ...mockTool1.definition,
-        inputSchema: { type: 'object' }
+        inputSchema: { type: 'object' },
       };
-      expect(() => registry.validateToolDefinition(def))
-        .toThrow('Tool inputSchema.properties must be an object');
+      expect(() => registry.validateToolDefinition(def)).toThrow(
+        'Tool inputSchema.properties must be an object'
+      );
     });
 
     test('should throw for non-object inputSchema properties', () => {
       const def = {
         ...mockTool1.definition,
-        inputSchema: { type: 'object', properties: 'string' }
+        inputSchema: { type: 'object', properties: 'string' },
       };
-      expect(() => registry.validateToolDefinition(def))
-        .toThrow('Tool inputSchema.properties must be an object');
+      expect(() => registry.validateToolDefinition(def)).toThrow(
+        'Tool inputSchema.properties must be an object'
+      );
     });
   });
 
@@ -408,35 +420,35 @@ describe('ToolRegistry', () => {
   describe('getStats', () => {
     test('should return stats for empty registry', () => {
       const stats = registry.getStats();
-      
+
       expect(stats).toEqual({
         totalTools: 0,
-        categories: {}
+        categories: {},
       });
     });
 
     test('should return correct stats for populated registry', () => {
       registry.register(mockTool1, 'category1');
       registry.register(mockTool2, 'category1');
-      
+
       const mockTool3 = {
         definition: {
           name: 'test_tool_3',
           description: 'Test tool 3',
-          inputSchema: { type: 'object', properties: {} }
+          inputSchema: { type: 'object', properties: {} },
         },
-        handler: jest.fn()
+        handler: jest.fn(),
       };
       registry.register(mockTool3, 'category2');
 
       const stats = registry.getStats();
-      
+
       expect(stats).toEqual({
         totalTools: 3,
         categories: {
           category1: 2,
-          category2: 1
-        }
+          category2: 1,
+        },
       });
     });
 
@@ -445,13 +457,13 @@ describe('ToolRegistry', () => {
       registry.register(mockTool2, 'custom');
 
       const stats = registry.getStats();
-      
+
       expect(stats).toEqual({
         totalTools: 2,
         categories: {
           general: 1,
-          custom: 1
-        }
+          custom: 1,
+        },
       });
     });
   });
@@ -464,7 +476,7 @@ describe('ToolRegistry', () => {
     test('createRegistry should create new instances', () => {
       const registry1 = createRegistry();
       const registry2 = createRegistry();
-      
+
       expect(registry1).toBeInstanceOf(ToolRegistry);
       expect(registry2).toBeInstanceOf(ToolRegistry);
       expect(registry1).not.toBe(registry2);
@@ -473,13 +485,13 @@ describe('ToolRegistry', () => {
     test('default export should be singleton', () => {
       // Clear any existing tools
       registryDefault.clear();
-      
+
       // Register tool on default export
       registryDefault.register(mockTool1);
-      
+
       // Import again (simulating another module)
       expect(registryDefault.has('test_tool_1')).toBe(true);
-      
+
       // Clean up
       registryDefault.clear();
     });
@@ -493,10 +505,10 @@ describe('ToolRegistry', () => {
           description: 'Tool with empty properties',
           inputSchema: {
             type: 'object',
-            properties: {}
-          }
+            properties: {},
+          },
         },
-        handler: jest.fn()
+        handler: jest.fn(),
       };
 
       expect(() => registry.register(toolWithEmptyProps)).not.toThrow();
@@ -506,7 +518,7 @@ describe('ToolRegistry', () => {
     test('should handle complex validation errors', async () => {
       const complexErrors = {
         field1: ['error1', 'error2'],
-        field2: { nested: 'error' }
+        field2: { nested: 'error' },
       };
 
       // Ensure tool is registered for this test
@@ -542,10 +554,10 @@ describe('ToolRegistry', () => {
       // This tests the edge case where a category exists but the tool doesn't
       // This shouldn't happen in normal operation but tests branch coverage
       registry.register(mockTool1, 'orphan-category');
-      
+
       // Manually manipulate internal state to create orphaned category
       registry.tools.delete('test_tool_1');
-      
+
       // Should return empty array since tool no longer exists
       const tools = registry.getByCategory('orphan-category');
       expect(tools).toEqual([]);

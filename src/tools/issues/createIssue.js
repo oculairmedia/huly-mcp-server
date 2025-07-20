@@ -1,10 +1,10 @@
 /**
  * Create Issue Tool
- * 
+ *
  * Creates a new issue in a project
  */
 
-import { createToolResponse, createErrorResponse } from '../base/ToolInterface.js';
+import { createErrorResponse } from '../base/ToolInterface.js';
 
 /**
  * Tool definition
@@ -17,25 +17,32 @@ export const definition = {
     properties: {
       project_identifier: {
         type: 'string',
-        description: 'Project identifier (e.g., "LMP")'
+        description: 'Project identifier (e.g., "LMP")',
       },
       title: {
         type: 'string',
-        description: 'Issue title'
+        description: 'Issue title',
       },
       description: {
         type: 'string',
-        description: 'Issue description'
+        description: 'Issue description',
       },
       priority: {
         type: 'string',
         description: 'Issue priority (low, medium, high, urgent)',
         enum: ['low', 'medium', 'high', 'urgent'],
-        default: 'medium'
-      }
+        default: 'medium',
+      },
     },
-    required: ['project_identifier', 'title']
-  }
+    required: ['project_identifier', 'title'],
+  },
+  annotations: {
+    title: 'Create Issue',
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
 };
 
 /**
@@ -47,10 +54,10 @@ export const definition = {
 export async function handler(args, context) {
   const { client, services, logger } = context;
   const { issueService } = services;
-  
+
   try {
     logger.debug('Creating new issue', args);
-    
+
     const result = await issueService.createIssue(
       client,
       args.project_identifier,
@@ -58,7 +65,7 @@ export async function handler(args, context) {
       args.description,
       args.priority
     );
-    
+
     return result;
   } catch (error) {
     logger.error('Failed to create issue:', error);
@@ -73,22 +80,22 @@ export async function handler(args, context) {
  */
 export function validate(args) {
   const errors = {};
-  
+
   // Validate project_identifier
   if (!args.project_identifier || args.project_identifier.trim().length === 0) {
     errors.project_identifier = 'Project identifier is required';
   }
-  
+
   // Validate title
   if (!args.title || args.title.trim().length === 0) {
     errors.title = 'Issue title is required';
   }
-  
+
   // Validate priority if provided
   const validPriorities = ['low', 'medium', 'high', 'urgent'];
   if (args.priority && !validPriorities.includes(args.priority)) {
     errors.priority = `Priority must be one of: ${validPriorities.join(', ')}`;
   }
-  
+
   return Object.keys(errors).length > 0 ? errors : null;
 }

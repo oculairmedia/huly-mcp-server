@@ -51,22 +51,34 @@ describe('createProject validation', () => {
 
     it('should return error when identifier is too long', () => {
       const result = validate({ name: 'My Project', identifier: 'TOOLONG' });
-      expect(result).toHaveProperty('identifier', 'Project identifier must be 5 characters or less');
+      expect(result).toHaveProperty(
+        'identifier',
+        'Project identifier must be 5 characters or less'
+      );
     });
 
     it('should return error when identifier has lowercase letters', () => {
       const result = validate({ name: 'My Project', identifier: 'Proj' });
-      expect(result).toHaveProperty('identifier', 'Project identifier must contain only uppercase letters and numbers');
+      expect(result).toHaveProperty(
+        'identifier',
+        'Project identifier must contain only uppercase letters and numbers'
+      );
     });
 
     it('should return error when identifier has special characters', () => {
       const result = validate({ name: 'My Project', identifier: 'PR-J' });
-      expect(result).toHaveProperty('identifier', 'Project identifier must contain only uppercase letters and numbers');
+      expect(result).toHaveProperty(
+        'identifier',
+        'Project identifier must contain only uppercase letters and numbers'
+      );
     });
 
     it('should return error when identifier has spaces', () => {
       const result = validate({ name: 'My Project', identifier: 'PR J' });
-      expect(result).toHaveProperty('identifier', 'Project identifier must contain only uppercase letters and numbers');
+      expect(result).toHaveProperty(
+        'identifier',
+        'Project identifier must contain only uppercase letters and numbers'
+      );
     });
   });
 
@@ -89,7 +101,7 @@ describe('createProject validation', () => {
       const result = validate({
         name: 'Test Project',
         description: 'A test project description',
-        identifier: 'TEST'
+        identifier: 'TEST',
       });
       expect(result).toBeNull();
     });
@@ -97,7 +109,7 @@ describe('createProject validation', () => {
     it('should ignore unknown fields', () => {
       const result = validate({
         name: 'Test Project',
-        unknownField: 'value'
+        unknownField: 'value',
       });
       expect(result).toBeNull();
     });

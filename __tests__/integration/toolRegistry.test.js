@@ -1,6 +1,6 @@
 /**
  * Integration tests for the tool registry system
- * 
+ *
  * These tests verify the end-to-end functionality of the tool loading
  * and execution system using real files and minimal mocking.
  */
@@ -9,7 +9,13 @@ import { jest } from '@jest/globals';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { mkdir, writeFile, rm } from 'fs/promises';
-import { initializeTools, getAllToolDefinitions, executeTool, hasTool, registry } from '../../src/tools/index.js';
+import {
+  initializeTools,
+  getAllToolDefinitions,
+  executeTool,
+  hasTool,
+  registry,
+} from '../../src/tools/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -83,13 +89,13 @@ describe('Tool Registry Integration Tests', () => {
 
       // Check project tools
       const projectTools = registry.getByCategory('projects');
-      const projectNames = projectTools.map(t => t.definition.name);
+      const projectNames = projectTools.map((t) => t.definition.name);
       expect(projectNames).toContain('huly_list_projects');
       expect(projectNames).toContain('huly_create_project');
 
       // Check issue tools
       const issueTools = registry.getByCategory('issues');
-      const issueNames = issueTools.map(t => t.definition.name);
+      const issueNames = issueTools.map((t) => t.definition.name);
       expect(issueNames).toContain('huly_list_issues');
       expect(issueNames).toContain('huly_create_issue');
       expect(issueNames).toContain('huly_update_issue');
@@ -101,10 +107,10 @@ describe('Tool Registry Integration Tests', () => {
     it('should handle missing category directories gracefully', async () => {
       // Create a mock tool loader that includes a non-existent category
       const _mockCategories = ['nonexistent', 'alsonothere'];
-      
+
       // This should not throw
       await expect(initializeTools()).resolves.not.toThrow();
-      
+
       // System should still be functional
       const stats = registry.getStats();
       expect(stats.totalTools).toBeGreaterThan(0);
@@ -121,10 +127,10 @@ describe('Tool Registry Integration Tests', () => {
       const mockClient = { test: true };
       const mockServices = {
         projectService: {
-          getAllProjects: jest.fn().mockResolvedValue([
-            { name: 'Test Project', identifier: 'TEST' }
-          ])
-        }
+          getAllProjects: jest
+            .fn()
+            .mockResolvedValue([{ name: 'Test Project', identifier: 'TEST' }]),
+        },
       };
       const mockContext = {
         client: mockClient,
@@ -132,8 +138,8 @@ describe('Tool Registry Integration Tests', () => {
         config: { test: true },
         logger: {
           debug: jest.fn(),
-          error: jest.fn()
-        }
+          error: jest.fn(),
+        },
       };
 
       // Execute a real tool
@@ -151,14 +157,14 @@ describe('Tool Registry Integration Tests', () => {
         client: null,
         services: {
           projectService: {
-            getAllProjects: jest.fn().mockRejectedValue(new Error('Service error'))
-          }
+            getAllProjects: jest.fn().mockRejectedValue(new Error('Service error')),
+          },
         },
         config: { test: true },
         logger: {
           debug: jest.fn(),
-          error: jest.fn()
-        }
+          error: jest.fn(),
+        },
       };
 
       // Execute tool that will fail
@@ -174,14 +180,14 @@ describe('Tool Registry Integration Tests', () => {
         client: {},
         services: {
           issueService: {
-            createIssue: jest.fn()
-          }
+            createIssue: jest.fn(),
+          },
         },
         config: { test: true },
         logger: {
           debug: jest.fn(),
-          error: jest.fn()
-        }
+          error: jest.fn(),
+        },
       };
 
       // Try to create issue without required fields
@@ -198,9 +204,9 @@ describe('Tool Registry Integration Tests', () => {
       await initializeTools();
 
       const allTools = getAllToolDefinitions();
-      
+
       // Each tool should have required properties
-      allTools.forEach(tool => {
+      allTools.forEach((tool) => {
         expect(tool.name).toBeDefined();
         expect(tool.name).toMatch(/^huly_/);
         expect(tool.description).toBeDefined();
@@ -213,7 +219,7 @@ describe('Tool Registry Integration Tests', () => {
       await initializeTools();
 
       const allTools = getAllToolDefinitions();
-      const toolNames = allTools.map(t => t.name);
+      const toolNames = allTools.map((t) => t.name);
       const uniqueNames = new Set(toolNames);
 
       // No duplicates
@@ -238,26 +244,26 @@ describe('Tool Registry Integration Tests', () => {
         client: {},
         services: {
           projectService: {
-            getAllProjects: jest.fn().mockResolvedValue([])
-          }
+            getAllProjects: jest.fn().mockResolvedValue([]),
+          },
         },
         config: { test: true },
         logger: {
           debug: jest.fn(),
-          error: jest.fn()
-        }
+          error: jest.fn(),
+        },
       };
 
       // Execute multiple tools concurrently
-      const executions = Array(10).fill(null).map(() => 
-        executeTool('huly_list_projects', {}, mockContext)
-      );
+      const executions = Array(10)
+        .fill(null)
+        .map(() => executeTool('huly_list_projects', {}, mockContext));
 
       const results = await Promise.all(executions);
 
       // All should succeed
       expect(results).toHaveLength(10);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toBeDefined();
         expect(result.content).toBeDefined();
       });
@@ -293,12 +299,9 @@ describe('Tool Registry Integration Tests', () => {
       // Create a malformed tool file
       const malformedDir = join(FIXTURES_DIR, 'malformed');
       await mkdir(malformedDir, { recursive: true });
-      
+
       // Tool with syntax error
-      await writeFile(
-        join(malformedDir, 'broken.js'),
-        'export const definition = { syntax error'
-      );
+      await writeFile(join(malformedDir, 'broken.js'), 'export const definition = { syntax error');
 
       // Should not throw during initialization
       await expect(initializeTools()).resolves.not.toThrow();
@@ -311,7 +314,7 @@ describe('Tool Registry Integration Tests', () => {
       // Create a tool with missing exports
       const incompleteDir = join(FIXTURES_DIR, 'incomplete');
       await mkdir(incompleteDir, { recursive: true });
-      
+
       // Tool missing handler
       await writeFile(
         join(incompleteDir, 'nohandler.js'),
@@ -338,14 +341,14 @@ describe('Tool Registry Integration Tests', () => {
       await initializeTools();
 
       const stats = registry.getStats();
-      
+
       // Verify statistics structure
       expect(stats).toHaveProperty('totalTools');
       expect(stats).toHaveProperty('categories');
       // Verify counts
       expect(stats.totalTools).toBe(16); // We know we have 16 tools
       expect(Object.keys(stats.categories).length).toBe(6); // 6 categories
-      
+
       // Sum of category counts should equal total
       const categorySum = Object.values(stats.categories).reduce((a, b) => a + b, 0);
       expect(categorySum).toBe(stats.totalTools);
@@ -355,12 +358,12 @@ describe('Tool Registry Integration Tests', () => {
       await initializeTools();
 
       const stats = registry.getStats();
-      
+
       // Each category should have tools
-      Object.values(stats.categories).forEach(count => {
+      Object.values(stats.categories).forEach((count) => {
         expect(count).toBeGreaterThan(0);
       });
-      
+
       // Specific category counts
       expect(stats.categories.projects).toBe(2);
       expect(stats.categories.issues).toBe(6);

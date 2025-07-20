@@ -1,10 +1,10 @@
 /**
  * Create Project Tool
- * 
+ *
  * Creates a new project in the Huly workspace
  */
 
-import { createToolResponse, createErrorResponse } from '../base/ToolInterface.js';
+import { createErrorResponse } from '../base/ToolInterface.js';
 
 /**
  * Tool definition
@@ -17,19 +17,26 @@ export const definition = {
     properties: {
       name: {
         type: 'string',
-        description: 'Project name'
+        description: 'Project name',
       },
       description: {
         type: 'string',
-        description: 'Project description'
+        description: 'Project description',
       },
       identifier: {
         type: 'string',
-        description: 'Project identifier (max 5 chars, uppercase)'
-      }
+        description: 'Project identifier (max 5 chars, uppercase)',
+      },
     },
-    required: ['name']
-  }
+    required: ['name'],
+  },
+  annotations: {
+    title: 'Create Project',
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
 };
 
 /**
@@ -41,17 +48,17 @@ export const definition = {
 export async function handler(args, context) {
   const { client, services, logger } = context;
   const { projectService } = services;
-  
+
   try {
     logger.debug('Creating new project', args);
-    
+
     const result = await projectService.createProject(
       client,
       args.name,
       args.description,
       args.identifier
     );
-    
+
     return result;
   } catch (error) {
     logger.error('Failed to create project:', error);
@@ -66,12 +73,12 @@ export async function handler(args, context) {
  */
 export function validate(args) {
   const errors = {};
-  
+
   // Validate name
   if (!args.name || args.name.trim().length === 0) {
     errors.name = 'Project name is required';
   }
-  
+
   // Validate identifier if provided
   if (args.identifier) {
     if (args.identifier.length > 5) {
@@ -84,6 +91,6 @@ export function validate(args) {
       errors.identifier = 'Project identifier must contain only uppercase letters and numbers';
     }
   }
-  
+
   return Object.keys(errors).length > 0 ? errors : null;
 }

@@ -1,10 +1,10 @@
 /**
  * List Comments Tool
- * 
+ *
  * List comments on an issue
  */
 
-import { createToolResponse, createErrorResponse } from '../base/ToolInterface.js';
+import { createErrorResponse } from '../base/ToolInterface.js';
 
 /**
  * Tool definition
@@ -17,16 +17,23 @@ export const definition = {
     properties: {
       issue_identifier: {
         type: 'string',
-        description: 'Issue identifier (e.g., "LMP-1")'
+        description: 'Issue identifier (e.g., "LMP-1")',
       },
       limit: {
         type: 'number',
         description: 'Maximum number of comments to return (default: 50)',
-        default: 50
-      }
+        default: 50,
+      },
     },
-    required: ['issue_identifier']
-  }
+    required: ['issue_identifier'],
+  },
+  annotations: {
+    title: 'List Issue Comments',
+    readOnlyHint: true, // Only reads comment data
+    destructiveHint: false, // Does not delete any data
+    idempotentHint: true, // Same request returns same results
+    openWorldHint: true, // Interacts with external Huly system
+  },
 };
 
 /**
@@ -38,16 +45,12 @@ export const definition = {
 export async function handler(args, context) {
   const { client, services, logger } = context;
   const { issueService } = services;
-  
+
   try {
     logger.debug('Listing comments', args);
-    
-    const result = await issueService.listComments(
-      client,
-      args.issue_identifier,
-      args.limit
-    );
-    
+
+    const result = await issueService.listComments(client, args.issue_identifier, args.limit);
+
     return result;
   } catch (error) {
     logger.error('Failed to list comments:', error);
@@ -62,18 +65,18 @@ export async function handler(args, context) {
  */
 export function validate(args) {
   const errors = {};
-  
+
   // Validate issue_identifier
   if (!args.issue_identifier || args.issue_identifier.trim().length === 0) {
     errors.issue_identifier = 'Issue identifier is required';
   }
-  
+
   // Validate limit if provided
   if (args.limit !== undefined) {
     if (typeof args.limit !== 'number' || args.limit < 1) {
       errors.limit = 'Limit must be a positive number';
     }
   }
-  
+
   return Object.keys(errors).length > 0 ? errors : null;
 }

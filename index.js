@@ -9,7 +9,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { createHulyClient } from './src/core/index.js';
-import { projectService, createIssueService } from './src/services/index.js';
+import { projectService, createIssueService, TemplateService } from './src/services/index.js';
 import { createMCPHandler } from './src/protocol/index.js';
 import { getAllToolDefinitions } from './src/tools/index.js';
 import { TransportFactory } from './src/transport/index.js';
@@ -19,6 +19,9 @@ import statusManager from './StatusManager.js';
 
 // Create issueService instance with statusManager
 const issueService = createIssueService(statusManager);
+
+// Create templateService instance
+const templateService = new TemplateService();
 
 // Get configuration manager instance
 const configManager = getConfigManager();
@@ -58,6 +61,7 @@ class HulyMCPServer {
     this.services = {
       projectService,
       issueService,
+      templateService,
     };
 
     // Initialize MCP protocol handler

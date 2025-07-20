@@ -1,6 +1,6 @@
 /**
  * Tool Registry Entry Point
- * 
+ *
  * This module provides the main entry point for the tool system.
  * It automatically discovers and loads all tools from subdirectories.
  */
@@ -28,7 +28,7 @@ async function getLogger() {
         info: console.log,
         warn: console.warn,
         error: console.error,
-        debug: console.debug
+        debug: console.debug,
       };
     }
   }
@@ -38,14 +38,7 @@ async function getLogger() {
 /**
  * Tool categories to load
  */
-const TOOL_CATEGORIES = [
-  'projects',
-  'issues', 
-  'components',
-  'milestones',
-  'github',
-  'comments'
-];
+const TOOL_CATEGORIES = ['projects', 'issues', 'components', 'milestones', 'github', 'comments', 'templates'];
 
 /**
  * Load all tools from a category directory
@@ -56,7 +49,7 @@ async function loadCategoryTools(category) {
   const categoryPath = join(__dirname, category);
   let loadedCount = 0;
   const log = await getLogger();
-  
+
   try {
     // Check if category directory exists
     statSync(categoryPath);
@@ -68,28 +61,28 @@ async function loadCategoryTools(category) {
   try {
     // Read all files in the category directory
     const files = readdirSync(categoryPath);
-    
+
     for (const file of files) {
       // Skip index.js and non-js files
       if (file === 'index.js' || !file.endsWith('.js')) {
         continue;
       }
-      
+
       const filePath = join(categoryPath, file);
-      
+
       try {
         // Dynamically import the tool module
         const toolModule = await import(`file://${filePath}`);
-        
+
         // Check if it exports the required properties
         if (toolModule.definition && toolModule.handler) {
           // Create tool object
           const tool = {
             definition: toolModule.definition,
             handler: toolModule.handler,
-            validate: toolModule.validate
+            validate: toolModule.validate,
           };
-          
+
           // Register the tool
           registry.register(tool, category);
           loadedCount++;
@@ -103,7 +96,7 @@ async function loadCategoryTools(category) {
   } catch (error) {
     log.error(`Failed to read category directory ${category}:`, error);
   }
-  
+
   return loadedCount;
 }
 
@@ -114,21 +107,21 @@ async function loadCategoryTools(category) {
 export async function initializeTools() {
   const log = await getLogger();
   log.info('Initializing tool system...');
-  
+
   let totalLoaded = 0;
-  
+
   // Load tools from each category
   for (const category of TOOL_CATEGORIES) {
     const count = await loadCategoryTools(category);
     totalLoaded += count;
-    
+
     if (count > 0) {
       log.info(`Loaded ${count} tools from ${category}`);
     }
   }
-  
+
   log.info(`Tool system initialized: ${totalLoaded} tools loaded`);
-  
+
   // Log statistics
   const stats = registry.getStats();
   log.debug('Tool registry statistics:', stats);

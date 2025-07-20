@@ -1,9 +1,9 @@
 /**
  * Example Test File for Tool Testing
- * 
+ *
  * This file demonstrates best practices for testing tools in the
  * Huly MCP Server. Copy this file as a starting point for your tests.
- * 
+ *
  * @jest-environment node
  */
 
@@ -39,33 +39,33 @@ const definition = {
     properties: {
       requiredField: {
         type: 'string',
-        description: 'A required field'
+        description: 'A required field',
       },
       optionalField: {
         type: 'string',
-        description: 'An optional field'
+        description: 'An optional field',
       },
       enumField: {
         type: 'string',
         description: 'Field with enum values',
-        enum: ['option1', 'option2', 'option3']
+        enum: ['option1', 'option2', 'option3'],
       },
       numberField: {
         type: 'number',
-        description: 'A numeric field'
-      }
+        description: 'A numeric field',
+      },
     },
-    required: ['requiredField']
-  }
+    required: ['requiredField'],
+  },
 };
 
 // Example handler implementation
 async function handler(args, context) {
   const { client, services, logger } = context;
-  
+
   try {
     logger.debug('Executing example tool', args);
-    
+
     // Call service method
     const result = await services.exampleService.doSomething(
       client,
@@ -74,15 +74,17 @@ async function handler(args, context) {
       args.enumField,
       args.numberField
     );
-    
+
     return result;
   } catch (error) {
     logger.error('Failed to execute example tool:', error);
     return {
-      content: [{
-        type: 'text',
-        text: `❌ Error: ${error.message}`
-      }]
+      content: [
+        {
+          type: 'text',
+          text: `❌ Error: ${error.message}`,
+        },
+      ],
     };
   }
 }
@@ -90,7 +92,7 @@ async function handler(args, context) {
 // Example validation function
 function validate(args) {
   const errors = {};
-  
+
   // Required field validation
   if (!args.requiredField) {
     errors.requiredField = 'Required field is missing';
@@ -99,7 +101,7 @@ function validate(args) {
   } else if (args.requiredField.length > 100) {
     errors.requiredField = 'Required field exceeds maximum length of 100 characters';
   }
-  
+
   // Optional field validation (only if provided)
   if (args.optionalField !== undefined) {
     if (typeof args.optionalField !== 'string') {
@@ -108,7 +110,7 @@ function validate(args) {
       errors.optionalField = 'Optional field exceeds maximum length of 200 characters';
     }
   }
-  
+
   // Enum validation
   if (args.enumField !== undefined) {
     const validOptions = ['option1', 'option2', 'option3'];
@@ -116,7 +118,7 @@ function validate(args) {
       errors.enumField = `Enum field must be one of: ${validOptions.join(', ')}`;
     }
   }
-  
+
   // Number validation
   if (args.numberField !== undefined) {
     if (typeof args.numberField !== 'number') {
@@ -125,7 +127,7 @@ function validate(args) {
       errors.numberField = 'Number field must be between 0 and 100';
     }
   }
-  
+
   return Object.keys(errors).length > 0 ? errors : null;
 }
 
@@ -162,13 +164,13 @@ describe('ExampleTool', () => {
         client: { id: 'test-client' },
         services: {
           exampleService: {
-            doSomething: jest.fn()
-          }
+            doSomething: jest.fn(),
+          },
         },
         logger: {
           debug: jest.fn(),
-          error: jest.fn()
-        }
+          error: jest.fn(),
+        },
       };
     });
 
@@ -180,12 +182,14 @@ describe('ExampleTool', () => {
       // Arrange
       const input = { requiredField: 'test value' };
       const expectedResponse = {
-        content: [{
-          type: 'text',
-          text: '✅ Operation completed successfully'
-        }]
+        content: [
+          {
+            type: 'text',
+            text: '✅ Operation completed successfully',
+          },
+        ],
       };
-      
+
       mockContext.services.exampleService.doSomething.mockResolvedValue(expectedResponse);
 
       // Act
@@ -209,9 +213,9 @@ describe('ExampleTool', () => {
         requiredField: 'required',
         optionalField: 'optional',
         enumField: 'option1',
-        numberField: 42
+        numberField: 42,
       };
-      
+
       mockContext.services.exampleService.doSomething.mockResolvedValue({ success: true });
 
       // Act
@@ -231,7 +235,7 @@ describe('ExampleTool', () => {
       // Arrange
       const input = { requiredField: 'test' };
       const error = new Error('Service unavailable');
-      
+
       mockContext.services.exampleService.doSomething.mockRejectedValue(error);
 
       // Act
@@ -248,7 +252,7 @@ describe('ExampleTool', () => {
     it('should handle unexpected errors', async () => {
       // Arrange
       const input = { requiredField: 'test' };
-      
+
       // Simulate unexpected error (non-Error object)
       mockContext.services.exampleService.doSomething.mockRejectedValue('String error');
 
@@ -266,7 +270,7 @@ describe('ExampleTool', () => {
         requiredField: 'valid required field',
         optionalField: 'valid optional field',
         enumField: 'option2',
-        numberField: 50
+        numberField: 50,
       };
 
       expect(validate(input)).toBeNull();
@@ -274,7 +278,7 @@ describe('ExampleTool', () => {
 
     it('should accept valid input with only required fields', () => {
       const input = {
-        requiredField: 'valid required field'
+        requiredField: 'valid required field',
       };
 
       expect(validate(input)).toBeNull();
@@ -282,7 +286,7 @@ describe('ExampleTool', () => {
 
     it('should reject missing required field', () => {
       const errors = validate({});
-      
+
       expect(errors).toBeDefined();
       expect(errors.requiredField).toBe('Required field is missing');
       expect(Object.keys(errors).length).toBe(1);
@@ -290,61 +294,61 @@ describe('ExampleTool', () => {
 
     it('should reject empty required field', () => {
       const errors = validate({ requiredField: '   ' });
-      
+
       expect(errors.requiredField).toBe('Required field cannot be empty');
     });
 
     it('should reject required field exceeding max length', () => {
       const longString = 'a'.repeat(101);
       const errors = validate({ requiredField: longString });
-      
+
       expect(errors.requiredField).toContain('exceeds maximum length');
     });
 
     it('should validate optional field when provided', () => {
       const errors = validate({
         requiredField: 'valid',
-        optionalField: 'a'.repeat(201)
+        optionalField: 'a'.repeat(201),
       });
-      
+
       expect(errors.optionalField).toContain('exceeds maximum length');
     });
 
     it('should ignore missing optional fields', () => {
       const input = { requiredField: 'valid' };
-      
+
       expect(validate(input)).toBeNull();
     });
 
     it('should validate enum field values', () => {
       const errors = validate({
         requiredField: 'valid',
-        enumField: 'invalid-option'
+        enumField: 'invalid-option',
       });
-      
+
       expect(errors.enumField).toContain('must be one of: option1, option2, option3');
     });
 
     it('should validate number field type', () => {
       const errors = validate({
         requiredField: 'valid',
-        numberField: 'not-a-number'
+        numberField: 'not-a-number',
       });
-      
+
       expect(errors.numberField).toBe('Number field must be a number');
     });
 
     it('should validate number field range', () => {
       const errors1 = validate({
         requiredField: 'valid',
-        numberField: -1
+        numberField: -1,
       });
-      
+
       const errors2 = validate({
         requiredField: 'valid',
-        numberField: 101
+        numberField: 101,
       });
-      
+
       expect(errors1.numberField).toContain('must be between 0 and 100');
       expect(errors2.numberField).toContain('must be between 0 and 100');
     });
@@ -354,9 +358,9 @@ describe('ExampleTool', () => {
         requiredField: '',
         optionalField: 'a'.repeat(201),
         enumField: 'invalid',
-        numberField: 'not-a-number'
+        numberField: 'not-a-number',
       });
-      
+
       expect(Object.keys(errors).length).toBe(4);
       expect(errors.requiredField).toBeDefined();
       expect(errors.optionalField).toBeDefined();
@@ -368,9 +372,9 @@ describe('ExampleTool', () => {
       const input = {
         requiredField: 'valid',
         unknownField1: 'ignored',
-        unknownField2: 123
+        unknownField2: 123,
       };
-      
+
       expect(validate(input)).toBeNull();
     });
   });
@@ -379,17 +383,17 @@ describe('ExampleTool', () => {
     it('should handle unicode characters in text fields', () => {
       const input = {
         requiredField: '测试 Unicode 🚀',
-        optionalField: 'émojis 😊 and açcénts'
+        optionalField: 'émojis 😊 and açcénts',
       };
-      
+
       expect(validate(input)).toBeNull();
     });
 
     it('should handle whitespace properly', () => {
       const errors = validate({
-        requiredField: '\t\n  \r\n  '
+        requiredField: '\t\n  \r\n  ',
       });
-      
+
       expect(errors.requiredField).toBe('Required field cannot be empty');
     });
 

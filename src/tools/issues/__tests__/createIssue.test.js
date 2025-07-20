@@ -62,33 +62,62 @@ describe('createIssue validation', () => {
     });
 
     it('should accept valid priority: medium', () => {
-      const result = validate({ project_identifier: 'LMP', title: 'Issue Title', priority: 'medium' });
+      const result = validate({
+        project_identifier: 'LMP',
+        title: 'Issue Title',
+        priority: 'medium',
+      });
       expect(result).toBeNull();
     });
 
     it('should accept valid priority: high', () => {
-      const result = validate({ project_identifier: 'LMP', title: 'Issue Title', priority: 'high' });
+      const result = validate({
+        project_identifier: 'LMP',
+        title: 'Issue Title',
+        priority: 'high',
+      });
       expect(result).toBeNull();
     });
 
     it('should accept valid priority: urgent', () => {
-      const result = validate({ project_identifier: 'LMP', title: 'Issue Title', priority: 'urgent' });
+      const result = validate({
+        project_identifier: 'LMP',
+        title: 'Issue Title',
+        priority: 'urgent',
+      });
       expect(result).toBeNull();
     });
 
     it('should return error for invalid priority', () => {
-      const result = validate({ project_identifier: 'LMP', title: 'Issue Title', priority: 'critical' });
-      expect(result).toHaveProperty('priority', 'Priority must be one of: low, medium, high, urgent');
+      const result = validate({
+        project_identifier: 'LMP',
+        title: 'Issue Title',
+        priority: 'critical',
+      });
+      expect(result).toHaveProperty(
+        'priority',
+        'Priority must be one of: low, medium, high, urgent'
+      );
     });
 
     it('should return error for uppercase priority', () => {
-      const result = validate({ project_identifier: 'LMP', title: 'Issue Title', priority: 'HIGH' });
-      expect(result).toHaveProperty('priority', 'Priority must be one of: low, medium, high, urgent');
+      const result = validate({
+        project_identifier: 'LMP',
+        title: 'Issue Title',
+        priority: 'HIGH',
+      });
+      expect(result).toHaveProperty(
+        'priority',
+        'Priority must be one of: low, medium, high, urgent'
+      );
     });
 
     it('should return error for numeric priority', () => {
       const result = validate({ project_identifier: 'LMP', title: 'Issue Title', priority: '1' });
-      expect(result).toHaveProperty('priority', 'Priority must be one of: low, medium, high, urgent');
+      expect(result).toHaveProperty(
+        'priority',
+        'Priority must be one of: low, medium, high, urgent'
+      );
     });
   });
 
@@ -113,7 +142,7 @@ describe('createIssue validation', () => {
     it('should accept minimal valid input', () => {
       const result = validate({
         project_identifier: 'LMP',
-        title: 'Bug fix'
+        title: 'Bug fix',
       });
       expect(result).toBeNull();
     });
@@ -123,7 +152,7 @@ describe('createIssue validation', () => {
         project_identifier: 'LMP',
         title: 'Implement new feature',
         description: 'Detailed description of the feature',
-        priority: 'high'
+        priority: 'high',
       });
       expect(result).toBeNull();
     });
@@ -132,7 +161,7 @@ describe('createIssue validation', () => {
       const result = validate({
         project_identifier: 'LMP',
         title: 'Issue title',
-        unknownField: 'value'
+        unknownField: 'value',
       });
       expect(result).toBeNull();
     });
@@ -141,7 +170,7 @@ describe('createIssue validation', () => {
       const result = validate({
         project_identifier: 'LMP',
         title: 'Issue title',
-        description: ''  // Empty description is allowed
+        description: '', // Empty description is allowed
       });
       expect(result).toBeNull();
     });

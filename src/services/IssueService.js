@@ -14,6 +14,15 @@ import {
   normalizePriority,
   isValidUpdateField,
 } from '../utils/validators.js';
+import {
+  normalizeStatus as fuzzyNormalizeStatus,
+  normalizePriority as fuzzyNormalizePriority,
+  fuzzyMatch,
+  normalizeProjectIdentifier,
+  normalizeLabel,
+  normalizeDate,
+  normalizeSearchQuery,
+} from '../utils/fuzzyNormalizer.js';
 import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
 import chunterModule from '@hcengineering/chunter';
@@ -135,12 +144,36 @@ class IssueService {
 
     // Get the default status for new issues (Backlog)
     let defaultStatus;
+    let defaultStatusName = 'Backlog';
     try {
-      defaultStatus = await this.statusManager.getDefaultStatus(client, project._id);
+      // Find all statuses in the project
+      let statuses = await client.findAll(tracker.class.IssueStatus, {
+        space: project._id,
+      });
+
+      // If no project-specific statuses, use global/model statuses
+      if (statuses.length === 0) {
+        statuses = await client.findAll(tracker.class.IssueStatus, {
+          space: 'core:space:Model',
+        });
+      }
+
+      // Look for "Backlog" status or use the first available status
+      const backlogStatus = statuses.find((s) => s.name === 'Backlog');
+      const selectedStatus = backlogStatus || statuses[0];
+
+      if (!selectedStatus) {
+        throw new Error('No statuses found in project or model space');
+      }
+
+      defaultStatus = selectedStatus._id;
+      defaultStatusName = selectedStatus.name;
     } catch (error) {
       console.error('Error getting default status:', error);
-      // Use hardcoded fallback if status manager fails
-      defaultStatus = 'tracker:status:Backlog';
+      throw new HulyError('OPERATION_FAILED', 'Failed to get default status for project', {
+        context: error.message,
+        data: { project: project.identifier },
+      });
     }
 
     // Generate issue number
@@ -204,13 +237,7 @@ class IssueService {
       }
     }
 
-    // Get status name for display
-    let statusName = 'Backlog';
-    try {
-      statusName = this.statusManager.toHumanStatus(defaultStatus);
-    } catch (error) {
-      console.error('Error converting status:', error);
-    }
+    // Status name is already set from defaultStatusName
 
     const priorityName =
       Object.keys(PRIORITY_MAP).find((key) => PRIORITY_MAP[key] === issueData.priority) ||
@@ -220,7 +247,7 @@ class IssueService {
       content: [
         {
           type: 'text',
-          text: `✅ Created issue ${identifier}: "${title}"\n\nPriority: ${priorityName}\nStatus: ${statusName}\nProject: ${project.name}`,
+          text: `✅ Created issue ${identifier}: "${title}"\n\nPriority: ${priorityName}\nStatus: ${defaultStatusName}\nProject: ${project.name}`,
         },
       ],
     };
@@ -272,23 +299,90 @@ class IssueService {
 
       case 'status':
         try {
-          // Convert human-readable status to internal format
-          const internalStatus = this.statusManager.fromHumanStatus(value);
-          const validStatuses = await this.statusManager.getValidStatuses(client, issue.space);
+          // Find all statuses in the project first
+          let statuses = await client.findAll(tracker.class.IssueStatus, {
+            space: issue.space,
+          });
 
-          if (!validStatuses.includes(internalStatus)) {
-            const humanStatuses = await this.statusManager.getHumanStatuses(client, issue.space);
-            throw HulyError.invalidValue('status', value, humanStatuses.join(', '));
+          // If no project-specific statuses, look for global/model statuses
+          if (statuses.length === 0) {
+            console.log('No project-specific statuses found, looking for global statuses...');
+            statuses = await client.findAll(tracker.class.IssueStatus, {
+              space: 'core:space:Model',
+            });
           }
 
-          updateData.status = internalStatus;
-          displayValue = this.statusManager.toHumanStatus(internalStatus);
+          console.log(
+            'Available statuses:',
+            statuses.map((s) => ({
+              id: s._id,
+              name: s.name,
+              category: s.category,
+            }))
+          );
+
+          // First try fuzzy normalization with our standard mappings
+          const normalizedValue = fuzzyNormalizeStatus(value);
+
+          // Find matching status by normalized name (case-insensitive)
+          let targetStatus = statuses.find((s) => 
+            s.name.toLowerCase() === normalizedValue.toLowerCase()
+          );
+
+          // If no exact match with normalized value, try original value
+          if (!targetStatus) {
+            targetStatus = statuses.find((s) => 
+              s.name.toLowerCase() === value.toLowerCase()
+            );
+          }
+
+          // If still no match, try _normalizeStatusValue method for backward compatibility
+          if (!targetStatus) {
+            const legacyNormalized = this._normalizeStatusValue(value);
+            targetStatus = statuses.find((s) => {
+              const normalizedStatusName = this._normalizeStatusValue(s.name);
+              return normalizedStatusName === legacyNormalized;
+            });
+          }
+
+          // If still no match, try legacy fuzzy matching for backward compatibility
+          if (!targetStatus) {
+            const legacyFuzzyMatch = this._fuzzyMatchStatus(value, statuses);
+            if (legacyFuzzyMatch) {
+              targetStatus = legacyFuzzyMatch;
+            }
+          }
+
+          // If still no match, try fuzzy matching against all status names
+          if (!targetStatus && statuses.length > 0) {
+            const statusNames = statuses.map(s => s.name);
+            const fuzzyMatchedName = fuzzyMatch(value, statusNames, 0.7);
+            if (fuzzyMatchedName) {
+              targetStatus = statuses.find(s => s.name === fuzzyMatchedName);
+            }
+          }
+
+          if (!targetStatus) {
+            // Provide helpful error with available status names
+            const availableStatuses = statuses.map((s) => s.name);
+            console.log('Status not found. Available:', availableStatuses);
+            console.log('Attempted to match:', value, 'normalized as:', normalizedValue);
+            throw HulyError.invalidValue(
+              'status',
+              value,
+              `Available statuses: ${availableStatuses.join(', ')}. Try one of these exact values.`
+            );
+          }
+
+          updateData.status = targetStatus._id; // Use the actual UUID
+          displayValue = targetStatus.name;
         } catch (error) {
           if (error instanceof HulyError) {
             throw error;
           }
-          // Try using the value directly if it's already in internal format
-          updateData.status = value;
+          throw new HulyError('OPERATION_FAILED', 'Failed to update status', {
+            context: error.message,
+          });
         }
         break;
 
@@ -314,32 +408,76 @@ class IssueService {
       }
 
       case 'component': {
-        // Find component by label
-        const component = await client.findOne(tracker.class.Component, {
+        if (!value) {
+          // Clear component if value is empty
+          updateData.component = null;
+          break;
+        }
+        
+        // Find all components in the project
+        const allComponents = await client.findAll(tracker.class.Component, {
           space: issue.space,
-          label: value,
         });
+        
+        // Use fuzzy matching to find the best match
+        const normalizedComponent = normalizeLabel(value, allComponents);
+        
+        // Find component by normalized label
+        let component = await client.findOne(tracker.class.Component, {
+          space: issue.space,
+          label: normalizedComponent,
+        });
+        
+        // If no exact match, try fuzzy match
+        if (!component && allComponents.length > 0) {
+          component = allComponents.find(c => 
+            c.label && fuzzyMatch(value, [c.label], 0.7) === c.label
+          );
+        }
 
-        if (!component && value) {
+        if (!component) {
           throw HulyError.notFound('component', value);
         }
 
-        updateData.component = component?._id || null;
+        updateData.component = component._id;
+        displayValue = component.label;
         break;
       }
 
       case 'milestone': {
-        // Find milestone by label
-        const milestone = await client.findOne(tracker.class.Milestone, {
+        if (!value) {
+          // Clear milestone if value is empty
+          updateData.milestone = null;
+          break;
+        }
+        
+        // Find all milestones in the project
+        const allMilestones = await client.findAll(tracker.class.Milestone, {
           space: issue.space,
-          label: value,
         });
+        
+        // Use fuzzy matching to find the best match
+        const normalizedMilestone = normalizeLabel(value, allMilestones);
+        
+        // Find milestone by normalized label
+        let milestone = await client.findOne(tracker.class.Milestone, {
+          space: issue.space,
+          label: normalizedMilestone,
+        });
+        
+        // If no exact match, try fuzzy match
+        if (!milestone && allMilestones.length > 0) {
+          milestone = allMilestones.find(m => 
+            m.label && fuzzyMatch(value, [m.label], 0.7) === m.label
+          );
+        }
 
-        if (!milestone && value) {
+        if (!milestone) {
           throw HulyError.notFound('milestone', value);
         }
 
-        updateData.milestone = milestone?._id || null;
+        updateData.milestone = milestone._id;
+        displayValue = milestone.label;
         break;
       }
 
@@ -394,10 +532,33 @@ class IssueService {
     // Get the default status for new issues
     let defaultStatus;
     try {
-      defaultStatus = await this.statusManager.getDefaultStatus(client, project._id);
+      // Find all statuses in the project
+      let statuses = await client.findAll(tracker.class.IssueStatus, {
+        space: project._id,
+      });
+
+      // If no project-specific statuses, use global/model statuses
+      if (statuses.length === 0) {
+        statuses = await client.findAll(tracker.class.IssueStatus, {
+          space: 'core:space:Model',
+        });
+      }
+
+      // Look for "Backlog" status or use the first available status
+      const backlogStatus = statuses.find((s) => s.name === 'Backlog');
+      const selectedStatus = backlogStatus || statuses[0];
+
+      if (!selectedStatus) {
+        throw new Error('No statuses found in project or model space');
+      }
+
+      defaultStatus = selectedStatus._id;
     } catch (error) {
       console.error('Error getting default status:', error);
-      defaultStatus = 'tracker:status:Backlog';
+      throw new HulyError('OPERATION_FAILED', 'Failed to get default status for project', {
+        context: error.message,
+        data: { project: project.identifier },
+      });
     }
 
     // Generate issue number
@@ -760,6 +921,16 @@ class IssueService {
    * Search for issues with filters
    */
   async searchIssues(client, args) {
+    // Normalize date inputs
+    const normalizedArgs = {
+      ...args,
+      created_after: normalizeDate(args.created_after) || args.created_after,
+      created_before: normalizeDate(args.created_before) || args.created_before,
+      modified_after: normalizeDate(args.modified_after) || args.modified_after,
+      modified_before: normalizeDate(args.modified_before) || args.modified_before,
+      query: args.query ? normalizeSearchQuery(args.query) : args.query,
+    };
+
     const {
       project_identifier,
       query,
@@ -773,46 +944,91 @@ class IssueService {
       modified_after,
       modified_before,
       limit = DEFAULTS.LIST_LIMIT,
-    } = args;
+    } = normalizedArgs;
 
     // Build search criteria
     const searchCriteria = {};
 
-    // Project filter
+    // Project filter with fuzzy matching
     if (project_identifier) {
-      const project = await client.findOne(tracker.class.Project, {
+      // First try exact match
+      let project = await client.findOne(tracker.class.Project, {
         identifier: project_identifier,
       });
+      
+      // If no exact match, try fuzzy matching
+      if (!project) {
+        const allProjects = await client.findAll(tracker.class.Project, {});
+        const normalizedIdentifier = normalizeProjectIdentifier(project_identifier, allProjects);
+        
+        if (normalizedIdentifier !== project_identifier) {
+          project = await client.findOne(tracker.class.Project, {
+            identifier: normalizedIdentifier,
+          });
+        }
+      }
+      
       if (!project) {
         throw HulyError.notFound('project', project_identifier);
       }
       searchCriteria.space = project._id;
     }
 
-    // Status filter
+    // Status filter with fuzzy normalization
     if (status) {
-      try {
-        // Try to convert human-readable status
-        const internalStatus = this.statusManager.fromHumanStatus(status);
-        searchCriteria.status = internalStatus;
-      } catch {
-        // Use as-is if conversion fails
+      // First try fuzzy normalization
+      const normalizedStatus = fuzzyNormalizeStatus(status);
+      
+      // Find all statuses in the project (if project specified) or workspace
+      const statusQuery = project_identifier ? { space: searchCriteria.space } : {};
+      const statuses = await client.findAll(tracker.class.IssueStatus, statusQuery);
+
+      // Find matching status by normalized name (case-insensitive)
+      let targetStatus = statuses.find((s) => s.name.toLowerCase() === normalizedStatus.toLowerCase());
+      
+      // If no match with normalized value, try original value
+      if (!targetStatus) {
+        targetStatus = statuses.find((s) => s.name.toLowerCase() === status.toLowerCase());
+      }
+      
+      // If still no match, try fuzzy matching against all status names
+      if (!targetStatus && statuses.length > 0) {
+        const statusNames = statuses.map(s => s.name);
+        const fuzzyMatchedName = fuzzyMatch(status, statusNames, 0.7);
+        if (fuzzyMatchedName) {
+          targetStatus = statuses.find(s => s.name === fuzzyMatchedName);
+        }
+      }
+
+      if (targetStatus) {
+        searchCriteria.status = targetStatus._id;
+      } else {
+        // If no match found, use the value as-is (might be a status ID)
         searchCriteria.status = status;
       }
     }
 
-    // Priority filter
+    // Priority filter with fuzzy normalization
     if (priority) {
+      // Use fuzzy priority normalization
+      const normalizedPriority = fuzzyNormalizePriority(priority);
+      
       const priorityMap = {
         low: tracker.component.Priority.Low,
         medium: tracker.component.Priority.Medium,
         high: tracker.component.Priority.High,
         urgent: tracker.component.Priority.Urgent,
-        nopriority: tracker.component.Priority.NoPriority,
+        NoPriority: tracker.component.Priority.NoPriority,
       };
-      const normalizedPriority = priority.toLowerCase();
+      
       if (priorityMap[normalizedPriority] !== undefined) {
         searchCriteria.priority = priorityMap[normalizedPriority];
+      } else {
+        // Try lowercase version as fallback
+        const lowerPriority = normalizedPriority.toLowerCase();
+        if (priorityMap[lowerPriority] !== undefined) {
+          searchCriteria.priority = priorityMap[lowerPriority];
+        }
       }
     }
 
@@ -858,15 +1074,57 @@ class IssueService {
     }
 
     if (component) {
-      // Find all matching components across projects
-      const components = await client.findAll(tracker.class.Component, { label: component });
+      // Find all components (in project scope if available)
+      const componentQuery = searchCriteria.space ? { space: searchCriteria.space } : {};
+      const allComponents = await client.findAll(tracker.class.Component, componentQuery);
+      
+      // Use fuzzy matching to find the best match
+      const normalizedComponent = normalizeLabel(component, allComponents);
+      
+      // Find all matching components with normalized label
+      const components = await client.findAll(tracker.class.Component, { 
+        ...componentQuery,
+        label: normalizedComponent 
+      });
+      
+      // If no exact match found with normalized value, try fuzzy match
+      if (components.length === 0 && allComponents.length > 0) {
+        const fuzzyMatchedComponent = allComponents.find(c => 
+          c.label && fuzzyMatch(component, [c.label], 0.7) === c.label
+        );
+        if (fuzzyMatchedComponent) {
+          components.push(fuzzyMatchedComponent);
+        }
+      }
+      
       const componentIds = components.map((c) => c._id);
       issues = issues.filter((issue) => componentIds.includes(issue.component));
     }
 
     if (milestone) {
-      // Find all matching milestones across projects
-      const milestones = await client.findAll(tracker.class.Milestone, { label: milestone });
+      // Find all milestones (in project scope if available)
+      const milestoneQuery = searchCriteria.space ? { space: searchCriteria.space } : {};
+      const allMilestones = await client.findAll(tracker.class.Milestone, milestoneQuery);
+      
+      // Use fuzzy matching to find the best match
+      const normalizedMilestone = normalizeLabel(milestone, allMilestones);
+      
+      // Find all matching milestones with normalized label
+      const milestones = await client.findAll(tracker.class.Milestone, { 
+        ...milestoneQuery,
+        label: normalizedMilestone 
+      });
+      
+      // If no exact match found with normalized value, try fuzzy match
+      if (milestones.length === 0 && allMilestones.length > 0) {
+        const fuzzyMatchedMilestone = allMilestones.find(m => 
+          m.label && fuzzyMatch(milestone, [m.label], 0.7) === m.label
+        );
+        if (fuzzyMatchedMilestone) {
+          milestones.push(fuzzyMatchedMilestone);
+        }
+      }
+      
       const milestoneIds = milestones.map((m) => m._id);
       issues = issues.filter((issue) => milestoneIds.includes(issue.milestone));
     }
@@ -1006,9 +1264,7 @@ class IssueService {
         const descriptionContent = await client.fetchMarkup(
           tracker.class.Issue,
           issue._id,
-          'description',
-          issue.description,
-          'markdown'
+          'description'
         );
 
         // The content should be returned as markdown text
@@ -1032,6 +1288,331 @@ class IssueService {
 
     // Last fallback: return as plain string
     return typeof issue.description === 'string' ? issue.description : '';
+  }
+
+  /**
+   * Normalize status value for better matching
+   * @private
+   */
+  _normalizeStatusValue(value) {
+    if (!value) return '';
+
+    // Convert to lowercase and replace common separators with single space
+    return value.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  /**
+   * Fuzzy match status with common variations
+   * @private
+   */
+  _fuzzyMatchStatus(value, statuses) {
+    if (!value || !statuses.length) return null;
+
+    const normalized = value.toLowerCase().replace(/[-_\s]/g, '');
+
+    // Common status mappings
+    const statusMappings = {
+      // Backlog variations
+      backlog: ['backlog', 'back log', 'new', 'open', 'created'],
+      todo: ['todo', 'to do', 'todos', 'planned', 'ready'],
+      inprogress: ['inprogress', 'in progress', 'active', 'doing', 'wip', 'working', 'started'],
+      done: ['done', 'complete', 'completed', 'finished', 'closed', 'resolved'],
+      canceled: ['canceled', 'cancelled', 'cancel', 'abandoned', 'stopped', 'rejected'],
+    };
+
+    // Find which category the input belongs to
+    for (const [key, variations] of Object.entries(statusMappings)) {
+      if (variations.some((v) => v.replace(/[-_\s]/g, '') === normalized)) {
+        // Find the status that matches this category
+        const matchedStatus = statuses.find((s) => {
+          const statusNorm = s.name.toLowerCase().replace(/[-_\s]/g, '');
+          return statusNorm === key || variations.includes(s.name.toLowerCase());
+        });
+
+        if (matchedStatus) {
+          console.log(`Fuzzy matched "${value}" to "${matchedStatus.name}"`);
+          return matchedStatus;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Validate multiple issue identifiers exist
+   * @param {Object} client - Huly client
+   * @param {Array<string>} identifiers - Array of issue identifiers
+   * @returns {Promise<Object>} Validation result with valid and invalid identifiers
+   */
+  async validateIssueIdentifiers(client, identifiers) {
+    const validIssues = [];
+    const invalidIdentifiers = [];
+
+    // Process in batches to avoid overwhelming the database
+    const batchSize = 50;
+    for (let i = 0; i < identifiers.length; i += batchSize) {
+      const batch = identifiers.slice(i, i + batchSize);
+      
+      // Query all issues in this batch
+      const issues = await client.findAll(tracker.class.Issue, {
+        identifier: { $in: batch }
+      });
+
+      // Create a map for quick lookup
+      const issueMap = new Map(issues.map(issue => [issue.identifier, issue]));
+
+      // Check which identifiers were found
+      for (const identifier of batch) {
+        if (issueMap.has(identifier)) {
+          validIssues.push({
+            identifier,
+            issue: issueMap.get(identifier)
+          });
+        } else {
+          invalidIdentifiers.push(identifier);
+        }
+      }
+    }
+
+    return {
+      valid: validIssues,
+      invalid: invalidIdentifiers,
+      summary: {
+        total: identifiers.length,
+        valid: validIssues.length,
+        invalid: invalidIdentifiers.length
+      }
+    };
+  }
+
+  /**
+   * Get issues by filter criteria
+   * @param {Object} client - Huly client
+   * @param {Object} filter - Filter criteria
+   * @returns {Promise<Array>} Array of matching issues
+   */
+  async getIssuesByFilter(client, filter) {
+    const query = {};
+    
+    // Handle project filter
+    if (filter.project) {
+      const project = await client.findOne(tracker.class.Project, { 
+        identifier: filter.project 
+      });
+      if (project) {
+        query.space = project._id;
+      } else {
+        return []; // No project found
+      }
+    }
+
+    // Handle status filter with fuzzy matching
+    if (filter.status) {
+      // First try fuzzy normalization
+      const normalizedStatusName = fuzzyNormalizeStatus(filter.status);
+      
+      // Find statuses in the project (if specified) or workspace
+      const statusQuery = filter.project && query.space ? { space: query.space } : {};
+      const statuses = await client.findAll(tracker.class.IssueStatus, statusQuery);
+      
+      // Find matching status
+      let targetStatus = statuses.find(s => 
+        s.name.toLowerCase() === normalizedStatusName.toLowerCase()
+      );
+      
+      // If no match, try original value
+      if (!targetStatus) {
+        targetStatus = statuses.find(s => 
+          s.name.toLowerCase() === filter.status.toLowerCase()
+        );
+      }
+      
+      // If still no match, try fuzzy matching
+      if (!targetStatus && statuses.length > 0) {
+        const statusNames = statuses.map(s => s.name);
+        const fuzzyMatchedName = fuzzyMatch(filter.status, statusNames, 0.7);
+        if (fuzzyMatchedName) {
+          targetStatus = statuses.find(s => s.name === fuzzyMatchedName);
+        }
+      }
+      
+      if (targetStatus) {
+        query.status = targetStatus._id;
+      }
+    }
+
+    // Handle priority filter
+    if (filter.priority) {
+      // Use fuzzy priority normalization
+      const normalizedPriority = fuzzyNormalizePriority(filter.priority);
+      
+      const priorityMap = {
+        low: tracker.component.Priority.Low,
+        medium: tracker.component.Priority.Medium,
+        high: tracker.component.Priority.High,
+        urgent: tracker.component.Priority.Urgent,
+        NoPriority: tracker.component.Priority.NoPriority,
+      };
+      
+      if (priorityMap[normalizedPriority] !== undefined) {
+        query.priority = priorityMap[normalizedPriority];
+      } else {
+        // Try lowercase version as fallback
+        const lowerPriority = normalizedPriority.toLowerCase();
+        if (priorityMap[lowerPriority] !== undefined) {
+          query.priority = priorityMap[lowerPriority];
+        }
+      }
+    }
+
+    // Handle component filter
+    if (filter.component) {
+      // Find all components (in project scope if available)
+      const componentQuery = query.space ? { space: query.space } : {};
+      const allComponents = await client.findAll(tracker.class.Component, componentQuery);
+      
+      // Use fuzzy matching to find the best match
+      const normalizedComponent = normalizeLabel(filter.component, allComponents);
+      
+      // Find component by normalized label
+      let component = await client.findOne(tracker.class.Component, {
+        ...componentQuery,
+        label: normalizedComponent
+      });
+      
+      // If no exact match, try fuzzy match
+      if (!component && allComponents.length > 0) {
+        component = allComponents.find(c => 
+          c.label && fuzzyMatch(filter.component, [c.label], 0.7) === c.label
+        );
+      }
+      
+      if (component) {
+        query.component = component._id;
+      }
+    }
+
+    // Handle milestone filter
+    if (filter.milestone) {
+      // Find all milestones (in project scope if available)
+      const milestoneQuery = query.space ? { space: query.space } : {};
+      const allMilestones = await client.findAll(tracker.class.Milestone, milestoneQuery);
+      
+      // Use fuzzy matching to find the best match
+      const normalizedMilestone = normalizeLabel(filter.milestone, allMilestones);
+      
+      // Find milestone by normalized label
+      let milestone = await client.findOne(tracker.class.Milestone, {
+        ...milestoneQuery,
+        label: normalizedMilestone
+      });
+      
+      // If no exact match, try fuzzy match
+      if (!milestone && allMilestones.length > 0) {
+        milestone = allMilestones.find(m => 
+          m.label && fuzzyMatch(filter.milestone, [m.label], 0.7) === m.label
+        );
+      }
+      
+      if (milestone) {
+        query.milestone = milestone._id;
+      }
+    }
+
+    // Handle date filters
+    if (filter.createdAfter || filter.createdBefore) {
+      query.createdOn = {};
+      if (filter.createdAfter) {
+        query.createdOn.$gte = new Date(filter.createdAfter).getTime();
+      }
+      if (filter.createdBefore) {
+        query.createdOn.$lte = new Date(filter.createdBefore).getTime();
+      }
+    }
+
+    if (filter.modifiedAfter || filter.modifiedBefore) {
+      query.modifiedOn = {};
+      if (filter.modifiedAfter) {
+        query.modifiedOn.$gte = new Date(filter.modifiedAfter).getTime();
+      }
+      if (filter.modifiedBefore) {
+        query.modifiedOn.$lte = new Date(filter.modifiedBefore).getTime();
+      }
+    }
+
+    // Handle text search
+    if (filter.query) {
+      query.$search = filter.query;
+    }
+
+    const options = {
+      limit: filter.limit || 100,
+      sort: { modifiedOn: -1 }
+    };
+
+    return await client.findAll(tracker.class.Issue, query, options);
+  }
+
+  /**
+   * Get multiple issues by their identifiers
+   * @param {Object} client - Huly client
+   * @param {Array<string>} identifiers - Array of issue identifiers
+   * @returns {Promise<Array>} Array of issues
+   */
+  async getMultipleIssues(client, identifiers) {
+    if (!identifiers || identifiers.length === 0) {
+      return [];
+    }
+
+    // Query in batches to avoid overwhelming the database
+    const allIssues = [];
+    const batchSize = 50;
+    
+    for (let i = 0; i < identifiers.length; i += batchSize) {
+      const batch = identifiers.slice(i, i + batchSize);
+      const issues = await client.findAll(tracker.class.Issue, {
+        identifier: { $in: batch }
+      });
+      allIssues.push(...issues);
+    }
+
+    return allIssues;
+  }
+
+  /**
+   * Create multiple issues in batch
+   * @param {Object} client - Huly client
+   * @param {Array<Object>} issueDataArray - Array of issue data objects
+   * @returns {Promise<Array>} Array of creation results
+   */
+  async createMultipleIssues(client, issueDataArray) {
+    const results = [];
+    
+    for (const issueData of issueDataArray) {
+      try {
+        const result = await this.createIssue(
+          client,
+          issueData.project_identifier,
+          issueData.title,
+          issueData.description,
+          issueData.priority
+        );
+        results.push({
+          success: true,
+          data: result.data,
+          input: issueData
+        });
+      } catch (error) {
+        results.push({
+          success: false,
+          error: error.message,
+          input: issueData
+        });
+      }
+    }
+
+    return results;
   }
 }
 

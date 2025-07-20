@@ -1,6 +1,6 @@
 /**
  * Comment Tools
- * 
+ *
  * Export all comment-related tools
  */
 

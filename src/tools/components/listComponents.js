@@ -1,10 +1,10 @@
 /**
  * List Components Tool
- * 
+ *
  * Lists all components in a project
  */
 
-import { createToolResponse, createErrorResponse } from '../base/ToolInterface.js';
+import { createErrorResponse } from '../base/ToolInterface.js';
 
 /**
  * Tool definition
@@ -17,11 +17,18 @@ export const definition = {
     properties: {
       project_identifier: {
         type: 'string',
-        description: 'Project identifier (e.g., "WEBHOOK")'
-      }
+        description: 'Project identifier (e.g., "WEBHOOK")',
+      },
     },
-    required: ['project_identifier']
-  }
+    required: ['project_identifier'],
+  },
+  annotations: {
+    title: 'List Project Components',
+    readOnlyHint: true, // Only reads component data
+    destructiveHint: false, // Does not delete any data
+    idempotentHint: true, // Same request returns same results
+    openWorldHint: true, // Interacts with external Huly system
+  },
 };
 
 /**
@@ -33,15 +40,12 @@ export const definition = {
 export async function handler(args, context) {
   const { client, services, logger } = context;
   const { projectService } = services;
-  
+
   try {
     logger.debug('Listing components for project', args);
-    
-    const result = await projectService.listComponents(
-      client,
-      args.project_identifier
-    );
-    
+
+    const result = await projectService.listComponents(client, args.project_identifier);
+
     return result;
   } catch (error) {
     logger.error('Failed to list components:', error);
@@ -56,11 +60,11 @@ export async function handler(args, context) {
  */
 export function validate(args) {
   const errors = {};
-  
+
   // Validate project identifier
   if (!args.project_identifier || args.project_identifier.trim().length === 0) {
     errors.project_identifier = 'Project identifier is required';
   }
-  
+
   return Object.keys(errors).length > 0 ? errors : null;
 }

@@ -1,6 +1,6 @@
 /**
  * Issue Tools Module
- * 
+ *
  * Exports all issue-related tools for the MCP server
  */
 
