@@ -33,6 +33,19 @@ A Model Context Protocol (MCP) server for interacting with Huly project manageme
 | `huly_get_issue_details` | Get comprehensive details about a specific issue |
 | `huly_list_comments` | List comments on an issue |
 | `huly_create_comment` | Create a comment on an issue |
+| `huly_bulk_create_issues` | Create multiple issues in a single operation |
+| `huly_bulk_update_issues` | Update multiple issues with different values |
+| `huly_bulk_delete_issues` | Delete multiple issues and their sub-issues |
+| `huly_delete_issue` | Delete a single issue with cascade options |
+| `huly_delete_project` | Delete an entire project and all its contents |
+| `huly_archive_project` | Archive a project (soft delete) |
+| `huly_delete_component` | Delete a component and update affected issues |
+| `huly_delete_milestone` | Delete a milestone and update affected issues |
+| `huly_create_template` | Create reusable issue templates |
+| `huly_list_templates` | List all templates in a project |
+| `huly_create_issue_from_template` | Create issues from templates |
+| `huly_validate_deletion` | Check if an entity can be safely deleted |
+| `huly_deletion_impact_preview` | Preview the full impact of a deletion |
 
 ## Quick Start
 
@@ -483,6 +496,22 @@ Huly uses two different patterns for storing text content:
 - Mock-based unit tests cannot catch API contract violations
 - Integration tests with real API calls are essential
 - Test with unique identifiers to avoid conflicts
+
+## Documentation
+
+Comprehensive documentation is available in the `/docs` directory:
+
+- **[Bulk Operations Guide](./docs/bulk-operations.md)** - Detailed guide for bulk creation, update, and deletion of issues
+- **[Templates Guide](./docs/templates.md)** - Using templates for standardized issue creation
+- **[Deletion Operations Guide](./docs/deletion-operations.md)** - Safe deletion practices and validation
+- **[API Reference](./docs/api-reference.md)** - Complete API documentation for all tools
+
+### Quick Links
+
+- **Getting Started**: See the [Quick Start](#quick-start) section above
+- **Tool Reference**: See [Available Tools](#available-tools) for a complete list
+- **Development Workflow**: See [Git Worktree Workflow](#git-worktree-workflow) for development practices
+- **Troubleshooting**: Check the guides above or file an issue
 
 ## Testing
 
