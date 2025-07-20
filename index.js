@@ -10,7 +10,8 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { createHulyClient } from './src/core/index.js';
 import { projectService, createIssueService } from './src/services/index.js';
-import { createMCPHandler, toolDefinitions } from './src/protocol/index.js';
+import { createMCPHandler } from './src/protocol/index.js';
+import { getAllToolDefinitions } from './src/tools/index.js';
 import { TransportFactory } from './src/transport/index.js';
 import { getConfigManager } from './src/config/index.js';
 import { createLoggerWithConfig } from './src/utils/index.js';
@@ -101,7 +102,7 @@ class HulyMCPServer {
 
     // Create transport based on type
     const transportOptions = {
-      toolDefinitions,
+      toolDefinitions: getAllToolDefinitions(), // Get from new tool system
       hulyClientWrapper: this.hulyClientWrapper,
       services: this.services,
       port: this.configManager.get('transport.http.port'),

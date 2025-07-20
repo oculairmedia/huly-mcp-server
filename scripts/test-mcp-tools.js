@@ -61,6 +61,9 @@ async function callMCPTool(method, params = {}) {
     }
 
     return result.result;
+  } catch (error) {
+    throw error;
+  }
 }
 
 // Test functions for each tool

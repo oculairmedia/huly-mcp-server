@@ -11,6 +11,7 @@ A Model Context Protocol (MCP) server for interacting with Huly project manageme
 - **Docker Integration**: Fully containerized with Docker Compose
 - **Authentication**: Secure connection to Huly instances
 - **Git Hooks**: Automatic Huly issue status updates
+- **Modular Tool Architecture**: Each tool in its own file for better maintainability
 
 ## Available Tools
 
@@ -317,6 +318,30 @@ Include Huly issue references in commit messages:
 - **Team Coordination**: Clear visibility of who's working on what
 
 ## Development
+
+### Tool Architecture
+
+The MCP server uses a modular tool architecture where each tool is implemented in its own file:
+
+```
+src/tools/
+├── base/              # Base interfaces and registry
+│   ├── ToolInterface.js
+│   └── ToolRegistry.js
+├── projects/          # Project management tools
+│   ├── listProjects.js
+│   └── createProject.js
+├── issues/            # Issue management tools
+│   ├── listIssues.js
+│   ├── createIssue.js
+│   └── ...
+└── ...                # Other tool categories
+```
+
+Each tool exports:
+- `definition`: Tool metadata and input schema
+- `handler`: Function that executes the tool logic
+- `validate`: Optional validation function
 
 ### Project Structure
 ```

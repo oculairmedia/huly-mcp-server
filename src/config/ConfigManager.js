@@ -60,7 +60,7 @@ export class ConfigManager {
         connectionPooling: process.env.ENABLE_CONNECTION_POOLING === 'true',
         retryOnError: process.env.ENABLE_RETRY === 'true',
         maxRetries: parseInt(process.env.MAX_RETRIES || '3', 10) || 3,
-        useNewToolSystem: process.env.USE_NEW_TOOL_SYSTEM === 'true',
+        useNewToolSystem: process.env.USE_NEW_TOOL_SYSTEM !== 'false', // Default to true
       },
 
       // Defaults and limits
