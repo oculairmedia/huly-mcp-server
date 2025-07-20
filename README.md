@@ -492,11 +492,33 @@ Huly uses two different patterns for storing text content:
 # Run all tests
 npm test
 
+# Run tests with coverage
+npm test -- --coverage
+
+# Run specific test file
+npm test -- createProject.test.js
+
 # Run integration tests
 npm run test:mcp
 
-# Run specific test suite
+# Run unit tests only
 npm run test:unit
+```
+
+### Writing Tests for New Tools
+
+When developing new tools, comprehensive tests are required. See our [Testing Guidelines](docs/TESTING_TOOLS.md) for detailed instructions.
+
+**Quick Checklist:**
+- ✅ Test tool definition structure
+- ✅ Test handler success and error cases  
+- ✅ Test validation with valid/invalid inputs
+- ✅ Achieve minimum 80% code coverage
+
+**Resources:**
+- Example test template: `__tests__/examples/exampleTool.test.js`
+- Testing guidelines: `docs/TESTING_TOOLS.md`
+- Existing tool tests: `src/tools/*/__tests__/`
 ```
 
 ### Test Coverage
