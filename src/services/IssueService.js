@@ -23,6 +23,7 @@ import {
   normalizeDate,
   normalizeSearchQuery,
 } from '../utils/fuzzyNormalizer.js';
+import { deletionService } from './DeletionService.js';
 import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
 import chunterModule from '@hcengineering/chunter';
@@ -325,15 +326,13 @@ class IssueService {
           const normalizedValue = fuzzyNormalizeStatus(value);
 
           // Find matching status by normalized name (case-insensitive)
-          let targetStatus = statuses.find((s) => 
-            s.name.toLowerCase() === normalizedValue.toLowerCase()
+          let targetStatus = statuses.find(
+            (s) => s.name.toLowerCase() === normalizedValue.toLowerCase()
           );
 
           // If no exact match with normalized value, try original value
           if (!targetStatus) {
-            targetStatus = statuses.find((s) => 
-              s.name.toLowerCase() === value.toLowerCase()
-            );
+            targetStatus = statuses.find((s) => s.name.toLowerCase() === value.toLowerCase());
           }
 
           // If still no match, try _normalizeStatusValue method for backward compatibility
@@ -355,10 +354,10 @@ class IssueService {
 
           // If still no match, try fuzzy matching against all status names
           if (!targetStatus && statuses.length > 0) {
-            const statusNames = statuses.map(s => s.name);
+            const statusNames = statuses.map((s) => s.name);
             const fuzzyMatchedName = fuzzyMatch(value, statusNames, 0.7);
             if (fuzzyMatchedName) {
-              targetStatus = statuses.find(s => s.name === fuzzyMatchedName);
+              targetStatus = statuses.find((s) => s.name === fuzzyMatchedName);
             }
           }
 
@@ -413,25 +412,25 @@ class IssueService {
           updateData.component = null;
           break;
         }
-        
+
         // Find all components in the project
         const allComponents = await client.findAll(tracker.class.Component, {
           space: issue.space,
         });
-        
+
         // Use fuzzy matching to find the best match
         const normalizedComponent = normalizeLabel(value, allComponents);
-        
+
         // Find component by normalized label
         let component = await client.findOne(tracker.class.Component, {
           space: issue.space,
           label: normalizedComponent,
         });
-        
+
         // If no exact match, try fuzzy match
         if (!component && allComponents.length > 0) {
-          component = allComponents.find(c => 
-            c.label && fuzzyMatch(value, [c.label], 0.7) === c.label
+          component = allComponents.find(
+            (c) => c.label && fuzzyMatch(value, [c.label], 0.7) === c.label
           );
         }
 
@@ -450,25 +449,25 @@ class IssueService {
           updateData.milestone = null;
           break;
         }
-        
+
         // Find all milestones in the project
         const allMilestones = await client.findAll(tracker.class.Milestone, {
           space: issue.space,
         });
-        
+
         // Use fuzzy matching to find the best match
         const normalizedMilestone = normalizeLabel(value, allMilestones);
-        
+
         // Find milestone by normalized label
         let milestone = await client.findOne(tracker.class.Milestone, {
           space: issue.space,
           label: normalizedMilestone,
         });
-        
+
         // If no exact match, try fuzzy match
         if (!milestone && allMilestones.length > 0) {
-          milestone = allMilestones.find(m => 
-            m.label && fuzzyMatch(value, [m.label], 0.7) === m.label
+          milestone = allMilestones.find(
+            (m) => m.label && fuzzyMatch(value, [m.label], 0.7) === m.label
           );
         }
 
@@ -955,19 +954,19 @@ class IssueService {
       let project = await client.findOne(tracker.class.Project, {
         identifier: project_identifier,
       });
-      
+
       // If no exact match, try fuzzy matching
       if (!project) {
         const allProjects = await client.findAll(tracker.class.Project, {});
         const normalizedIdentifier = normalizeProjectIdentifier(project_identifier, allProjects);
-        
+
         if (normalizedIdentifier !== project_identifier) {
           project = await client.findOne(tracker.class.Project, {
             identifier: normalizedIdentifier,
           });
         }
       }
-      
+
       if (!project) {
         throw HulyError.notFound('project', project_identifier);
       }
@@ -978,25 +977,27 @@ class IssueService {
     if (status) {
       // First try fuzzy normalization
       const normalizedStatus = fuzzyNormalizeStatus(status);
-      
+
       // Find all statuses in the project (if project specified) or workspace
       const statusQuery = project_identifier ? { space: searchCriteria.space } : {};
       const statuses = await client.findAll(tracker.class.IssueStatus, statusQuery);
 
       // Find matching status by normalized name (case-insensitive)
-      let targetStatus = statuses.find((s) => s.name.toLowerCase() === normalizedStatus.toLowerCase());
-      
+      let targetStatus = statuses.find(
+        (s) => s.name.toLowerCase() === normalizedStatus.toLowerCase()
+      );
+
       // If no match with normalized value, try original value
       if (!targetStatus) {
         targetStatus = statuses.find((s) => s.name.toLowerCase() === status.toLowerCase());
       }
-      
+
       // If still no match, try fuzzy matching against all status names
       if (!targetStatus && statuses.length > 0) {
-        const statusNames = statuses.map(s => s.name);
+        const statusNames = statuses.map((s) => s.name);
         const fuzzyMatchedName = fuzzyMatch(status, statusNames, 0.7);
         if (fuzzyMatchedName) {
-          targetStatus = statuses.find(s => s.name === fuzzyMatchedName);
+          targetStatus = statuses.find((s) => s.name === fuzzyMatchedName);
         }
       }
 
@@ -1012,7 +1013,7 @@ class IssueService {
     if (priority) {
       // Use fuzzy priority normalization
       const normalizedPriority = fuzzyNormalizePriority(priority);
-      
+
       const priorityMap = {
         low: tracker.component.Priority.Low,
         medium: tracker.component.Priority.Medium,
@@ -1020,7 +1021,7 @@ class IssueService {
         urgent: tracker.component.Priority.Urgent,
         NoPriority: tracker.component.Priority.NoPriority,
       };
-      
+
       if (priorityMap[normalizedPriority] !== undefined) {
         searchCriteria.priority = priorityMap[normalizedPriority];
       } else {
@@ -1077,26 +1078,26 @@ class IssueService {
       // Find all components (in project scope if available)
       const componentQuery = searchCriteria.space ? { space: searchCriteria.space } : {};
       const allComponents = await client.findAll(tracker.class.Component, componentQuery);
-      
+
       // Use fuzzy matching to find the best match
       const normalizedComponent = normalizeLabel(component, allComponents);
-      
+
       // Find all matching components with normalized label
-      const components = await client.findAll(tracker.class.Component, { 
+      const components = await client.findAll(tracker.class.Component, {
         ...componentQuery,
-        label: normalizedComponent 
+        label: normalizedComponent,
       });
-      
+
       // If no exact match found with normalized value, try fuzzy match
       if (components.length === 0 && allComponents.length > 0) {
-        const fuzzyMatchedComponent = allComponents.find(c => 
-          c.label && fuzzyMatch(component, [c.label], 0.7) === c.label
+        const fuzzyMatchedComponent = allComponents.find(
+          (c) => c.label && fuzzyMatch(component, [c.label], 0.7) === c.label
         );
         if (fuzzyMatchedComponent) {
           components.push(fuzzyMatchedComponent);
         }
       }
-      
+
       const componentIds = components.map((c) => c._id);
       issues = issues.filter((issue) => componentIds.includes(issue.component));
     }
@@ -1105,26 +1106,26 @@ class IssueService {
       // Find all milestones (in project scope if available)
       const milestoneQuery = searchCriteria.space ? { space: searchCriteria.space } : {};
       const allMilestones = await client.findAll(tracker.class.Milestone, milestoneQuery);
-      
+
       // Use fuzzy matching to find the best match
       const normalizedMilestone = normalizeLabel(milestone, allMilestones);
-      
+
       // Find all matching milestones with normalized label
-      const milestones = await client.findAll(tracker.class.Milestone, { 
+      const milestones = await client.findAll(tracker.class.Milestone, {
         ...milestoneQuery,
-        label: normalizedMilestone 
+        label: normalizedMilestone,
       });
-      
+
       // If no exact match found with normalized value, try fuzzy match
       if (milestones.length === 0 && allMilestones.length > 0) {
-        const fuzzyMatchedMilestone = allMilestones.find(m => 
-          m.label && fuzzyMatch(milestone, [m.label], 0.7) === m.label
+        const fuzzyMatchedMilestone = allMilestones.find(
+          (m) => m.label && fuzzyMatch(milestone, [m.label], 0.7) === m.label
         );
         if (fuzzyMatchedMilestone) {
           milestones.push(fuzzyMatchedMilestone);
         }
       }
-      
+
       const milestoneIds = milestones.map((m) => m._id);
       issues = issues.filter((issue) => milestoneIds.includes(issue.milestone));
     }
@@ -1353,21 +1354,21 @@ class IssueService {
     const batchSize = 50;
     for (let i = 0; i < identifiers.length; i += batchSize) {
       const batch = identifiers.slice(i, i + batchSize);
-      
+
       // Query all issues in this batch
       const issues = await client.findAll(tracker.class.Issue, {
-        identifier: { $in: batch }
+        identifier: { $in: batch },
       });
 
       // Create a map for quick lookup
-      const issueMap = new Map(issues.map(issue => [issue.identifier, issue]));
+      const issueMap = new Map(issues.map((issue) => [issue.identifier, issue]));
 
       // Check which identifiers were found
       for (const identifier of batch) {
         if (issueMap.has(identifier)) {
           validIssues.push({
             identifier,
-            issue: issueMap.get(identifier)
+            issue: issueMap.get(identifier),
           });
         } else {
           invalidIdentifiers.push(identifier);
@@ -1381,8 +1382,8 @@ class IssueService {
       summary: {
         total: identifiers.length,
         valid: validIssues.length,
-        invalid: invalidIdentifiers.length
-      }
+        invalid: invalidIdentifiers.length,
+      },
     };
   }
 
@@ -1394,11 +1395,11 @@ class IssueService {
    */
   async getIssuesByFilter(client, filter) {
     const query = {};
-    
+
     // Handle project filter
     if (filter.project) {
-      const project = await client.findOne(tracker.class.Project, { 
-        identifier: filter.project 
+      const project = await client.findOne(tracker.class.Project, {
+        identifier: filter.project,
       });
       if (project) {
         query.space = project._id;
@@ -1411,32 +1412,30 @@ class IssueService {
     if (filter.status) {
       // First try fuzzy normalization
       const normalizedStatusName = fuzzyNormalizeStatus(filter.status);
-      
+
       // Find statuses in the project (if specified) or workspace
       const statusQuery = filter.project && query.space ? { space: query.space } : {};
       const statuses = await client.findAll(tracker.class.IssueStatus, statusQuery);
-      
+
       // Find matching status
-      let targetStatus = statuses.find(s => 
-        s.name.toLowerCase() === normalizedStatusName.toLowerCase()
+      let targetStatus = statuses.find(
+        (s) => s.name.toLowerCase() === normalizedStatusName.toLowerCase()
       );
-      
+
       // If no match, try original value
       if (!targetStatus) {
-        targetStatus = statuses.find(s => 
-          s.name.toLowerCase() === filter.status.toLowerCase()
-        );
+        targetStatus = statuses.find((s) => s.name.toLowerCase() === filter.status.toLowerCase());
       }
-      
+
       // If still no match, try fuzzy matching
       if (!targetStatus && statuses.length > 0) {
-        const statusNames = statuses.map(s => s.name);
+        const statusNames = statuses.map((s) => s.name);
         const fuzzyMatchedName = fuzzyMatch(filter.status, statusNames, 0.7);
         if (fuzzyMatchedName) {
-          targetStatus = statuses.find(s => s.name === fuzzyMatchedName);
+          targetStatus = statuses.find((s) => s.name === fuzzyMatchedName);
         }
       }
-      
+
       if (targetStatus) {
         query.status = targetStatus._id;
       }
@@ -1446,7 +1445,7 @@ class IssueService {
     if (filter.priority) {
       // Use fuzzy priority normalization
       const normalizedPriority = fuzzyNormalizePriority(filter.priority);
-      
+
       const priorityMap = {
         low: tracker.component.Priority.Low,
         medium: tracker.component.Priority.Medium,
@@ -1454,7 +1453,7 @@ class IssueService {
         urgent: tracker.component.Priority.Urgent,
         NoPriority: tracker.component.Priority.NoPriority,
       };
-      
+
       if (priorityMap[normalizedPriority] !== undefined) {
         query.priority = priorityMap[normalizedPriority];
       } else {
@@ -1471,23 +1470,23 @@ class IssueService {
       // Find all components (in project scope if available)
       const componentQuery = query.space ? { space: query.space } : {};
       const allComponents = await client.findAll(tracker.class.Component, componentQuery);
-      
+
       // Use fuzzy matching to find the best match
       const normalizedComponent = normalizeLabel(filter.component, allComponents);
-      
+
       // Find component by normalized label
       let component = await client.findOne(tracker.class.Component, {
         ...componentQuery,
-        label: normalizedComponent
+        label: normalizedComponent,
       });
-      
+
       // If no exact match, try fuzzy match
       if (!component && allComponents.length > 0) {
-        component = allComponents.find(c => 
-          c.label && fuzzyMatch(filter.component, [c.label], 0.7) === c.label
+        component = allComponents.find(
+          (c) => c.label && fuzzyMatch(filter.component, [c.label], 0.7) === c.label
         );
       }
-      
+
       if (component) {
         query.component = component._id;
       }
@@ -1498,23 +1497,23 @@ class IssueService {
       // Find all milestones (in project scope if available)
       const milestoneQuery = query.space ? { space: query.space } : {};
       const allMilestones = await client.findAll(tracker.class.Milestone, milestoneQuery);
-      
+
       // Use fuzzy matching to find the best match
       const normalizedMilestone = normalizeLabel(filter.milestone, allMilestones);
-      
+
       // Find milestone by normalized label
       let milestone = await client.findOne(tracker.class.Milestone, {
         ...milestoneQuery,
-        label: normalizedMilestone
+        label: normalizedMilestone,
       });
-      
+
       // If no exact match, try fuzzy match
       if (!milestone && allMilestones.length > 0) {
-        milestone = allMilestones.find(m => 
-          m.label && fuzzyMatch(filter.milestone, [m.label], 0.7) === m.label
+        milestone = allMilestones.find(
+          (m) => m.label && fuzzyMatch(filter.milestone, [m.label], 0.7) === m.label
         );
       }
-      
+
       if (milestone) {
         query.milestone = milestone._id;
       }
@@ -1548,10 +1547,10 @@ class IssueService {
 
     const options = {
       limit: filter.limit || 100,
-      sort: { modifiedOn: -1 }
+      sort: { modifiedOn: -1 },
     };
 
-    return await client.findAll(tracker.class.Issue, query, options);
+    return client.findAll(tracker.class.Issue, query, options);
   }
 
   /**
@@ -1568,11 +1567,11 @@ class IssueService {
     // Query in batches to avoid overwhelming the database
     const allIssues = [];
     const batchSize = 50;
-    
+
     for (let i = 0; i < identifiers.length; i += batchSize) {
       const batch = identifiers.slice(i, i + batchSize);
       const issues = await client.findAll(tracker.class.Issue, {
-        identifier: { $in: batch }
+        identifier: { $in: batch },
       });
       allIssues.push(...issues);
     }
@@ -1588,7 +1587,7 @@ class IssueService {
    */
   async createMultipleIssues(client, issueDataArray) {
     const results = [];
-    
+
     for (const issueData of issueDataArray) {
       try {
         const result = await this.createIssue(
@@ -1601,18 +1600,50 @@ class IssueService {
         results.push({
           success: true,
           data: result.data,
-          input: issueData
+          input: issueData,
         });
       } catch (error) {
         results.push({
           success: false,
           error: error.message,
-          input: issueData
+          input: issueData,
         });
       }
     }
 
     return results;
+  }
+
+  /**
+   * Delete an issue and optionally its sub-issues
+   * @param {Object} client - Huly client instance
+   * @param {string} issueIdentifier - Issue identifier (e.g., "PROJ-123")
+   * @param {Object} options - Deletion options
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteIssue(client, issueIdentifier, options = {}) {
+    return deletionService.deleteIssue(client, issueIdentifier, options);
+  }
+
+  /**
+   * Bulk delete multiple issues
+   * @param {Object} client - Huly client instance
+   * @param {Array<string>} issueIdentifiers - Array of issue identifiers
+   * @param {Object} options - Deletion options
+   * @returns {Promise<Object>} Bulk deletion result
+   */
+  async bulkDeleteIssues(client, issueIdentifiers, options = {}) {
+    return deletionService.bulkDeleteIssues(client, issueIdentifiers, options);
+  }
+
+  /**
+   * Analyze the impact of deleting an issue
+   * @param {Object} client - Huly client instance
+   * @param {string} issueIdentifier - Issue identifier
+   * @returns {Promise<Object>} Impact analysis
+   */
+  async analyzeIssueDeletionImpact(client, issueIdentifier) {
+    return deletionService.analyzeIssueDeletionImpact(client, issueIdentifier);
   }
 }
 

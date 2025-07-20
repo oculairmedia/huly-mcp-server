@@ -10,6 +10,7 @@ import coreModule from '@hcengineering/core';
 import { HulyError } from '../core/HulyError.js';
 import { MILESTONE_STATUS_MAP, MILESTONE_STATUS_NAMES } from '../core/constants.js';
 import { isValidProjectIdentifier, isValidISODate } from '../utils/validators.js';
+import { deletionService } from './DeletionService.js';
 
 const tracker = trackerModule.default || trackerModule;
 const core = coreModule.default || coreModule;
@@ -462,6 +463,61 @@ export class ProjectService {
       }
       throw HulyError.database('assign repository to project', error);
     }
+  }
+
+  /**
+   * Delete a project and all its contents
+   * @param {Object} client - Huly client instance
+   * @param {string} projectIdentifier - Project identifier
+   * @param {Object} options - Deletion options
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteProject(client, projectIdentifier, options = {}) {
+    return deletionService.deleteProject(client, projectIdentifier, options);
+  }
+
+  /**
+   * Archive a project (soft delete)
+   * @param {Object} client - Huly client instance
+   * @param {string} projectIdentifier - Project identifier
+   * @returns {Promise<Object>} Archive result
+   */
+  async archiveProject(client, projectIdentifier) {
+    return deletionService.archiveProject(client, projectIdentifier);
+  }
+
+  /**
+   * Delete a component from a project
+   * @param {Object} client - Huly client instance
+   * @param {string} projectIdentifier - Project identifier
+   * @param {string} componentLabel - Component label
+   * @param {Object} options - Deletion options
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteComponent(client, projectIdentifier, componentLabel, options = {}) {
+    return deletionService.deleteComponent(client, projectIdentifier, componentLabel, options);
+  }
+
+  /**
+   * Delete a milestone from a project
+   * @param {Object} client - Huly client instance
+   * @param {string} projectIdentifier - Project identifier
+   * @param {string} milestoneLabel - Milestone label
+   * @param {Object} options - Deletion options
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deleteMilestone(client, projectIdentifier, milestoneLabel, options = {}) {
+    return deletionService.deleteMilestone(client, projectIdentifier, milestoneLabel, options);
+  }
+
+  /**
+   * Analyze the impact of deleting a project
+   * @param {Object} client - Huly client instance
+   * @param {string} projectIdentifier - Project identifier
+   * @returns {Promise<Object>} Impact analysis
+   */
+  async analyzeProjectDeletionImpact(client, projectIdentifier) {
+    return deletionService.analyzeProjectDeletionImpact(client, projectIdentifier);
   }
 }
 
