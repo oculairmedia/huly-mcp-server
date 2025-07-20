@@ -22,7 +22,7 @@ async function getLogger() {
       const { createLoggerWithConfig } = await import('../utils/index.js');
       const { getConfigManager } = await import('../config/index.js');
       logger = createLoggerWithConfig(getConfigManager()).child('tool-loader');
-    } catch (error) {
+    } catch {
       // Fallback to console if logger fails
       logger = {
         info: console.log,
@@ -38,7 +38,17 @@ async function getLogger() {
 /**
  * Tool categories to load
  */
-const TOOL_CATEGORIES = ['projects', 'issues', 'components', 'milestones', 'github', 'comments', 'templates'];
+const TOOL_CATEGORIES = [
+  'projects',
+  'issues',
+  'components',
+  'milestones',
+  'github',
+  'comments',
+  'templates',
+  'validation',
+  'preview',
+];
 
 /**
  * Load all tools from a category directory
@@ -53,7 +63,7 @@ async function loadCategoryTools(category) {
   try {
     // Check if category directory exists
     statSync(categoryPath);
-  } catch (error) {
+  } catch {
     log.warn(`Category directory not found: ${category}`);
     return 0;
   }
