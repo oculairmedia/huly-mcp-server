@@ -1,7 +1,7 @@
 /**
- * List Projects Tool
+ * List GitHub Repositories Tool
  * 
- * Lists all projects in the Huly workspace
+ * Lists all GitHub repositories available in integrations
  */
 
 import { createToolResponse, createErrorResponse } from '../base/ToolInterface.js';
@@ -10,8 +10,8 @@ import { createToolResponse, createErrorResponse } from '../base/ToolInterface.j
  * Tool definition
  */
 export const definition = {
-  name: 'huly_list_projects',
-  description: 'List all projects in Huly workspace',
+  name: 'huly_list_github_repositories',
+  description: 'List all GitHub repositories available in integrations',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -21,7 +21,7 @@ export const definition = {
 
 /**
  * Tool handler
- * @param {Object} args - Tool arguments (empty for this tool)
+ * @param {Object} args - Tool arguments
  * @param {import('../base/ToolInterface').ToolContext} context - Execution context
  * @returns {Promise<import('../base/ToolInterface').ToolResponse>}
  */
@@ -30,25 +30,13 @@ export async function handler(args, context) {
   const { projectService } = services;
   
   try {
-    logger.debug('Listing all projects');
+    logger.debug('Listing GitHub repositories');
     
-    const projects = await projectService.listProjects(client);
+    const result = await projectService.listGithubRepositories(client);
     
-    if (!projects || projects.length === 0) {
-      return createToolResponse('No projects found in workspace');
-    }
-
-    // Format project list
-    const projectList = projects
-      .map(project => {
-        const description = project.description ? ` - ${project.description}` : '';
-        return `- ${project.name} (${project.identifier})${description}`;
-      })
-      .join('\n');
-
-    return createToolResponse(`Found ${projects.length} projects:\n${projectList}`);
+    return result;
   } catch (error) {
-    logger.error('Failed to list projects:', error);
+    logger.error('Failed to list GitHub repositories:', error);
     return createErrorResponse(error);
   }
 }

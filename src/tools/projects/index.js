@@ -5,4 +5,4 @@
  */
 
 export * from './listProjects.js';
-// export * from './createProject.js'; // To be implemented
+export * from './createProject.js';
