@@ -22,12 +22,12 @@ class IntegrationTestRunner {
   // Enhanced MCP call with retry logic
   async callMCPTool(method, params = {}, options = {}) {
     const { retries = this.config.retry.maxAttempts, delay = this.config.retry.delay } = options;
-    
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const start = Date.now();
         const envConfig = this.config.environments[this.environment];
-        
+
         const response = await fetch(envConfig.mcp_url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -35,21 +35,21 @@ class IntegrationTestRunner {
             jsonrpc: '2.0',
             method: 'tools/call',
             params: { name: method, arguments: params },
-            id: Date.now()
+            id: Date.now(),
           }),
-          timeout: envConfig.timeout
+          timeout: envConfig.timeout,
         });
 
         const duration = Date.now() - start;
         const result = await response.json();
-        
+
         // Record performance
         this.reporter.recordPerformance(method, duration);
-        
+
         if (result.error) {
           throw new Error(result.error.message || JSON.stringify(result.error));
         }
-        
+
         return result.result;
       } catch (error) {
         if (attempt < retries && this.isRetryableError(error)) {
@@ -64,52 +64,52 @@ class IntegrationTestRunner {
 
   // Check if error is retryable
   isRetryableError(error) {
-    return this.config.retry.retryableErrors.some(e => 
-      error.message.includes(e) || error.code === e
+    return this.config.retry.retryableErrors.some(
+      (e) => error.message.includes(e) || error.code === e
     );
   }
 
   // Helper sleep function
   sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // Run a single test scenario
   async runTestScenario(category, name, scenario) {
     const start = Date.now();
     console.log(`\n🧪 ${category}/${name}: ${scenario.name}`);
-    
+
     try {
       const result = await scenario.test(this.callMCPTool.bind(this));
       const duration = Date.now() - start;
-      
+
       if (scenario.expectError) {
         // Test expected to fail
         this.reporter.recordTest(`${category}/${name}`, 'failed', {
           duration,
-          error: 'Test should have thrown an error but succeeded'
+          error: 'Test should have thrown an error but succeeded',
         });
       } else {
         // Test passed
         this.reporter.recordTest(`${category}/${name}`, 'passed', {
           duration,
-          result
+          result,
         });
       }
     } catch (error) {
       const duration = Date.now() - start;
-      
+
       if (scenario.expectError) {
         // Expected error occurred
         this.reporter.recordTest(`${category}/${name}`, 'passed', {
           duration,
-          expectedError: error.message
+          expectedError: error.message,
         });
       } else {
         // Unexpected error
         this.reporter.recordTest(`${category}/${name}`, 'failed', {
           duration,
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -123,29 +123,29 @@ class IntegrationTestRunner {
     console.log(`Environment: ${this.environment}`);
     console.log(`Test Suite: ${this.suite}`);
     console.log(`Started: ${new Date().toISOString()}`);
-    
+
     const categoriesToRun = this.config.categories[this.suite] || ['basic'];
-    
+
     for (const [category, scenarios] of Object.entries(testScenarios)) {
       if (!categoriesToRun.includes(category)) continue;
-      
+
       console.log(`\n\n📂 Category: ${category.toUpperCase()}`);
       console.log('-'.repeat(40));
-      
+
       for (const [name, scenario] of Object.entries(scenarios)) {
         await this.runTestScenario(category, name, scenario);
       }
     }
-    
+
     // Generate reports
     this.reporter.generateSummary();
     this.reporter.saveResults();
-    
+
     // Cleanup test data
     if (process.env.TEST_CLEANUP !== 'false') {
       await this.dataManager.cleanup();
     }
-    
+
     // Exit with appropriate code
     process.exit(this.reporter.results.summary.failed > 0 ? 1 : 0);
   }
@@ -153,7 +153,7 @@ class IntegrationTestRunner {
 
 // Run the tests
 const runner = new IntegrationTestRunner();
-runner.runAllTests().catch(error => {
+runner.runAllTests().catch((error) => {
   console.error('❌ Fatal error:', error);
   process.exit(1);
 });

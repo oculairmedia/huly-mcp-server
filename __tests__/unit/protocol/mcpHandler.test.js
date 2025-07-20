@@ -4,64 +4,102 @@
  * Tests for the MCP protocol handler
  */
 
-import { describe, test, expect, beforeEach } from '@jest/globals';
-import { MCPHandler } from '../../../src/protocol/MCPHandler.js';
-import { HulyError } from '../../../src/core/HulyError.js';
+import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 
-// Helper to create mock functions
-function createMockFn() {
-  const calls = [];
-  const mockImplementations = [];
+// Set up environment variables before any imports
+process.env.HULY_EMAIL = 'test@example.com';
+process.env.HULY_PASSWORD = 'test-password';
+process.env.HULY_WORKSPACE = 'test-workspace';
 
-  const fn = async (...args) => {
-    calls.push(args);
-    if (mockImplementations.length > 0) {
-      const impl = mockImplementations.shift();
-      if (impl.type === 'value') {
-        return impl.value;
-      } else if (impl.type === 'error') {
-        throw impl.error;
-      }
-    }
-    return undefined;
-  };
+// Mock dependencies before importing MCPHandler
+const mockInitializeTools = jest.fn();
+const mockGetAllToolDefinitions = jest.fn();
+const mockExecuteTool = jest.fn();
+const mockHasTool = jest.fn();
 
-  fn.mockResolvedValue = (value) => {
-    mockImplementations.push({ type: 'value', value });
-    return fn;
-  };
+jest.unstable_mockModule('../../../src/tools/index.js', () => ({
+  initializeTools: mockInitializeTools,
+  getAllToolDefinitions: mockGetAllToolDefinitions,
+  executeTool: mockExecuteTool,
+  hasTool: mockHasTool
+}));
 
-  fn.mockResolvedValueOnce = (value) => {
-    mockImplementations.push({ type: 'value', value });
-    return fn;
-  };
+const mockGetConfigManager = jest.fn();
+jest.unstable_mockModule('../../../src/config/index.js', () => ({
+  getConfigManager: mockGetConfigManager
+}));
 
-  fn.mockRejectedValue = (error) => {
-    mockImplementations.push({ type: 'error', error });
-    return fn;
-  };
+const mockCreateLoggerWithConfig = jest.fn();
+jest.unstable_mockModule('../../../src/utils/index.js', () => ({
+  createLoggerWithConfig: mockCreateLoggerWithConfig
+}));
 
-  fn.getCalls = () => calls;
-  fn.toHaveBeenCalled = () => calls.length > 0;
-  fn.toHaveBeenCalledWith = (...args) => {
-    return calls.some(
-      (call) => call.length === args.length && call.every((arg, i) => arg === args[i])
-    );
-  };
-
-  return fn;
-}
+// Import modules after mocks are set up
+const { MCPHandler } = await import('../../../src/protocol/MCPHandler.js');
+const { HulyError } = await import('../../../src/core/HulyError.js');
 
 describe('MCPHandler Tests', () => {
   let _handler;
   let mockServer;
   let mockServices;
   let mockClient;
+  let mockLogger;
+  let mockConfig;
 
   beforeEach(() => {
+    // Clear all mocks
+    jest.clearAllMocks();
+
+    // Set up mock logger
+    mockLogger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      child: jest.fn(() => mockLogger)
+    };
+
+    // Set up mock config
+    mockConfig = {
+      email: 'test@example.com',
+      password: 'test-password',
+      workspace: 'test-workspace',
+      url: 'https://test.huly.io'
+    };
+
+    // Configure mocks
+    mockCreateLoggerWithConfig.mockReturnValue(mockLogger);
+    mockGetConfigManager.mockReturnValue({
+      getHulyConfig: () => mockConfig
+    });
+
+    // Reset tool mocks
+    mockInitializeTools.mockResolvedValue(undefined);
+    mockGetAllToolDefinitions.mockReturnValue([
+      {
+        name: 'huly_list_projects',
+        description: 'List all projects',
+        inputSchema: { type: 'object', properties: {}, required: [] }
+      },
+      {
+        name: 'huly_create_issue',
+        description: 'Create a new issue',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_identifier: { type: 'string' },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            priority: { type: 'string' }
+          },
+          required: ['project_identifier', 'title']
+        }
+      }
+    ]);
+
     // Create mock server
     mockServer = {
-      setRequestHandler: createMockFn(),
+      setRequestHandler: jest.fn()
     };
 
     // Create mock client
@@ -69,57 +107,39 @@ describe('MCPHandler Tests', () => {
 
     // Create mock services
     mockServices = {
-      projectService: {
-        listProjects: createMockFn(),
-        createProject: createMockFn(),
-        createComponent: createMockFn(),
-        listComponents: createMockFn(),
-        createMilestone: createMockFn(),
-        listMilestones: createMockFn(),
-        listGithubRepositories: createMockFn(),
-        assignRepositoryToProject: createMockFn(),
-      },
-      issueService: {
-        listIssues: createMockFn(),
-        createIssue: createMockFn(),
-        updateIssue: createMockFn(),
-        createSubissue: createMockFn(),
-        searchIssues: createMockFn(),
-        listComments: createMockFn(),
-        createComment: createMockFn(),
-        getIssueDetails: createMockFn(),
-      },
+      projectService: {},
+      issueService: {},
       hulyClientWrapper: {
-        withClient: createMockFn(),
-      },
+        withClient: jest.fn(async (callback) => callback(mockClient))
+      }
     };
 
-    // Mock withClient to execute the callback with mockClient
-    mockServices.hulyClientWrapper.withClient = async (callback) => {
-      return callback(mockClient);
-    };
-
-    _handler = new MCPHandler(mockServer, mockServices);
+    // Create handler instance
+    new MCPHandler(mockServer, mockServices);
   });
 
   describe('Constructor', () => {
     test('should set up request handlers', () => {
-      expect(mockServer.setRequestHandler.toHaveBeenCalled()).toBe(true);
-      expect(mockServer.setRequestHandler.getCalls().length).toBe(2);
+      expect(mockServer.setRequestHandler).toHaveBeenCalledTimes(2);
+      expect(mockServer.setRequestHandler).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.any(Function)
+      );
     });
   });
 
   describe('Tool Listing', () => {
     test('should handle ListToolsRequestSchema', async () => {
-      const listToolsHandler = mockServer.setRequestHandler.getCalls()[0][1];
+      const listToolsHandler = mockServer.setRequestHandler.mock.calls[0][1];
       const result = await listToolsHandler();
 
+      expect(mockInitializeTools).toHaveBeenCalled();
+      expect(mockGetAllToolDefinitions).toHaveBeenCalled();
       expect(result).toHaveProperty('tools');
       expect(Array.isArray(result.tools)).toBe(true);
-      expect(result.tools.length).toBeGreaterThan(0);
-      expect(result.tools[0]).toHaveProperty('name');
-      expect(result.tools[0]).toHaveProperty('description');
-      expect(result.tools[0]).toHaveProperty('inputSchema');
+      expect(result.tools.length).toBe(2);
+      expect(result.tools[0].name).toBe('huly_list_projects');
+      expect(result.tools[1].name).toBe('huly_create_issue');
     });
   });
 
@@ -128,35 +148,44 @@ describe('MCPHandler Tests', () => {
 
     beforeEach(() => {
       // Get the CallToolRequestSchema handler
-      toolHandler = mockServer.setRequestHandler.getCalls()[1][1];
-
-      // Update mock to actually call the callback
-      mockServices.hulyClientWrapper.withClient = async (callback) => {
-        return callback(mockClient);
-      };
+      toolHandler = mockServer.setRequestHandler.mock.calls[1][1];
     });
 
     test('should execute project listing tool', async () => {
-      mockServices.projectService.listProjects.mockResolvedValueOnce({
-        content: [{ type: 'text', text: 'Projects listed' }],
+      mockHasTool.mockReturnValue(true);
+      mockExecuteTool.mockResolvedValueOnce({
+        content: [{ type: 'text', text: 'Projects listed' }]
       });
 
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {},
-        },
+          arguments: {}
+        }
       };
 
       const result = await toolHandler(request);
 
-      expect(mockServices.projectService.listProjects.toHaveBeenCalled()).toBe(true);
+      expect(mockInitializeTools).toHaveBeenCalled();
+      expect(mockHasTool).toHaveBeenCalledWith('huly_list_projects');
+      expect(mockServices.hulyClientWrapper.withClient).toHaveBeenCalled();
+      expect(mockExecuteTool).toHaveBeenCalledWith(
+        'huly_list_projects',
+        {},
+        expect.objectContaining({
+          client: mockClient,
+          services: mockServices,
+          config: mockConfig,
+          logger: expect.any(Object)
+        })
+      );
       expect(result.content[0].text).toBe('Projects listed');
     });
 
     test('should execute issue creation tool', async () => {
-      mockServices.issueService.createIssue.mockResolvedValueOnce({
-        content: [{ type: 'text', text: 'Issue created' }],
+      mockHasTool.mockReturnValue(true);
+      mockExecuteTool.mockResolvedValueOnce({
+        content: [{ type: 'text', text: 'Issue created' }]
       });
 
       const request = {
@@ -166,28 +195,42 @@ describe('MCPHandler Tests', () => {
             project_identifier: 'TEST',
             title: 'Test Issue',
             description: 'Test description',
-            priority: 'high',
-          },
-        },
+            priority: 'high'
+          }
+        }
       };
 
       const result = await toolHandler(request);
 
-      expect(mockServices.issueService.createIssue.toHaveBeenCalled()).toBe(true);
+      expect(mockHasTool).toHaveBeenCalledWith('huly_create_issue');
+      expect(mockExecuteTool).toHaveBeenCalledWith(
+        'huly_create_issue',
+        {
+          project_identifier: 'TEST',
+          title: 'Test Issue',
+          description: 'Test description',
+          priority: 'high'
+        },
+        expect.objectContaining({
+          client: mockClient,
+          services: mockServices,
+          config: mockConfig,
+          logger: expect.any(Object)
+        })
+      );
       expect(result.content[0].text).toBe('Issue created');
     });
 
     test('should handle HulyError appropriately', async () => {
       const hulyError = new HulyError('NOT_FOUND', 'Project not found');
-      mockServices.hulyClientWrapper.withClient = async () => {
-        throw hulyError;
-      };
+      mockHasTool.mockReturnValue(true);
+      mockServices.hulyClientWrapper.withClient.mockRejectedValueOnce(hulyError);
 
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {},
-        },
+          arguments: {}
+        }
       };
 
       const result = await toolHandler(request);
@@ -198,161 +241,84 @@ describe('MCPHandler Tests', () => {
     });
 
     test('should handle generic errors', async () => {
-      mockServices.hulyClientWrapper.withClient = async () => {
-        throw new Error('Connection failed');
-      };
+      mockHasTool.mockReturnValue(true);
+      mockServices.hulyClientWrapper.withClient.mockRejectedValueOnce(
+        new Error('Connection failed')
+      );
 
       const request = {
         params: {
           name: 'huly_list_projects',
-          arguments: {},
-        },
+          arguments: {}
+        }
       };
 
       const result = await toolHandler(request);
 
       expect(result).toHaveProperty('content');
-      expect(result.content[0].text).toContain('❌ Error: Connection failed');
+      expect(result.content[0].text).toBe('❌ Error: Connection failed');
     });
 
     test('should handle invalid tool name', async () => {
+      mockHasTool.mockReturnValue(false);
+
       const request = {
         params: {
           name: 'invalid_tool',
-          arguments: {},
-        },
+          arguments: {}
+        }
+      };
+
+      const result = await toolHandler(request);
+
+      expect(mockHasTool).toHaveBeenCalledWith('invalid_tool');
+      expect(result).toHaveProperty('content');
+      expect(result.content[0].text).toContain("Invalid value for field 'tool'");
+      expect(result.content[0].text).toContain('invalid_tool');
+      expect(result.content[0].text).toContain('a valid tool name');
+    });
+
+    test('should handle executeTool errors from within withClient', async () => {
+      mockHasTool.mockReturnValue(true);
+      mockExecuteTool.mockRejectedValueOnce(new Error('Tool execution failed'));
+
+      const request = {
+        params: {
+          name: 'huly_list_projects',
+          arguments: {}
+        }
       };
 
       const result = await toolHandler(request);
 
       expect(result).toHaveProperty('content');
-      expect(result.content[0].text).toContain('Invalid value for field');
+      expect(result.content[0].text).toBe('❌ Error: Tool execution failed');
     });
   });
 
-  describe('Tool Execution - All Tools', () => {
-    let toolHandler;
+  describe('Initialize', () => {
+    test('should initialize tools only once', async () => {
+      const listToolsHandler = mockServer.setRequestHandler.mock.calls[0][1];
+      
+      // Call multiple times
+      await listToolsHandler();
+      await listToolsHandler();
+      await listToolsHandler();
 
-    beforeEach(() => {
-      toolHandler = mockServer.setRequestHandler.getCalls()[1][1];
-      mockServices.hulyClientWrapper.withClient = async (callback) => {
-        return callback(mockClient);
-      };
+      // Should only initialize once
+      expect(mockInitializeTools).toHaveBeenCalledTimes(1);
     });
 
-    const toolTests = [
-      // Project tools
-      { name: 'huly_list_projects', service: 'projectService', method: 'listProjects', args: {} },
-      {
-        name: 'huly_create_project',
-        service: 'projectService',
-        method: 'createProject',
-        args: { name: 'Test' },
-      },
-      {
-        name: 'huly_list_components',
-        service: 'projectService',
-        method: 'listComponents',
-        args: { project_identifier: 'TEST' },
-      },
-      {
-        name: 'huly_create_component',
-        service: 'projectService',
-        method: 'createComponent',
-        args: { project_identifier: 'TEST', label: 'UI' },
-      },
-      {
-        name: 'huly_list_milestones',
-        service: 'projectService',
-        method: 'listMilestones',
-        args: { project_identifier: 'TEST' },
-      },
-      {
-        name: 'huly_create_milestone',
-        service: 'projectService',
-        method: 'createMilestone',
-        args: { project_identifier: 'TEST', label: 'v1.0' },
-      },
-      {
-        name: 'huly_list_github_repositories',
-        service: 'projectService',
-        method: 'listGithubRepositories',
-        args: {},
-      },
-      {
-        name: 'huly_assign_repository_to_project',
-        service: 'projectService',
-        method: 'assignRepositoryToProject',
-        args: { project_identifier: 'TEST', repository_name: 'org/repo' },
-      },
-
-      // Issue tools
-      {
-        name: 'huly_list_issues',
-        service: 'issueService',
-        method: 'listIssues',
-        args: { project_identifier: 'TEST' },
-      },
-      {
-        name: 'huly_create_issue',
-        service: 'issueService',
-        method: 'createIssue',
-        args: { project_identifier: 'TEST', title: 'Issue' },
-      },
-      {
-        name: 'huly_update_issue',
-        service: 'issueService',
-        method: 'updateIssue',
-        args: { issue_identifier: 'TEST-1', field: 'title', value: 'New' },
-      },
-      {
-        name: 'huly_create_subissue',
-        service: 'issueService',
-        method: 'createSubissue',
-        args: { parent_issue_identifier: 'TEST-1', title: 'Sub' },
-      },
-      {
-        name: 'huly_search_issues',
-        service: 'issueService',
-        method: 'searchIssues',
-        args: { query: 'test' },
-      },
-      {
-        name: 'huly_list_comments',
-        service: 'issueService',
-        method: 'listComments',
-        args: { issue_identifier: 'TEST-1' },
-      },
-      {
-        name: 'huly_create_comment',
-        service: 'issueService',
-        method: 'createComment',
-        args: { issue_identifier: 'TEST-1', message: 'Comment' },
-      },
-      {
-        name: 'huly_get_issue_details',
-        service: 'issueService',
-        method: 'getIssueDetails',
-        args: { issue_identifier: 'TEST-1' },
-      },
-    ];
-
-    test.each(toolTests)('should execute $name tool', async ({ name, service, method, args }) => {
-      mockServices[service][method].mockResolvedValueOnce({
-        content: [{ type: 'text', text: `${name} executed` }],
-      });
-
-      const request = {
-        params: {
-          name,
-          arguments: args,
-        },
-      };
-
-      const result = await toolHandler(request);
-
-      expect(mockServices[service][method].toHaveBeenCalled()).toBe(true);
-      expect(result.content[0].text).toBe(`${name} executed`);
+    test('should handle initialization errors', async () => {
+      mockInitializeTools.mockRejectedValueOnce(new Error('Init failed'));
+      
+      const listToolsHandler = mockServer.setRequestHandler.mock.calls[0][1];
+      
+      await expect(listToolsHandler()).rejects.toThrow('Init failed');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to initialize tool system:',
+        expect.any(Error)
+      );
     });
   });
 });

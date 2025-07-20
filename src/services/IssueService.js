@@ -1026,7 +1026,7 @@ class IssueService {
         const parsed = JSON.parse(issue.description);
         return extractTextFromDoc(parsed);
       }
-    } catch (parseError) {
+    } catch {
       // Ignore parse error
     }
 
