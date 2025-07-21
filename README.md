@@ -2,20 +2,16 @@
 
 A Model Context Protocol (MCP) server for interacting with Huly project management platform. This server provides tools for managing projects, issues, and other Huly resources through Claude Code and other MCP clients.
 
-## 🚀 Recent Updates (HULLY-121 Fix)
+## 🚀 Recent Updates
 
-### ✅ Atomic Issue Number Generation
-- Implemented SequenceService to prevent duplicate issue IDs
-- Uses MongoDB atomic operations for concurrent safety
-- Full backward compatibility maintained
-
-### 🔧 Enhanced Features
-- Component and milestone support in issue creation
+### Enhanced Features
+- Component and milestone support in all issue operations
 - Improved bulk operations with progress tracking
+- Atomic operations for reliable concurrent usage
 - Standardized MCP response format across all tools
 - Better error handling and validation
 
-[See full documentation](docs/HULLY-121-fix-documentation.md) | [API Updates](docs/API-UPDATES.md)
+[API Documentation](docs/API-UPDATES.md)
 
 ## Features
 
@@ -454,22 +450,17 @@ The codebase now includes:
 
 ### Common Issues
 
-1. **Duplicate Issue IDs** (Fixed in HULLY-121)
-   - Update to latest version with SequenceService
-   - Uses atomic MongoDB operations to prevent duplicates
-   - See [HULLY-121 documentation](docs/HULLY-121-fix-documentation.md)
-
-2. **Connection Failed**
+1. **Connection Failed**
    - Verify HULY_URL is correct
    - Check credentials are valid
    - Ensure network connectivity to Huly instance
 
-3. **Module Import Errors**
+2. **Module Import Errors**
    - Verify Node.js version (18+)
    - Check package.json type is set to "module"
    - Ensure all dependencies are installed
 
-4. **Docker Issues**
+3. **Docker Issues**
    - Use internal Docker network URLs (e.g., `http://nginx:80`)
    - Check container logs: `docker-compose logs huly-mcp`
    - Verify environment variables are set
@@ -532,8 +523,7 @@ Huly uses two different patterns for storing text content:
 
 Comprehensive documentation is available in the `/docs` directory:
 
-- **[HULLY-121 Fix Documentation](./docs/HULLY-121-fix-documentation.md)** - Complete details on the duplicate ID fix
-- **[API Updates](./docs/API-UPDATES.md)** - Recent API changes and migration guide
+- **[API Updates](./docs/API-UPDATES.md)** - Recent API changes and new features
 - **[Bulk Operations Guide](./docs/bulk-operations.md)** - Detailed guide for bulk creation, update, and deletion of issues
 - **[Templates Guide](./docs/templates.md)** - Using templates for standardized issue creation
 - **[Deletion Operations Guide](./docs/deletion-operations.md)** - Safe deletion practices and validation
