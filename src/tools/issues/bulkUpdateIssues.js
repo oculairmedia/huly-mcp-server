@@ -99,16 +99,16 @@ export async function handler(args, context) {
     // If dry run, just validate
     if (args.options?.dry_run) {
       logger.info('Performing dry run validation');
-      
+
       // Manually validate each issue exists
       const validItems = [];
       const invalidItems = [];
-      
+
       for (const update of args.updates) {
         try {
           // Check if issue exists
-          const issue = await client.findOne(tracker.class.Issue, { 
-            identifier: update.issue_identifier 
+          const issue = await client.findOne(tracker.class.Issue, {
+            identifier: update.issue_identifier,
           });
           if (!issue) {
             throw new Error(`Issue ${update.issue_identifier} not found`);
@@ -122,21 +122,29 @@ export async function handler(args, context) {
         }
       }
 
-      return createToolResponse(JSON.stringify({
-        success: true,
-        dry_run: true,
-        valid_count: validItems.length,
-        invalid_count: invalidItems.length,
-        validation_errors: invalidItems,
-      }, null, 2));
+      return createToolResponse(
+        JSON.stringify(
+          {
+            success: true,
+            dry_run: true,
+            valid_count: validItems.length,
+            invalid_count: invalidItems.length,
+            validation_errors: invalidItems,
+          },
+          null,
+          2
+        )
+      );
     }
 
     // Execute bulk update
     const result = await bulkService.executeBulkOperation({
       items: args.updates,
       operation: async (update) => {
-        logger.debug(`Updating issue ${update.issue_identifier}: ${update.field} = ${update.value}`);
-        return await issueService.updateIssue(
+        logger.debug(
+          `Updating issue ${update.issue_identifier}: ${update.field} = ${update.value}`
+        );
+        return issueService.updateIssue(
           client,
           update.issue_identifier,
           update.field,
@@ -187,12 +195,18 @@ export async function handler(args, context) {
       `Bulk update completed: ${summary.succeeded} succeeded, ${summary.failed} failed in ${summary.elapsed_ms}ms`
     );
 
-    return createToolResponse(JSON.stringify({
-      success: true,
-      summary,
-      successful_updates: successful_updates.length > 0 ? successful_updates : undefined,
-      failed_updates: failed_updates.length > 0 ? failed_updates : undefined,
-    }, null, 2));
+    return createToolResponse(
+      JSON.stringify(
+        {
+          success: true,
+          summary,
+          successful_updates: successful_updates.length > 0 ? successful_updates : undefined,
+          failed_updates: failed_updates.length > 0 ? failed_updates : undefined,
+        },
+        null,
+        2
+      )
+    );
   } catch (error) {
     logger.error('Failed to execute bulk update:', error);
     return createErrorResponse(error);

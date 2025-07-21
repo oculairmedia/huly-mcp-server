@@ -11,7 +11,7 @@ describe('bulkUpdateIssues integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockIssueService = {
       updateIssue: jest.fn(),
       getIssue: jest.fn(),
@@ -248,10 +248,10 @@ describe('bulkUpdateIssues integration', () => {
       expect(data.dry_run).toBe(true);
       expect(data.valid_count).toBe(2);
       expect(data.invalid_count).toBe(0);
-      
+
       // Verify no updates were made
       expect(mockIssueService.updateIssue).not.toHaveBeenCalled();
-      
+
       // Verify existence checks were made
       expect(mockIssueService.getIssue).toHaveBeenCalledTimes(2);
     });
@@ -282,11 +282,13 @@ describe('bulkUpdateIssues integration', () => {
 
     it('should respect batch size', async () => {
       const largeBatch = {
-        updates: Array(25).fill(null).map((_, i) => ({
-          issue_identifier: `PROJ-${i + 1}`,
-          field: 'status',
-          value: 'done',
-        })),
+        updates: Array(25)
+          .fill(null)
+          .map((_, i) => ({
+            issue_identifier: `PROJ-${i + 1}`,
+            field: 'status',
+            value: 'done',
+          })),
         options: {
           batch_size: 5,
         },
@@ -305,10 +307,10 @@ describe('bulkUpdateIssues integration', () => {
       expect(data.success).toBe(true);
       expect(data.summary.total).toBe(25);
       expect(data.summary.succeeded).toBe(25);
-      
+
       // Check that progress was logged multiple times
-      const progressLogs = mockContext.logger.info.mock.calls.filter(
-        call => call[0].includes('Bulk update progress')
+      const progressLogs = mockContext.logger.info.mock.calls.filter((call) =>
+        call[0].includes('Bulk update progress')
       );
       expect(progressLogs.length).toBeGreaterThan(1);
     });
@@ -348,7 +350,7 @@ describe('bulkUpdateIssues integration', () => {
 
       expect(result.content[0].type).toBe('text');
       expect(result.content[0].text).toContain('Update failed');
-      
+
       // Should have only tried 2 updates (stopped after failure)
       expect(mockIssueService.updateIssue).toHaveBeenCalledTimes(2);
     });

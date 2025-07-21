@@ -22,7 +22,15 @@ export const definition = {
       field: {
         type: 'string',
         description: 'Field to update',
-        enum: ['title', 'description', 'priority', 'estimation', 'assignee', 'component', 'milestone'],
+        enum: [
+          'title',
+          'description',
+          'priority',
+          'estimation',
+          'assignee',
+          'component',
+          'milestone',
+        ],
       },
       value: {
         type: 'string',
@@ -81,7 +89,15 @@ export function validate(args) {
   }
 
   // Validate field
-  const validFields = ['title', 'description', 'priority', 'estimation', 'assignee', 'component', 'milestone'];
+  const validFields = [
+    'title',
+    'description',
+    'priority',
+    'estimation',
+    'assignee',
+    'component',
+    'milestone',
+  ];
   if (!args.field || !validFields.includes(args.field)) {
     errors.field = `Field must be one of: ${validFields.join(', ')}`;
   }

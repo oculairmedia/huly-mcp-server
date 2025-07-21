@@ -125,9 +125,9 @@ describe('DeletionService', () => {
     it('should handle issue not found', async () => {
       mockClient.findOne.mockResolvedValueOnce(null);
 
-      await expect(
-        deletionService.deleteIssue(mockClient, issueIdentifier)
-      ).rejects.toThrow('Issue not found: PROJ-123');
+      await expect(deletionService.deleteIssue(mockClient, issueIdentifier)).rejects.toThrow(
+        'Issue not found: PROJ-123'
+      );
     });
 
     it('should force delete when blockers exist', async () => {
@@ -284,10 +284,7 @@ describe('DeletionService', () => {
       expect(result.success).toBe(true);
       expect(result.project).toBe(projectIdentifier);
       expect(result.archived).toBe(true);
-      expect(mockClient.update).toHaveBeenCalledWith(
-        mockProject,
-        { archived: true }
-      );
+      expect(mockClient.update).toHaveBeenCalledWith(mockProject, { archived: true });
     });
 
     it('should handle already archived project', async () => {
@@ -318,9 +315,7 @@ describe('DeletionService', () => {
     };
 
     it('should delete component without issues', async () => {
-      mockClient.findOne
-        .mockResolvedValueOnce(mockProject)
-        .mockResolvedValueOnce(mockComponent);
+      mockClient.findOne.mockResolvedValueOnce(mockProject).mockResolvedValueOnce(mockComponent);
       mockClient.findAll.mockResolvedValue([]); // No issues
       mockClient.removeDoc.mockResolvedValue(true);
 
@@ -344,9 +339,7 @@ describe('DeletionService', () => {
         component: mockComponent._id,
       };
 
-      mockClient.findOne
-        .mockResolvedValueOnce(mockProject)
-        .mockResolvedValueOnce(mockComponent);
+      mockClient.findOne.mockResolvedValueOnce(mockProject).mockResolvedValueOnce(mockComponent);
       mockClient.findAll.mockResolvedValueOnce([mockIssue]);
       mockClient.update.mockResolvedValue(true);
       mockClient.removeDoc.mockResolvedValue(true);
@@ -359,10 +352,7 @@ describe('DeletionService', () => {
 
       expect(result.success).toBe(true);
       expect(result.affectedIssues).toBe(1);
-      expect(mockClient.update).toHaveBeenCalledWith(
-        mockIssue,
-        { component: null }
-      );
+      expect(mockClient.update).toHaveBeenCalledWith(mockIssue, { component: null });
     });
   });
 
@@ -382,9 +372,7 @@ describe('DeletionService', () => {
     };
 
     it('should delete milestone without issues', async () => {
-      mockClient.findOne
-        .mockResolvedValueOnce(mockProject)
-        .mockResolvedValueOnce(mockMilestone);
+      mockClient.findOne.mockResolvedValueOnce(mockProject).mockResolvedValueOnce(mockMilestone);
       mockClient.findAll.mockResolvedValue([]); // No issues
       mockClient.removeDoc.mockResolvedValue(true);
 
@@ -408,9 +396,7 @@ describe('DeletionService', () => {
         milestone: mockMilestone._id,
       };
 
-      mockClient.findOne
-        .mockResolvedValueOnce(mockProject)
-        .mockResolvedValueOnce(mockMilestone);
+      mockClient.findOne.mockResolvedValueOnce(mockProject).mockResolvedValueOnce(mockMilestone);
       mockClient.findAll.mockResolvedValueOnce([mockIssue]);
       mockClient.update.mockResolvedValue(true);
       mockClient.removeDoc.mockResolvedValue(true);
@@ -423,10 +409,7 @@ describe('DeletionService', () => {
 
       expect(result.success).toBe(true);
       expect(result.affectedIssues).toBe(1);
-      expect(mockClient.update).toHaveBeenCalledWith(
-        mockIssue,
-        { milestone: null }
-      );
+      expect(mockClient.update).toHaveBeenCalledWith(mockIssue, { milestone: null });
     });
   });
 

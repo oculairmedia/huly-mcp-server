@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import { createMCPServer } from '../../src/server/createMCPServer.js';
 import { HulyClient } from '../../src/client/HulyClient.js';
 import { getConfigManager } from '../../src/config/index.js';
@@ -60,11 +59,59 @@ describe('MCP Server Integration Tests', () => {
 
       // Check for essential tools
       const toolNames = tools.tools.map((t) => t.name);
+
+      // Project tools
       expect(toolNames).toContain('huly_list_projects');
+      expect(toolNames).toContain('huly_create_project');
+      expect(toolNames).toContain('huly_delete_project');
+      expect(toolNames).toContain('huly_archive_project');
+
+      // Issue tools
       expect(toolNames).toContain('huly_create_issue');
-      expect(toolNames).toContain('huly_bulk_create_issues');
+      expect(toolNames).toContain('huly_create_subissue');
+      expect(toolNames).toContain('huly_update_issue');
       expect(toolNames).toContain('huly_delete_issue');
+      expect(toolNames).toContain('huly_get_issue_details');
+      expect(toolNames).toContain('huly_list_issues');
+      expect(toolNames).toContain('huly_search_issues');
+      expect(toolNames).toContain('huly_bulk_create_issues');
+      expect(toolNames).toContain('huly_bulk_delete_issues');
+      expect(toolNames).toContain('huly_bulk_update_issues');
+
+      // Component tools
+      expect(toolNames).toContain('huly_create_component');
+      expect(toolNames).toContain('huly_delete_component');
+      expect(toolNames).toContain('huly_list_components');
+
+      // Milestone tools
+      expect(toolNames).toContain('huly_create_milestone');
+      expect(toolNames).toContain('huly_delete_milestone');
+      expect(toolNames).toContain('huly_list_milestones');
+
+      // GitHub tools
+      expect(toolNames).toContain('huly_assign_repository_to_project');
+      expect(toolNames).toContain('huly_list_github_repositories');
+
+      // Comment tools
+      expect(toolNames).toContain('huly_create_comment');
+      expect(toolNames).toContain('huly_list_comments');
+
+      // Template tools
       expect(toolNames).toContain('huly_create_template');
+      expect(toolNames).toContain('huly_delete_template');
+      expect(toolNames).toContain('huly_update_template');
+      expect(toolNames).toContain('huly_get_template_details');
+      expect(toolNames).toContain('huly_list_templates');
+      expect(toolNames).toContain('huly_search_templates');
+      expect(toolNames).toContain('huly_add_child_template');
+      expect(toolNames).toContain('huly_remove_child_template');
+      expect(toolNames).toContain('huly_create_issue_from_template');
+
+      // Validation tools
+      expect(toolNames).toContain('huly_validate_deletion');
+
+      // Verify total count
+      expect(toolNames.length).toBe(35);
     });
 
     it('should provide proper tool schemas', async () => {
@@ -464,9 +511,7 @@ describe('MCP Server Integration Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle invalid tool names', async () => {
-      await expect(
-        server.callTool('huly_invalid_tool_name', {})
-      ).rejects.toThrow();
+      await expect(server.callTool('huly_invalid_tool_name', {})).rejects.toThrow();
     });
 
     it('should validate required parameters', async () => {
@@ -485,6 +530,238 @@ describe('MCP Server Integration Tests', () => {
           project_identifier: 'NONEXISTENT999',
         })
       ).rejects.toThrow();
+    });
+  });
+
+  describe('Component and Milestone Operations', () => {
+    let testProjectId;
+
+    beforeEach(async () => {
+      testProjectId = generateTestProjectIdentifier();
+      await server.callTool('huly_create_project', {
+        name: `Component Test Project ${testProjectId}`,
+        identifier: testProjectId,
+      });
+      trackResource('projects', testProjectId);
+    });
+
+    it('should manage components', async () => {
+      // Create component
+      const createResult = await server.callTool('huly_create_component', {
+        project_identifier: testProjectId,
+        label: 'Frontend',
+        description: 'Frontend components and UI',
+      });
+
+      expect(createResult.content[0].text).toContain('Created component "Frontend"');
+
+      // List components
+      const listResult = await server.callTool('huly_list_components', {
+        project_identifier: testProjectId,
+      });
+
+      expect(listResult.content[0].text).toContain('Frontend');
+      expect(listResult.content[0].text).toContain('Frontend components and UI');
+
+      // Delete component
+      const deleteResult = await server.callTool('huly_delete_component', {
+        project_identifier: testProjectId,
+        component_label: 'Frontend',
+        force: true,
+      });
+
+      expect(deleteResult.content[0].text).toContain('Deleted component "Frontend"');
+    });
+
+    it('should manage milestones', async () => {
+      // Create milestone
+      const createResult = await server.callTool('huly_create_milestone', {
+        project_identifier: testProjectId,
+        label: 'v1.0',
+        description: 'First release',
+        target_date: '2024-12-31',
+        status: 'planned',
+      });
+
+      expect(createResult.content[0].text).toContain('Created milestone "v1.0"');
+
+      // List milestones
+      const listResult = await server.callTool('huly_list_milestones', {
+        project_identifier: testProjectId,
+      });
+
+      expect(listResult.content[0].text).toContain('v1.0');
+      expect(listResult.content[0].text).toContain('First release');
+
+      // Delete milestone
+      const deleteResult = await server.callTool('huly_delete_milestone', {
+        project_identifier: testProjectId,
+        milestone_label: 'v1.0',
+        force: true,
+      });
+
+      expect(deleteResult.content[0].text).toContain('Deleted milestone "v1.0"');
+    });
+  });
+
+  describe('Comment Operations', () => {
+    let testProjectId;
+    let testIssueId;
+
+    beforeEach(async () => {
+      testProjectId = generateTestProjectIdentifier();
+      await server.callTool('huly_create_project', {
+        name: `Comment Test Project ${testProjectId}`,
+        identifier: testProjectId,
+      });
+      trackResource('projects', testProjectId);
+
+      // Create a test issue
+      const issueResult = await server.callTool('huly_create_issue', {
+        project_identifier: testProjectId,
+        title: 'Issue for comments',
+      });
+      testIssueId = issueResult.content[0].text.match(/\(([^)]+)\)/)[1];
+      trackResource('issues', testIssueId);
+    });
+
+    it('should create and list comments', async () => {
+      // Create comment
+      const createResult = await server.callTool('huly_create_comment', {
+        issue_identifier: testIssueId,
+        message: 'This is a test comment with **markdown** support',
+      });
+
+      expect(createResult.content[0].text).toContain('Comment added successfully');
+
+      // List comments
+      const listResult = await server.callTool('huly_list_comments', {
+        issue_identifier: testIssueId,
+        limit: 10,
+      });
+
+      expect(listResult.content[0].text).toContain('This is a test comment');
+      expect(listResult.content[0].text).toContain('markdown');
+    });
+  });
+
+  describe('Advanced Template Operations', () => {
+    let testProjectId;
+    let templateId;
+
+    beforeEach(async () => {
+      testProjectId = generateTestProjectIdentifier();
+      await server.callTool('huly_create_project', {
+        name: `Advanced Template Test ${testProjectId}`,
+        identifier: testProjectId,
+      });
+      trackResource('projects', testProjectId);
+
+      // Create a template
+      const templateResult = await server.callTool('huly_create_template', {
+        project_identifier: testProjectId,
+        title: 'Feature Template',
+        description: 'Template for new features',
+        priority: 'medium',
+      });
+      templateId = templateResult.content[0].text.match(/ID: ([^\s]+)/)[1];
+      trackResource('templates', templateId);
+    });
+
+    it('should manage template details and children', async () => {
+      // Get template details
+      const detailsResult = await server.callTool('huly_get_template_details', {
+        template_id: templateId,
+      });
+
+      expect(detailsResult.content[0].text).toContain('Feature Template');
+      expect(detailsResult.content[0].text).toContain('Template for new features');
+
+      // Add child template
+      const addChildResult = await server.callTool('huly_add_child_template', {
+        template_id: templateId,
+        title: 'Implementation Task',
+        description: 'Implement the feature',
+        estimation: 8,
+      });
+
+      expect(addChildResult.content[0].text).toContain('Added child template');
+
+      // Update template
+      const updateResult = await server.callTool('huly_update_template', {
+        template_id: templateId,
+        field: 'priority',
+        value: 'high',
+      });
+
+      expect(updateResult.content[0].text).toContain('Updated template');
+
+      // Search templates
+      const searchResult = await server.callTool('huly_search_templates', {
+        query: 'Feature',
+        project_identifier: testProjectId,
+      });
+
+      expect(searchResult.content[0].text).toContain('Feature Template');
+
+      // Remove child template
+      const removeChildResult = await server.callTool('huly_remove_child_template', {
+        template_id: templateId,
+        child_index: 0,
+      });
+
+      expect(removeChildResult.content[0].text).toContain('Removed child template');
+    });
+  });
+
+  describe('Project Archive Operations', () => {
+    it('should archive projects', async () => {
+      const archiveProjectId = generateTestProjectIdentifier();
+
+      // Create project
+      await server.callTool('huly_create_project', {
+        name: `Archive Test ${archiveProjectId}`,
+        identifier: archiveProjectId,
+      });
+      trackResource('projects', archiveProjectId);
+
+      // Archive project
+      const archiveResult = await server.callTool('huly_archive_project', {
+        project_identifier: archiveProjectId,
+      });
+
+      expect(archiveResult.content[0].text).toContain('archived successfully');
+      expect(archiveResult.content[0].text).toContain('hidden from active views');
+    });
+  });
+
+  describe('GitHub Integration', () => {
+    it('should list GitHub repositories', async () => {
+      const listResult = await server.callTool('huly_list_github_repositories', {});
+
+      // May return empty list if no GitHub integration is configured
+      expect(listResult.content[0].text).toBeDefined();
+    });
+
+    it('should handle repository assignment', async () => {
+      const testProjectId = generateTestProjectIdentifier();
+      await server.callTool('huly_create_project', {
+        name: `GitHub Test ${testProjectId}`,
+        identifier: testProjectId,
+      });
+      trackResource('projects', testProjectId);
+
+      // This might fail if no repositories are available
+      try {
+        const assignResult = await server.callTool('huly_assign_repository_to_project', {
+          project_identifier: testProjectId,
+          repository_name: 'test-org/test-repo',
+        });
+        expect(assignResult.content[0].text).toBeDefined();
+      } catch (error) {
+        // Expected if no GitHub integration is set up
+        expect(error.message).toBeDefined();
+      }
     });
   });
 

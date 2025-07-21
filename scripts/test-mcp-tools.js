@@ -37,33 +37,29 @@ const testResults = {
 
 // Helper function to make MCP requests
 async function callMCPTool(method, params = {}) {
-  try {
-    const response = await fetch(MCP_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+  const response = await fetch(MCP_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: `tools/call`,
+      params: {
+        name: method,
+        arguments: params,
       },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: `tools/call`,
-        params: {
-          name: method,
-          arguments: params,
-        },
-        id: Date.now(),
-      }),
-    });
+      id: Date.now(),
+    }),
+  });
 
-    const result = await response.json();
+  const result = await response.json();
 
-    if (result.error) {
-      throw new Error(result.error.message || JSON.stringify(result.error));
-    }
-
-    return result.result;
-  } catch (error) {
-    throw error;
+  if (result.error) {
+    throw new Error(result.error.message || JSON.stringify(result.error));
   }
+
+  return result.result;
 }
 
 // Test functions for each tool

@@ -15,25 +15,21 @@ async function callMCPTool(toolName, args) {
     id: Date.now(),
   };
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-    });
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
 
-    const result = await response.json();
+  const result = await response.json();
 
-    if (result.error) {
-      throw new Error(`MCP Error: ${result.error.message}`);
-    }
-
-    return result.result;
-  } catch (error) {
-    throw error;
+  if (result.error) {
+    throw new Error(`MCP Error: ${result.error.message}`);
   }
+
+  return result.result;
 }
 
 async function getIssueStatus(issueIdentifier) {

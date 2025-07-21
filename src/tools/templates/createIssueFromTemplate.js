@@ -11,7 +11,8 @@ import { createErrorResponse } from '../base/ToolInterface.js';
  */
 export const definition = {
   name: 'huly_create_issue_from_template',
-  description: 'Create issues from a template, including all child issues if the template has children',
+  description:
+    'Create issues from a template, including all child issues if the template has children',
   inputSchema: {
     type: 'object',
     properties: {
@@ -75,7 +76,7 @@ export async function handler(args, context) {
     logger.debug('Creating issue from template', args);
 
     const overrides = {};
-    
+
     // Add overrides if provided
     if (args.title !== undefined) overrides.title = args.title;
     if (args.priority !== undefined) overrides.priority = args.priority;
@@ -112,7 +113,10 @@ export function validate(args) {
   }
 
   // Validate estimation if provided
-  if (args.estimation !== undefined && (typeof args.estimation !== 'number' || args.estimation < 0)) {
+  if (
+    args.estimation !== undefined &&
+    (typeof args.estimation !== 'number' || args.estimation < 0)
+  ) {
     errors.estimation = 'Estimation must be a non-negative number';
   }
 

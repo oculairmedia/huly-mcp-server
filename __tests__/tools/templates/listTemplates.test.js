@@ -54,11 +54,7 @@ describe('listTemplates tool', () => {
 
     const result = await listTemplatesHandler(args, mockContext);
 
-    expect(mockTemplateService.listTemplates).toHaveBeenCalledWith(
-      mockContext.client,
-      'PROJ',
-      50
-    );
+    expect(mockTemplateService.listTemplates).toHaveBeenCalledWith(mockContext.client, 'PROJ', 50);
     expect(result).toContain('Found 2 templates');
     expect(result).toContain('Bug Report Template');
     expect(result).toContain('Feature Template');

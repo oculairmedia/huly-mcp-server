@@ -16,7 +16,7 @@ async function waitForServer(url, maxAttempts = 30) {
         console.log('✅ Server is ready!');
         return true;
       }
-    } catch (error) {
+    } catch {
       // Server not ready yet
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -37,25 +37,21 @@ async function callMCPTool(toolName, args) {
     id: Date.now(),
   };
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-    });
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
 
-    const result = await response.json();
+  const result = await response.json();
 
-    if (result.error) {
-      throw new Error(`MCP Error: ${result.error.message}`);
-    }
-
-    return result.result;
-  } catch (error) {
-    throw error;
+  if (result.error) {
+    throw new Error(`MCP Error: ${result.error.message}`);
   }
+
+  return result.result;
 }
 
 async function createTestProject() {
@@ -65,7 +61,7 @@ async function createTestProject() {
 
   console.log(`\nCreating test project: ${projectName} (${projectIdentifier})`);
 
-  const result = await callMCPTool('huly_create_project', {
+  await callMCPTool('huly_create_project', {
     name: projectName,
     description: 'Test project for status update verification',
     identifier: projectIdentifier,

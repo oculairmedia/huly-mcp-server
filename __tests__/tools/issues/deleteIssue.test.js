@@ -43,15 +43,11 @@ describe('deleteIssue tool', () => {
 
     const result = await deleteIssueHandler(args, mockContext);
 
-    expect(mockDeletionService.deleteIssue).toHaveBeenCalledWith(
-      mockContext.client,
-      'PROJ-123',
-      {
-        cascade: true,
-        force: false,
-        dryRun: false,
-      }
-    );
+    expect(mockDeletionService.deleteIssue).toHaveBeenCalledWith(mockContext.client, 'PROJ-123', {
+      cascade: true,
+      force: false,
+      dryRun: false,
+    });
     expect(result).toContain('✅ Successfully deleted 1 issue');
     expect(result).toContain('PROJ-123');
   });
@@ -95,15 +91,11 @@ describe('deleteIssue tool', () => {
 
     expect(result).toContain('🔍 Dry Run Results');
     expect(result).toContain('Would delete 2 issues');
-    expect(mockDeletionService.deleteIssue).toHaveBeenCalledWith(
-      mockContext.client,
-      'PROJ-123',
-      {
-        cascade: true,
-        force: false,
-        dryRun: true,
-      }
-    );
+    expect(mockDeletionService.deleteIssue).toHaveBeenCalledWith(mockContext.client, 'PROJ-123', {
+      cascade: true,
+      force: false,
+      dryRun: true,
+    });
   });
 
   it('should handle force deletion', async () => {

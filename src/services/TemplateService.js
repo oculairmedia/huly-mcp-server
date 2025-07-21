@@ -8,11 +8,7 @@
 import { HulyError } from '../core/HulyError.js';
 import { PRIORITY_MAP, DEFAULTS } from '../core/constants.js';
 import { extractTextFromMarkup } from '../utils/textExtractor.js';
-import {
-  validateEnum,
-  getValidPriorities,
-  normalizePriority,
-} from '../utils/validators.js';
+import { validateEnum, getValidPriorities, normalizePriority } from '../utils/validators.js';
 import trackerModule from '@hcengineering/tracker';
 import coreModule from '@hcengineering/core';
 
@@ -96,15 +92,15 @@ class TemplateService {
 
     // Handle children templates
     if (templateData.children && Array.isArray(templateData.children)) {
-      template.children = await this._prepareChildTemplates(client, project._id, templateData.children);
+      template.children = await this._prepareChildTemplates(
+        client,
+        project._id,
+        templateData.children
+      );
     }
 
     // Create the template
-    const templateId = await client.createDoc(
-      tracker.class.IssueTemplate,
-      project._id,
-      template
-    );
+    await client.createDoc(tracker.class.IssueTemplate, project._id, template);
 
     return {
       content: [
@@ -150,16 +146,16 @@ class TemplateService {
     for (const template of templates) {
       const priorityNames = ['NoPriority', 'Urgent', 'High', 'Medium', 'Low'];
       const priorityName = priorityNames[template.priority] || 'Not set';
-      
+
       result += `📄 **${template.title}**\n`;
       result += `   ID: ${template._id}\n`;
       result += `   Priority: ${priorityName}\n`;
       result += `   Estimation: ${template.estimation || 0} hours\n`;
-      
+
       if (template.children && template.children.length > 0) {
         result += `   Child templates: ${template.children.length}\n`;
       }
-      
+
       result += '\n';
     }
 
@@ -220,7 +216,7 @@ class TemplateService {
       try {
         const descText = await extractTextFromMarkup(template.description);
         result += descText || 'No description provided.';
-      } catch (error) {
+      } catch {
         result += 'Error loading description.';
       }
     } else {
@@ -233,26 +229,27 @@ class TemplateService {
       for (let i = 0; i < template.children.length; i++) {
         const child = template.children[i];
         const childPriorityName = priorityNames[child.priority] || 'Not set';
-        
+
         result += `${i + 1}. **${child.title}**\n`;
         result += `   Priority: ${childPriorityName}\n`;
         result += `   Estimation: ${child.estimation || 0} hours\n`;
-        
+
         if (child.assignee) {
           const childAssignee = await client.findOne(core.class.Account, { _id: child.assignee });
           result += `   Assignee: ${childAssignee?.email || 'Unknown'}\n`;
         }
-        
+
         if (child.description) {
           try {
             const childDescText = await extractTextFromMarkup(child.description);
-            const preview = childDescText?.substring(0, 100) + (childDescText?.length > 100 ? '...' : '');
+            const preview =
+              childDescText?.substring(0, 100) + (childDescText?.length > 100 ? '...' : '');
             result += `   Description: ${preview || 'No description'}\n`;
           } catch {
             result += `   Description: Error loading\n`;
           }
         }
-        
+
         result += '\n';
       }
     }
@@ -297,14 +294,18 @@ class TemplateService {
       case 'priority': {
         const normalizedPriority = normalizePriority(value);
         if (!normalizedPriority) {
-          throw HulyError.invalidValue('priority', value, 'low, medium, high, urgent, or nopriority');
+          throw HulyError.invalidValue(
+            'priority',
+            value,
+            'low, medium, high, urgent, or nopriority'
+          );
         }
         updateData.priority = PRIORITY_MAP[normalizedPriority];
         displayValue = normalizedPriority === 'none' ? 'No Priority' : normalizedPriority;
         break;
       }
 
-      case 'estimation':
+      case 'estimation': {
         const estimation = parseFloat(value);
         if (isNaN(estimation) || estimation < 0) {
           throw HulyError.invalidValue('estimation', value, 'a non-negative number');
@@ -312,6 +313,7 @@ class TemplateService {
         updateData.estimation = estimation;
         displayValue = `${estimation} hours`;
         break;
+      }
 
       case 'assignee': {
         if (!value) {
@@ -417,19 +419,34 @@ class TemplateService {
     }
 
     // Get default status for the project
-    const defaultStatus = project.defaultIssueStatus || (await this._getDefaultStatus(client, project._id));
+    const defaultStatus =
+      project.defaultIssueStatus || (await this._getDefaultStatus(client, project._id));
 
     // Create main issue from template
     const issueData = {
       title: overrides.title || template.title,
       description: template.description,
       status: defaultStatus,
-      priority: overrides.priority !== undefined ? PRIORITY_MAP[normalizePriority(overrides.priority)] : template.priority,
-      assignee: overrides.assignee !== undefined ? await this._resolveAssignee(client, overrides.assignee) : template.assignee,
-      component: overrides.component !== undefined ? await this._resolveComponent(client, template.space, overrides.component) : template.component,
-      milestone: overrides.milestone !== undefined ? await this._resolveMilestone(client, template.space, overrides.milestone) : template.milestone,
-      estimation: overrides.estimation !== undefined ? parseFloat(overrides.estimation) : template.estimation,
-      remainingTime: overrides.estimation !== undefined ? parseFloat(overrides.estimation) : template.estimation,
+      priority:
+        overrides.priority !== undefined
+          ? PRIORITY_MAP[normalizePriority(overrides.priority)]
+          : template.priority,
+      assignee:
+        overrides.assignee !== undefined
+          ? await this._resolveAssignee(client, overrides.assignee)
+          : template.assignee,
+      component:
+        overrides.component !== undefined
+          ? await this._resolveComponent(client, template.space, overrides.component)
+          : template.component,
+      milestone:
+        overrides.milestone !== undefined
+          ? await this._resolveMilestone(client, template.space, overrides.milestone)
+          : template.milestone,
+      estimation:
+        overrides.estimation !== undefined ? parseFloat(overrides.estimation) : template.estimation,
+      remainingTime:
+        overrides.estimation !== undefined ? parseFloat(overrides.estimation) : template.estimation,
       dueDate: template.dueDate,
       number: await this._getNextIssueNumber(client, project._id),
       rank: '',
@@ -453,19 +470,21 @@ class TemplateService {
       issueData
     );
 
-    let createdIssues = [{
-      id: issueId,
-      identifier: issueData.identifier,
-      title: issueData.title,
-      parent: null,
-    }];
+    const createdIssues = [
+      {
+        id: issueId,
+        identifier: issueData.identifier,
+        title: issueData.title,
+        parent: null,
+      },
+    ];
 
     // Create child issues from template children
     if (template.children && template.children.length > 0 && overrides.includeChildren !== false) {
       for (const childTemplate of template.children) {
         const childNumber = await this._getNextIssueNumber(client, project._id);
         const childIdentifier = `${project.identifier}-${childNumber}`;
-        
+
         const childIssueData = {
           title: childTemplate.title,
           description: childTemplate.description,
@@ -504,18 +523,15 @@ class TemplateService {
         });
 
         // Update parent's subIssues count
-        await client.updateDoc(
-          tracker.class.Issue,
-          template.space,
-          issueId,
-          { $inc: { subIssues: 1 } }
-        );
+        await client.updateDoc(tracker.class.Issue, template.space, issueId, {
+          $inc: { subIssues: 1 },
+        });
       }
     }
 
     // Format result
     let result = `✅ Created ${createdIssues.length} issue(s) from template "${template.title}"\n\n`;
-    
+
     for (const issue of createdIssues) {
       result += `📋 **${issue.identifier}**: ${issue.title}\n`;
       if (issue.parent) {
@@ -544,12 +560,9 @@ class TemplateService {
 
     const childTemplate = await this._prepareChildTemplate(client, template.space, childData);
 
-    await client.updateDoc(
-      tracker.class.IssueTemplate,
-      template.space,
-      template._id,
-      { $push: { children: childTemplate } }
-    );
+    await client.updateDoc(tracker.class.IssueTemplate, template.space, template._id, {
+      $push: { children: childTemplate },
+    });
 
     return {
       content: [
@@ -572,18 +585,19 @@ class TemplateService {
 
     const index = parseInt(childIndex);
     if (isNaN(index) || index < 0 || index >= template.children.length) {
-      throw HulyError.invalidValue('childIndex', childIndex, `a number between 0 and ${template.children.length - 1}`);
+      throw HulyError.invalidValue(
+        'childIndex',
+        childIndex,
+        `a number between 0 and ${template.children.length - 1}`
+      );
     }
 
     const removedChild = template.children[index];
     const newChildren = template.children.filter((_, i) => i !== index);
 
-    await client.updateDoc(
-      tracker.class.IssueTemplate,
-      template.space,
-      template._id,
-      { children: newChildren }
-    );
+    await client.updateDoc(tracker.class.IssueTemplate, template.space, template._id, {
+      children: newChildren,
+    });
 
     return {
       content: [
@@ -602,7 +616,9 @@ class TemplateService {
     const searchCriteria = {};
 
     if (projectIdentifier) {
-      const project = await client.findOne(tracker.class.Project, { identifier: projectIdentifier });
+      const project = await client.findOne(tracker.class.Project, {
+        identifier: projectIdentifier,
+      });
       if (!project) {
         throw HulyError.notFound('project', projectIdentifier);
       }
@@ -614,14 +630,10 @@ class TemplateService {
       searchCriteria.$search = query;
     }
 
-    const templates = await client.findAll(
-      tracker.class.IssueTemplate,
-      searchCriteria,
-      {
-        sort: { modifiedOn: -1 },
-        limit: limit,
-      }
-    );
+    const templates = await client.findAll(tracker.class.IssueTemplate, searchCriteria, {
+      sort: { modifiedOn: -1 },
+      limit: limit,
+    });
 
     if (templates.length === 0) {
       return {
@@ -652,11 +664,11 @@ class TemplateService {
       result += `   Project: ${project?.name || 'Unknown'}\n`;
       result += `   Priority: ${priorityName}\n`;
       result += `   Estimation: ${template.estimation || 0} hours\n`;
-      
+
       if (template.children && template.children.length > 0) {
         result += `   Child templates: ${template.children.length}\n`;
       }
-      
+
       result += `   ID: ${template._id}\n`;
       result += '\n';
     }
@@ -674,12 +686,12 @@ class TemplateService {
   // Helper methods
   async _prepareChildTemplates(client, projectSpace, children) {
     const preparedChildren = [];
-    
+
     for (const child of children) {
       const preparedChild = await this._prepareChildTemplate(client, projectSpace, child);
       preparedChildren.push(preparedChild);
     }
-    
+
     return preparedChildren;
   }
 
@@ -741,20 +753,20 @@ class TemplateService {
       space: projectSpace,
       category: 'backlog',
     });
-    
+
     if (statuses.length > 0) {
       return statuses[0]._id;
     }
-    
+
     // Fallback to any status
     const anyStatus = await client.findOne(tracker.class.IssueStatus, {
       space: projectSpace,
     });
-    
+
     if (anyStatus) {
       return anyStatus._id;
     }
-    
+
     throw new HulyError('OPERATION_FAILED', 'No issue statuses found in project');
   }
 
@@ -764,7 +776,7 @@ class TemplateService {
       { space: projectSpace },
       { sort: { number: -1 } }
     );
-    
+
     return (lastIssue?.number || 0) + 1;
   }
 

@@ -5,10 +5,8 @@ import { createServices } from '../../src/services/index.js';
 import {
   setupTestEnvironment,
   generateTestProjectIdentifier,
-  generateTestIssueData,
   cleanupTestResources,
   trackResource,
-  waitForCondition,
   expectToBeIssue,
 } from './setup.js';
 
@@ -72,22 +70,18 @@ describe('Bulk Operations Integration Tests', () => {
         targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       });
 
-      const result = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          defaults: {
-            component: 'Backend',
-            milestone: 'v1.0',
-            priority: 'medium',
-          },
-          issues: [
-            { title: 'API endpoint /users' },
-            { title: 'API endpoint /products' },
-            { title: 'API endpoint /orders', priority: 'high' }, // Override default
-          ],
-        }
-      );
+      const result = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        defaults: {
+          component: 'Backend',
+          milestone: 'v1.0',
+          priority: 'medium',
+        },
+        issues: [
+          { title: 'API endpoint /users' },
+          { title: 'API endpoint /products' },
+          { title: 'API endpoint /orders', priority: 'high' }, // Override default
+        ],
+      });
 
       expect(result.success).toBe(true);
       expect(result.created).toBe(3);
@@ -95,9 +89,7 @@ describe('Bulk Operations Integration Tests', () => {
 
       // Verify issues were created with defaults
       const issues = await services.issueService.listIssues(client, testProjectId);
-      const createdIssues = issues.filter((issue) =>
-        issue.title.startsWith('API endpoint')
-      );
+      const createdIssues = issues.filter((issue) => issue.title.startsWith('API endpoint'));
 
       expect(createdIssues).toHaveLength(3);
       createdIssues.forEach((issue) => {
@@ -121,30 +113,26 @@ describe('Bulk Operations Integration Tests', () => {
       trackResource('issues', parentResult.identifier);
 
       // Bulk create sub-issues
-      const result = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          issues: [
-            {
-              title: 'Design authentication flow',
-              parent_issue: parentResult.identifier,
-            },
-            {
-              title: 'Implement login endpoint',
-              parent_issue: parentResult.identifier,
-            },
-            {
-              title: 'Implement logout endpoint',
-              parent_issue: parentResult.identifier,
-            },
-            {
-              title: 'Add session management',
-              parent_issue: parentResult.identifier,
-            },
-          ],
-        }
-      );
+      const result = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        issues: [
+          {
+            title: 'Design authentication flow',
+            parent_issue: parentResult.identifier,
+          },
+          {
+            title: 'Implement login endpoint',
+            parent_issue: parentResult.identifier,
+          },
+          {
+            title: 'Implement logout endpoint',
+            parent_issue: parentResult.identifier,
+          },
+          {
+            title: 'Add session management',
+            parent_issue: parentResult.identifier,
+          },
+        ],
+      });
 
       expect(result.success).toBe(true);
       expect(result.created).toBe(4);
@@ -165,22 +153,18 @@ describe('Bulk Operations Integration Tests', () => {
     });
 
     it('should handle partial failures with continue_on_error', async () => {
-      const result = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          issues: [
-            { title: 'Valid issue 1' },
-            { title: '' }, // Invalid - empty title
-            { title: 'Valid issue 2' },
-            { parent_issue: 'INVALID-999' }, // Invalid - missing title
-            { title: 'Valid issue 3' },
-          ],
-          options: {
-            continue_on_error: true,
-          },
-        }
-      );
+      const result = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        issues: [
+          { title: 'Valid issue 1' },
+          { title: '' }, // Invalid - empty title
+          { title: 'Valid issue 2' },
+          { parent_issue: 'INVALID-999' }, // Invalid - missing title
+          { title: 'Valid issue 3' },
+        ],
+        options: {
+          continue_on_error: true,
+        },
+      });
 
       expect(result.success).toBe(true);
       expect(result.created).toBe(3);
@@ -197,21 +181,17 @@ describe('Bulk Operations Integration Tests', () => {
     });
 
     it('should validate data in dry run mode', async () => {
-      const result = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          issues: [
-            { title: 'Test issue 1' },
-            { title: 'Test issue 2' },
-            { title: '' }, // Invalid
-          ],
-          options: {
-            dry_run: true,
-            continue_on_error: true,
-          },
-        }
-      );
+      const result = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        issues: [
+          { title: 'Test issue 1' },
+          { title: 'Test issue 2' },
+          { title: '' }, // Invalid
+        ],
+        options: {
+          dry_run: true,
+          continue_on_error: true,
+        },
+      });
 
       expect(result.success).toBe(true);
       expect(result.dryRun).toBe(true);
@@ -231,16 +211,12 @@ describe('Bulk Operations Integration Tests', () => {
       }));
 
       const startTime = Date.now();
-      const result = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          issues,
-          options: {
-            batch_size: 5, // Process 5 at a time
-          },
-        }
-      );
+      const result = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        issues,
+        options: {
+          batch_size: 5, // Process 5 at a time
+        },
+      });
 
       const duration = Date.now() - startTime;
 
@@ -264,19 +240,15 @@ describe('Bulk Operations Integration Tests', () => {
 
     beforeEach(async () => {
       // Create test issues
-      const createResult = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          issues: [
-            { title: 'Update test 1', priority: 'low' },
-            { title: 'Update test 2', priority: 'medium' },
-            { title: 'Update test 3', priority: 'high' },
-            { title: 'Update test 4', priority: 'low' },
-            { title: 'Update test 5', priority: 'medium' },
-          ],
-        }
-      );
+      const createResult = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        issues: [
+          { title: 'Update test 1', priority: 'low' },
+          { title: 'Update test 2', priority: 'medium' },
+          { title: 'Update test 3', priority: 'high' },
+          { title: 'Update test 4', priority: 'low' },
+          { title: 'Update test 5', priority: 'medium' },
+        ],
+      });
 
       issueIds = createResult.results.map((r) => r.identifier);
       issueIds.forEach((id) => trackResource('issues', id));
@@ -415,27 +387,19 @@ describe('Bulk Operations Integration Tests', () => {
       trackResource('issues', parentId);
 
       // Create sub-issues
-      const subResults = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          issues: [
-            { title: 'Sub-issue 1', parent_issue: parentId },
-            { title: 'Sub-issue 2', parent_issue: parentId },
-          ],
-        }
-      );
+      const subResults = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        issues: [
+          { title: 'Sub-issue 1', parent_issue: parentId },
+          { title: 'Sub-issue 2', parent_issue: parentId },
+        ],
+      });
 
       // Create standalone issues
       const standaloneResults = await services.issueService.bulkCreateIssues(
         client,
         testProjectId,
         {
-          issues: [
-            { title: 'Standalone 1' },
-            { title: 'Standalone 2' },
-            { title: 'Standalone 3' },
-          ],
+          issues: [{ title: 'Standalone 1' }, { title: 'Standalone 2' }, { title: 'Standalone 3' }],
         }
       );
 
@@ -465,25 +429,17 @@ describe('Bulk Operations Integration Tests', () => {
       expect(result.deletedCount).toBe(4); // Parent + 2 sub-issues + 1 standalone
 
       // Verify deletion
-      await expect(
-        services.issueService.getIssueDetails(client, parentId)
-      ).rejects.toThrow();
+      await expect(services.issueService.getIssueDetails(client, parentId)).rejects.toThrow();
 
       // Verify sub-issues were deleted
-      await expect(
-        services.issueService.getIssueDetails(client, issueIds[1])
-      ).rejects.toThrow();
+      await expect(services.issueService.getIssueDetails(client, issueIds[1])).rejects.toThrow();
     });
 
     it('should preview deletion in dry run mode', async () => {
-      const result = await services.deletionService.bulkDeleteIssues(
-        client,
-        [parentId],
-        {
-          cascade: true,
-          dryRun: true,
-        }
-      );
+      const result = await services.deletionService.bulkDeleteIssues(client, [parentId], {
+        cascade: true,
+        dryRun: true,
+      });
 
       expect(result.success).toBe(true);
       expect(result.dryRun).toBe(true);
@@ -521,32 +477,21 @@ describe('Bulk Operations Integration Tests', () => {
 
     it('should respect batch size for large deletions', async () => {
       // Create more issues
-      const moreIssues = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          issues: Array.from({ length: 20 }, (_, i) => ({
-            title: `Bulk delete test ${i}`,
-          })),
-        }
-      );
+      const moreIssues = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        issues: Array.from({ length: 20 }, (_, i) => ({
+          title: `Bulk delete test ${i}`,
+        })),
+      });
 
-      const allIds = [
-        ...issueIds,
-        ...moreIssues.results.map((r) => r.identifier),
-      ];
+      const allIds = [...issueIds, ...moreIssues.results.map((r) => r.identifier)];
 
       // Track new issues
       moreIssues.results.forEach((r) => trackResource('issues', r.identifier));
 
-      const result = await services.deletionService.bulkDeleteIssues(
-        client,
-        allIds,
-        {
-          batchSize: 5,
-          cascade: true,
-        }
-      );
+      const result = await services.deletionService.bulkDeleteIssues(client, allIds, {
+        batchSize: 5,
+        cascade: true,
+      });
 
       expect(result.success).toBe(true);
       expect(result.batches).toBeGreaterThan(1);
@@ -557,19 +502,15 @@ describe('Bulk Operations Integration Tests', () => {
   describe('Complex Bulk Scenarios', () => {
     it('should handle bulk operations on large datasets', async () => {
       // Create 100 issues
-      const createResult = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          issues: Array.from({ length: 100 }, (_, i) => ({
-            title: `Large dataset issue ${i + 1}`,
-            priority: ['low', 'medium', 'high', 'urgent'][i % 4],
-          })),
-          options: {
-            batch_size: 20,
-          },
-        }
-      );
+      const createResult = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        issues: Array.from({ length: 100 }, (_, i) => ({
+          title: `Large dataset issue ${i + 1}`,
+          priority: ['low', 'medium', 'high', 'urgent'][i % 4],
+        })),
+        options: {
+          batch_size: 20,
+        },
+      });
 
       expect(createResult.success).toBe(true);
       expect(createResult.created).toBe(100);
@@ -604,16 +545,12 @@ describe('Bulk Operations Integration Tests', () => {
 
     it('should maintain data integrity during concurrent bulk operations', async () => {
       // Create initial issues
-      const createResult = await services.issueService.bulkCreateIssues(
-        client,
-        testProjectId,
-        {
-          issues: Array.from({ length: 10 }, (_, i) => ({
-            title: `Concurrent test ${i}`,
-            priority: 'medium',
-          })),
-        }
-      );
+      const createResult = await services.issueService.bulkCreateIssues(client, testProjectId, {
+        issues: Array.from({ length: 10 }, (_, i) => ({
+          title: `Concurrent test ${i}`,
+          priority: 'medium',
+        })),
+      });
 
       const issueIds = createResult.results.map((r) => r.identifier);
       issueIds.forEach((id) => trackResource('issues', id));

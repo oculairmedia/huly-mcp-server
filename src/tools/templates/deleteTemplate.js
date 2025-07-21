@@ -44,10 +44,7 @@ export async function handler(args, context) {
   try {
     logger.debug('Deleting template', args);
 
-    const result = await templateService.deleteTemplate(
-      client,
-      args.template_id
-    );
+    const result = await templateService.deleteTemplate(client, args.template_id);
 
     return result;
   } catch (error) {

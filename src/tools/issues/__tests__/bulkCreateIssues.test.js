@@ -11,7 +11,7 @@ describe('bulkCreateIssues', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockIssueService = {
       createIssue: jest.fn(),
       createSubissue: jest.fn(),
@@ -328,7 +328,7 @@ describe('bulkCreateIssues', () => {
       expect(data.dry_run).toBe(true);
       expect(data.valid_count).toBe(2);
       expect(data.invalid_count).toBe(0);
-      
+
       // Verify no issues were created
       expect(mockIssueService.createIssue).not.toHaveBeenCalled();
     });
@@ -424,10 +424,12 @@ describe('bulkCreateIssues', () => {
     it('should respect batch size', async () => {
       const largeBatch = {
         project_identifier: 'PROJ',
-        issues: Array(25).fill(null).map((_, i) => ({
-          title: `Issue ${i + 1}`,
-          priority: 'medium',
-        })),
+        issues: Array(25)
+          .fill(null)
+          .map((_, i) => ({
+            title: `Issue ${i + 1}`,
+            priority: 'medium',
+          })),
         options: {
           batch_size: 5,
         },
@@ -453,10 +455,10 @@ describe('bulkCreateIssues', () => {
       expect(data.success).toBe(true);
       expect(data.summary.total).toBe(25);
       expect(data.summary.succeeded).toBe(25);
-      
+
       // Check that progress was logged multiple times
-      const progressLogs = mockContext.logger.info.mock.calls.filter(
-        call => call[0].includes('Bulk create progress')
+      const progressLogs = mockContext.logger.info.mock.calls.filter((call) =>
+        call[0].includes('Bulk create progress')
       );
       expect(progressLogs.length).toBeGreaterThan(1);
     });
@@ -486,7 +488,7 @@ describe('bulkCreateIssues', () => {
 
       expect(result.content[0].type).toBe('text');
       expect(result.content[0].text).toContain('Creation failed');
-      
+
       // Should have only tried 2 creations (stopped after failure)
       expect(mockIssueService.createIssue).toHaveBeenCalledTimes(2);
     });

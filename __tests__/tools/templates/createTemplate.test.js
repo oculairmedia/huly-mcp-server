@@ -47,20 +47,16 @@ describe('createTemplate tool', () => {
 
     const result = await createTemplateHandler(args, mockContext);
 
-    expect(mockTemplateService.createTemplate).toHaveBeenCalledWith(
-      mockContext.client,
-      'PROJ',
-      {
-        title: 'Bug Report Template',
-        description: 'Standard bug report template',
-        priority: 'high',
-        estimation: 0,
-        assignee: undefined,
-        component: undefined,
-        milestone: undefined,
-        children: undefined,
-      }
-    );
+    expect(mockTemplateService.createTemplate).toHaveBeenCalledWith(mockContext.client, 'PROJ', {
+      title: 'Bug Report Template',
+      description: 'Standard bug report template',
+      priority: 'high',
+      estimation: 0,
+      assignee: undefined,
+      component: undefined,
+      milestone: undefined,
+      children: undefined,
+    });
     expect(result).toContain('✅ Template created successfully');
     expect(result).toContain('Bug Report Template');
   });
@@ -155,20 +151,16 @@ describe('createTemplate tool', () => {
 
     const result = await createTemplateHandler(args, mockContext);
 
-    expect(mockTemplateService.createTemplate).toHaveBeenCalledWith(
-      mockContext.client,
-      'PROJ',
-      {
-        title: 'Complete Template',
-        description: 'A complete template',
-        priority: 'urgent',
-        estimation: 8,
-        assignee: 'user@example.com',
-        component: 'Backend',
-        milestone: 'v1.0',
-        children: undefined,
-      }
-    );
+    expect(mockTemplateService.createTemplate).toHaveBeenCalledWith(mockContext.client, 'PROJ', {
+      title: 'Complete Template',
+      description: 'A complete template',
+      priority: 'urgent',
+      estimation: 8,
+      assignee: 'user@example.com',
+      component: 'Backend',
+      milestone: 'v1.0',
+      children: undefined,
+    });
     expect(result).toContain('✅ Template created successfully');
   });
 });

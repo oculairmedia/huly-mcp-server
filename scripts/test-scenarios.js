@@ -11,7 +11,7 @@ export const testScenarios = {
       name: 'Maximum title length',
       test: async (callTool) => {
         const longTitle = 'A'.repeat(255);
-        return await callTool('huly_create_issue', {
+        return callTool('huly_create_issue', {
           project_identifier: 'HULLY',
           title: longTitle,
           priority: 'low',
@@ -23,7 +23,7 @@ export const testScenarios = {
     emptyDescription: {
       name: 'Empty description handling',
       test: async (callTool) => {
-        return await callTool('huly_create_issue', {
+        return callTool('huly_create_issue', {
           project_identifier: 'HULLY',
           title: 'Issue with empty description',
           description: '',
@@ -36,7 +36,7 @@ export const testScenarios = {
     specialCharacters: {
       name: 'Special characters in title',
       test: async (callTool) => {
-        return await callTool('huly_create_issue', {
+        return callTool('huly_create_issue', {
           project_identifier: 'HULLY',
           title: 'Test: Issue with "special" <characters> & symbols!',
           description: 'Testing & < > " \' characters',
@@ -53,7 +53,7 @@ export const testScenarios = {
       name: 'Non-existent project',
       expectError: true,
       test: async (callTool) => {
-        return await callTool('huly_create_issue', {
+        return callTool('huly_create_issue', {
           project_identifier: 'NONEXISTENT',
           title: 'This should fail',
           priority: 'high',
@@ -66,7 +66,7 @@ export const testScenarios = {
       name: 'Invalid priority value',
       expectError: true,
       test: async (callTool) => {
-        return await callTool('huly_create_issue', {
+        return callTool('huly_create_issue', {
           project_identifier: 'HULLY',
           title: 'Invalid priority test',
           priority: 'super-urgent',
@@ -79,7 +79,7 @@ export const testScenarios = {
       name: 'Invalid milestone date format',
       expectError: true,
       test: async (callTool) => {
-        return await callTool('huly_create_milestone', {
+        return callTool('huly_create_milestone', {
           project_identifier: 'HULLY',
           label: 'Bad Date Milestone',
           target_date: '31/12/2025',
@@ -166,7 +166,7 @@ export const testScenarios = {
             })
           );
         }
-        return await Promise.all(promises);
+        return Promise.all(promises);
       },
     },
   },

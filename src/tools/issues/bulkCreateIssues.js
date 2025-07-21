@@ -137,23 +137,23 @@ export async function handler(args, context) {
     // If dry run, just validate
     if (args.options?.dry_run) {
       logger.info('Performing dry run validation');
-      
+
       // Validate each issue
       const validItems = [];
       const invalidItems = [];
-      
+
       for (const issue of issuesToCreate) {
         const validationErrors = [];
-        
+
         // Basic validation
         if (!issue.title || issue.title.trim().length === 0) {
           validationErrors.push('Title is required');
         }
-        
+
         if (issue.priority && !['low', 'medium', 'high', 'urgent'].includes(issue.priority)) {
           validationErrors.push('Invalid priority value');
         }
-        
+
         if (validationErrors.length > 0) {
           invalidItems.push({
             item: issue,
@@ -164,13 +164,19 @@ export async function handler(args, context) {
         }
       }
 
-      return createToolResponse(JSON.stringify({
-        success: true,
-        dry_run: true,
-        valid_count: validItems.length,
-        invalid_count: invalidItems.length,
-        validation_errors: invalidItems,
-      }, null, 2));
+      return createToolResponse(
+        JSON.stringify(
+          {
+            success: true,
+            dry_run: true,
+            valid_count: validItems.length,
+            invalid_count: invalidItems.length,
+            validation_errors: invalidItems,
+          },
+          null,
+          2
+        )
+      );
     }
 
     // Execute bulk creation
@@ -178,10 +184,10 @@ export async function handler(args, context) {
       items: issuesToCreate,
       operation: async (issue) => {
         logger.debug(`Creating issue: ${issue.title}`);
-        
+
         // Handle sub-issue creation differently
         if (issue.parent_issue) {
-          return await issueService.createSubissue(
+          return issueService.createSubissue(
             client,
             issue.parent_issue,
             issue.title,
@@ -189,7 +195,7 @@ export async function handler(args, context) {
             issue.priority || 'medium'
           );
         } else {
-          return await issueService.createIssue(
+          return issueService.createIssue(
             client,
             issue.project_identifier,
             issue.title,
@@ -241,12 +247,18 @@ export async function handler(args, context) {
       `Bulk create completed: ${summary.succeeded} succeeded, ${summary.failed} failed in ${summary.elapsed_ms}ms`
     );
 
-    return createToolResponse(JSON.stringify({
-      success: true,
-      summary,
-      created_issues: created_issues.length > 0 ? created_issues : undefined,
-      failed_issues: failed_issues.length > 0 ? failed_issues : undefined,
-    }, null, 2));
+    return createToolResponse(
+      JSON.stringify(
+        {
+          success: true,
+          summary,
+          created_issues: created_issues.length > 0 ? created_issues : undefined,
+          failed_issues: failed_issues.length > 0 ? failed_issues : undefined,
+        },
+        null,
+        2
+      )
+    );
   } catch (error) {
     logger.error('Failed to execute bulk create:', error);
     return createErrorResponse(error);

@@ -34,7 +34,7 @@ async function test() {
         try {
           const parsed = JSON.parse(issue.description);
           console.log('Parsed as JSON:', `${JSON.stringify(parsed, null, 2).substring(0, 200)}...`);
-        } catch (e) {
+        } catch {
           console.log('Not valid JSON');
         }
       }

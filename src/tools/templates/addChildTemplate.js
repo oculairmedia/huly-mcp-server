@@ -85,11 +85,7 @@ export async function handler(args, context) {
       milestone: args.milestone,
     };
 
-    const result = await templateService.addChildTemplate(
-      client,
-      args.template_id,
-      childData
-    );
+    const result = await templateService.addChildTemplate(client, args.template_id, childData);
 
     return result;
   } catch (error) {
@@ -117,7 +113,10 @@ export function validate(args) {
   }
 
   // Validate estimation
-  if (args.estimation !== undefined && (typeof args.estimation !== 'number' || args.estimation < 0)) {
+  if (
+    args.estimation !== undefined &&
+    (typeof args.estimation !== 'number' || args.estimation < 0)
+  ) {
     errors.estimation = 'Estimation must be a non-negative number';
   }
 

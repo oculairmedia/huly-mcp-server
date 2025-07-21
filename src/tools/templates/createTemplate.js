@@ -154,7 +154,10 @@ export function validate(args) {
   }
 
   // Validate estimation
-  if (args.estimation !== undefined && (typeof args.estimation !== 'number' || args.estimation < 0)) {
+  if (
+    args.estimation !== undefined &&
+    (typeof args.estimation !== 'number' || args.estimation < 0)
+  ) {
     errors.estimation = 'Estimation must be a non-negative number';
   }
 
@@ -163,20 +166,23 @@ export function validate(args) {
     const childErrors = [];
     args.children.forEach((child, index) => {
       const childError = {};
-      
+
       if (!child.title || child.title.trim().length === 0) {
         childError.title = 'Child template title is required';
       }
-      
-      if (child.estimation !== undefined && (typeof child.estimation !== 'number' || child.estimation < 0)) {
+
+      if (
+        child.estimation !== undefined &&
+        (typeof child.estimation !== 'number' || child.estimation < 0)
+      ) {
         childError.estimation = 'Child estimation must be a non-negative number';
       }
-      
+
       if (Object.keys(childError).length > 0) {
         childErrors[index] = childError;
       }
     });
-    
+
     if (childErrors.length > 0) {
       errors.children = childErrors;
     }

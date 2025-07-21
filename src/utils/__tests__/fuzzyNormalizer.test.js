@@ -21,26 +21,26 @@ describe('fuzzyNormalizer', () => {
       expect(normalizeStatus('back log')).toBe('Backlog');
       expect(normalizeStatus('new')).toBe('Backlog');
       expect(normalizeStatus('open')).toBe('Backlog');
-      
+
       // Todo variations
       expect(normalizeStatus('todo')).toBe('Todo');
       expect(normalizeStatus('to do')).toBe('Todo');
       expect(normalizeStatus('to-do')).toBe('Todo');
       expect(normalizeStatus('planned')).toBe('Todo');
-      
+
       // In Progress variations
       expect(normalizeStatus('in progress')).toBe('In Progress');
       expect(normalizeStatus('inprogress')).toBe('In Progress');
       expect(normalizeStatus('in-progress')).toBe('In Progress');
       expect(normalizeStatus('wip')).toBe('In Progress');
       expect(normalizeStatus('working')).toBe('In Progress');
-      
+
       // Done variations
       expect(normalizeStatus('done')).toBe('Done');
       expect(normalizeStatus('completed')).toBe('Done');
       expect(normalizeStatus('finished')).toBe('Done');
       expect(normalizeStatus('closed')).toBe('Done');
-      
+
       // Canceled variations
       expect(normalizeStatus('canceled')).toBe('Canceled');
       expect(normalizeStatus('cancelled')).toBe('Canceled');
@@ -73,25 +73,25 @@ describe('fuzzyNormalizer', () => {
       expect(normalizePriority('no priority')).toBe('NoPriority');
       expect(normalizePriority('none')).toBe('NoPriority');
       expect(normalizePriority('null')).toBe('NoPriority');
-      
+
       // Low variations
       expect(normalizePriority('low')).toBe('low');
       expect(normalizePriority('l')).toBe('low');
       expect(normalizePriority('minor')).toBe('low');
       expect(normalizePriority('1')).toBe('low');
-      
+
       // Medium variations
       expect(normalizePriority('medium')).toBe('medium');
       expect(normalizePriority('med')).toBe('medium');
       expect(normalizePriority('normal')).toBe('medium');
       expect(normalizePriority('2')).toBe('medium');
-      
+
       // High variations
       expect(normalizePriority('high')).toBe('high');
       expect(normalizePriority('h')).toBe('high');
       expect(normalizePriority('important')).toBe('high');
       expect(normalizePriority('3')).toBe('high');
-      
+
       // Urgent variations
       expect(normalizePriority('urgent')).toBe('urgent');
       expect(normalizePriority('critical')).toBe('urgent');
@@ -124,8 +124,8 @@ describe('fuzzyNormalizer', () => {
     it('should find fuzzy matches with typos', () => {
       // These have small typos and should match with reasonable threshold
       expect(fuzzyMatch('Doe', testValues, 0.5)).toBe('Done');
-      expect(fuzzyMatch('Backlog', testValues, 0.5)).toBe('Backlog');  // exact match
-      expect(fuzzyMatch('Progress', testValues, 0.5)).toBe('In Progress');  // contains match
+      expect(fuzzyMatch('Backlog', testValues, 0.5)).toBe('Backlog'); // exact match
+      expect(fuzzyMatch('Progress', testValues, 0.5)).toBe('In Progress'); // contains match
     });
 
     it('should respect threshold', () => {
@@ -142,11 +142,7 @@ describe('fuzzyNormalizer', () => {
   });
 
   describe('normalizeProjectIdentifier', () => {
-    const projects = [
-      { identifier: 'HULLY' },
-      { identifier: 'LMP' },
-      { identifier: 'TEST-123' },
-    ];
+    const projects = [{ identifier: 'HULLY' }, { identifier: 'LMP' }, { identifier: 'TEST-123' }];
 
     it('should match case-insensitive', () => {
       expect(normalizeProjectIdentifier('hully', projects)).toBe('HULLY');
@@ -194,7 +190,7 @@ describe('fuzzyNormalizer', () => {
     // Mock current date for consistent testing
     const mockDate = new Date('2024-01-15T12:00:00Z');
     const originalDate = Date;
-    
+
     beforeEach(() => {
       globalThis.Date = jest.fn((dateString) => {
         if (dateString) {
@@ -215,10 +211,10 @@ describe('fuzzyNormalizer', () => {
       // Test that these return valid ISO strings (not testing exact values due to timezone)
       const today = normalizeDate('today');
       expect(today).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      
+
       const yesterday = normalizeDate('yesterday');
       expect(yesterday).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      
+
       const lastWeek = normalizeDate('last week');
       expect(lastWeek).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     });
@@ -226,11 +222,11 @@ describe('fuzzyNormalizer', () => {
     it('should parse standard date formats', () => {
       // ISO date formats should parse correctly
       expect(normalizeDate('2024-01-01T10:30:00Z')).toBe('2024-01-01T10:30:00.000Z');
-      
+
       // Other formats will vary by timezone, so just check they parse
       const parsed1 = normalizeDate('2024-01-01');
       expect(parsed1).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      
+
       const parsed2 = normalizeDate('Jan 1, 2024');
       expect(parsed2).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     });

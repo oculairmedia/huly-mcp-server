@@ -1,6 +1,6 @@
 /**
  * Fuzzy Normalization Utilities
- * 
+ *
  * Provides fuzzy matching and normalization for various search parameters
  * to make the MCP server more user-friendly
  */
@@ -12,53 +12,53 @@
  */
 export function normalizeStatus(input) {
   if (!input) return input;
-  
+
   const statusMap = {
     // Backlog variations
-    'backlog': 'Backlog',
+    backlog: 'Backlog',
     'back log': 'Backlog',
-    'new': 'Backlog',
-    'open': 'Backlog',
-    'created': 'Backlog',
-    'queued': 'Backlog',
-    
+    new: 'Backlog',
+    open: 'Backlog',
+    created: 'Backlog',
+    queued: 'Backlog',
+
     // Todo variations
-    'todo': 'Todo',
+    todo: 'Todo',
     'to do': 'Todo',
     'to-do': 'Todo',
-    'planned': 'Todo',
-    'ready': 'Todo',
-    'upcoming': 'Todo',
-    
+    planned: 'Todo',
+    ready: 'Todo',
+    upcoming: 'Todo',
+
     // In Progress variations
     'in progress': 'In Progress',
-    'inprogress': 'In Progress',
+    inprogress: 'In Progress',
     'in-progress': 'In Progress',
-    'working': 'In Progress',
-    'wip': 'In Progress',
-    'active': 'In Progress',
-    'doing': 'In Progress',
-    'started': 'In Progress',
-    'ongoing': 'In Progress',
-    
+    working: 'In Progress',
+    wip: 'In Progress',
+    active: 'In Progress',
+    doing: 'In Progress',
+    started: 'In Progress',
+    ongoing: 'In Progress',
+
     // Done variations
-    'done': 'Done',
-    'completed': 'Done',
-    'complete': 'Done',
-    'finished': 'Done',
-    'closed': 'Done',
-    'resolved': 'Done',
-    'fixed': 'Done',
-    
+    done: 'Done',
+    completed: 'Done',
+    complete: 'Done',
+    finished: 'Done',
+    closed: 'Done',
+    resolved: 'Done',
+    fixed: 'Done',
+
     // Canceled variations
-    'canceled': 'Canceled',
-    'cancelled': 'Canceled',
-    'cancel': 'Canceled',
-    'dropped': 'Canceled',
-    'abandoned': 'Canceled',
-    'rejected': 'Canceled',
-    'wontfix': 'Canceled',
-    'won\'t fix': 'Canceled',
+    canceled: 'Canceled',
+    cancelled: 'Canceled',
+    cancel: 'Canceled',
+    dropped: 'Canceled',
+    abandoned: 'Canceled',
+    rejected: 'Canceled',
+    wontfix: 'Canceled',
+    "won't fix": 'Canceled',
   };
 
   const normalized = input.toLowerCase().trim();
@@ -72,48 +72,48 @@ export function normalizeStatus(input) {
  */
 export function normalizePriority(input) {
   if (!input) return input;
-  
+
   const priorityMap = {
     // No Priority variations
-    'nopriority': 'NoPriority',
+    nopriority: 'NoPriority',
     'no priority': 'NoPriority',
     'no-priority': 'NoPriority',
-    'none': 'NoPriority',
-    'unset': 'NoPriority',
-    'empty': 'NoPriority',
-    'null': 'NoPriority',
-    
+    none: 'NoPriority',
+    unset: 'NoPriority',
+    empty: 'NoPriority',
+    null: 'NoPriority',
+
     // Low variations
-    'low': 'low',
-    'l': 'low',
-    'minor': 'low',
-    'trivial': 'low',
-    '1': 'low',
-    
+    low: 'low',
+    l: 'low',
+    minor: 'low',
+    trivial: 'low',
+    1: 'low',
+
     // Medium variations
-    'medium': 'medium',
-    'med': 'medium',
-    'm': 'medium',
-    'normal': 'medium',
-    'moderate': 'medium',
-    'standard': 'medium',
-    '2': 'medium',
-    
+    medium: 'medium',
+    med: 'medium',
+    m: 'medium',
+    normal: 'medium',
+    moderate: 'medium',
+    standard: 'medium',
+    2: 'medium',
+
     // High variations
-    'high': 'high',
-    'h': 'high',
-    'important': 'high',
-    'major': 'high',
-    '3': 'high',
-    
+    high: 'high',
+    h: 'high',
+    important: 'high',
+    major: 'high',
+    3: 'high',
+
     // Urgent variations
-    'urgent': 'urgent',
-    'u': 'urgent',
-    'critical': 'urgent',
-    'blocker': 'urgent',
-    'emergency': 'urgent',
-    'asap': 'urgent',
-    '4': 'urgent',
+    urgent: 'urgent',
+    u: 'urgent',
+    critical: 'urgent',
+    blocker: 'urgent',
+    emergency: 'urgent',
+    asap: 'urgent',
+    4: 'urgent',
   };
 
   const normalized = input.toLowerCase().trim();
@@ -138,27 +138,28 @@ export function fuzzyMatch(input, possibleValues, threshold = 0.7) {
 
   for (const value of possibleValues) {
     const normalizedValue = value.toLowerCase().trim();
-    
+
     // Exact match
     if (normalizedInput === normalizedValue) {
       return value;
     }
-    
+
     // Contains match
     if (normalizedValue.includes(normalizedInput) || normalizedInput.includes(normalizedValue)) {
-      const score = Math.min(normalizedInput.length, normalizedValue.length) / 
-                    Math.max(normalizedInput.length, normalizedValue.length);
+      const score =
+        Math.min(normalizedInput.length, normalizedValue.length) /
+        Math.max(normalizedInput.length, normalizedValue.length);
       if (score > highestScore) {
         highestScore = score;
         bestMatch = value;
       }
     }
-    
+
     // Levenshtein distance for fuzzy matching
     const distance = levenshteinDistance(normalizedInput, normalizedValue);
     const maxLength = Math.max(normalizedInput.length, normalizedValue.length);
-    const similarity = 1 - (distance / maxLength);
-    
+    const similarity = 1 - distance / maxLength;
+
     if (similarity > highestScore && similarity >= threshold) {
       highestScore = similarity;
       bestMatch = value;
@@ -193,8 +194,8 @@ function levenshteinDistance(a, b) {
       } else {
         matrix[i][j] = Math.min(
           matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1      // deletion
+          matrix[i][j - 1] + 1, // insertion
+          matrix[i - 1][j] + 1 // deletion
         );
       }
     }
@@ -211,18 +212,18 @@ function levenshteinDistance(a, b) {
  */
 export function normalizeProjectIdentifier(input, availableProjects = []) {
   if (!input) return input;
-  
+
   // First try exact case-insensitive match
   for (const project of availableProjects) {
     if (project.identifier.toLowerCase() === input.toLowerCase()) {
       return project.identifier;
     }
   }
-  
+
   // Then try fuzzy match
-  const projectIdentifiers = availableProjects.map(p => p.identifier);
+  const projectIdentifiers = availableProjects.map((p) => p.identifier);
   const match = fuzzyMatch(input, projectIdentifiers, 0.8);
-  
+
   return match || input;
 }
 
@@ -234,7 +235,7 @@ export function normalizeProjectIdentifier(input, availableProjects = []) {
  */
 export function normalizeLabel(input, availableItems = []) {
   if (!input) return input;
-  
+
   // First try exact case-insensitive match
   for (const item of availableItems) {
     const label = item.label || item.name;
@@ -242,13 +243,11 @@ export function normalizeLabel(input, availableItems = []) {
       return label;
     }
   }
-  
+
   // Then try fuzzy match
-  const labels = availableItems
-    .map(item => item.label || item.name)
-    .filter(Boolean);
+  const labels = availableItems.map((item) => item.label || item.name).filter(Boolean);
   const match = fuzzyMatch(input, labels, 0.7);
-  
+
   return match || input;
 }
 
@@ -259,33 +258,45 @@ export function normalizeLabel(input, availableItems = []) {
  */
 export function normalizeDate(input) {
   if (!input) return input;
-  
+
   const datePatterns = [
     // Relative dates
     { pattern: /^today$/i, handler: () => new Date().toISOString() },
-    { pattern: /^yesterday$/i, handler: () => {
-      const date = new Date();
-      date.setDate(date.getDate() - 1);
-      return date.toISOString();
-    }},
-    { pattern: /^(\d+)\s*days?\s*ago$/i, handler: (match) => {
-      const days = parseInt(match[1]);
-      const date = new Date();
-      date.setDate(date.getDate() - days);
-      return date.toISOString();
-    }},
-    { pattern: /^last\s*week$/i, handler: () => {
-      const date = new Date();
-      date.setDate(date.getDate() - 7);
-      return date.toISOString();
-    }},
-    { pattern: /^last\s*month$/i, handler: () => {
-      const date = new Date();
-      date.setMonth(date.getMonth() - 1);
-      return date.toISOString();
-    }},
+    {
+      pattern: /^yesterday$/i,
+      handler: () => {
+        const date = new Date();
+        date.setDate(date.getDate() - 1);
+        return date.toISOString();
+      },
+    },
+    {
+      pattern: /^(\d+)\s*days?\s*ago$/i,
+      handler: (match) => {
+        const days = parseInt(match[1]);
+        const date = new Date();
+        date.setDate(date.getDate() - days);
+        return date.toISOString();
+      },
+    },
+    {
+      pattern: /^last\s*week$/i,
+      handler: () => {
+        const date = new Date();
+        date.setDate(date.getDate() - 7);
+        return date.toISOString();
+      },
+    },
+    {
+      pattern: /^last\s*month$/i,
+      handler: () => {
+        const date = new Date();
+        date.setMonth(date.getMonth() - 1);
+        return date.toISOString();
+      },
+    },
   ];
-  
+
   // Try relative date patterns
   for (const { pattern, handler } of datePatterns) {
     const match = input.match(pattern);
@@ -293,13 +304,13 @@ export function normalizeDate(input) {
       return handler(match);
     }
   }
-  
+
   // Try parsing as regular date
   const date = new Date(input);
   if (!isNaN(date.getTime())) {
     return date.toISOString();
   }
-  
+
   return null;
 }
 
@@ -310,11 +321,11 @@ export function normalizeDate(input) {
  */
 export function normalizeSearchQuery(query) {
   if (!query) return query;
-  
+
   return query
     .trim()
-    .replace(/\s+/g, ' ')           // Collapse multiple spaces
-    .replace(/[^\w\s-]/g, '')       // Remove special characters
+    .replace(/\s+/g, ' ') // Collapse multiple spaces
+    .replace(/[^\w\s-]/g, '') // Remove special characters
     .toLowerCase();
 }
 

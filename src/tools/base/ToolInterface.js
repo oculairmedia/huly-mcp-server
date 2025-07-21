@@ -76,7 +76,7 @@ export class BaseTool {
    * @param {ToolContext} context - Execution context
    * @returns {Promise<Object>}
    */
-  async handler(args, context) {
+  async handler(_args, _context) {
     throw new Error(`Handler not implemented for tool: ${this.definition.name}`);
   }
 
@@ -85,7 +85,7 @@ export class BaseTool {
    * @param {Object} args - Tool arguments
    * @returns {Object|null} Validation errors or null
    */
-  validate(args) {
+  validate(_args) {
     return null;
   }
 

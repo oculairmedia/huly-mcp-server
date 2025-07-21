@@ -93,7 +93,17 @@ describe('Tool Loader', () => {
       await toolLoaderModule.initializeTools();
 
       // Should warn about each missing directory
-      const categories = ['projects', 'issues', 'components', 'milestones', 'github', 'comments', 'templates'];
+      const categories = [
+        'projects',
+        'issues',
+        'components',
+        'milestones',
+        'github',
+        'comments',
+        'templates',
+        'validation',
+        'preview',
+      ];
       expect(mockLogger.warn).toHaveBeenCalledTimes(categories.length);
       categories.forEach((category) => {
         expect(mockLogger.warn).toHaveBeenCalledWith(`Category directory not found: ${category}`);
@@ -137,7 +147,17 @@ describe('Tool Loader', () => {
       await toolLoaderModule.initializeTools();
 
       // Should log error for each category
-      const categories = ['projects', 'issues', 'components', 'milestones', 'github', 'comments', 'templates'];
+      const categories = [
+        'projects',
+        'issues',
+        'components',
+        'milestones',
+        'github',
+        'comments',
+        'templates',
+        'validation',
+        'preview',
+      ];
       expect(mockLogger.error).toHaveBeenCalledTimes(categories.length);
       categories.forEach((category) => {
         expect(mockLogger.error).toHaveBeenCalledWith(
@@ -305,6 +325,8 @@ describe('Tool Loader', () => {
         'github',
         'comments',
         'templates',
+        'validation',
+        'preview',
       ];
 
       // Each category should have statSync called
@@ -370,7 +392,7 @@ describe('Tool Loader', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith('Category directory not found: projects');
 
       // Should still process other categories
-      expect(mockReaddirSync).toHaveBeenCalledTimes(5); // 6 total - 1 failed
+      expect(mockReaddirSync).toHaveBeenCalledTimes(8); // 9 total - 1 failed
 
       // Should complete initialization
       expect(mockLogger.info).toHaveBeenCalledWith('Tool system initialized: 0 tools loaded');

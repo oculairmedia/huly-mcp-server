@@ -82,7 +82,7 @@ export function trackResource(type, identifier) {
 }
 
 export async function cleanupTestResources(client, services) {
-  const { issueService, projectService, templateService, deletionService } = services;
+  const { templateService, deletionService } = services;
 
   // Delete tracked issues
   for (const issueId of createdResources.issues) {

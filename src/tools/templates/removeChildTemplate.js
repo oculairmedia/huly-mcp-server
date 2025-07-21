@@ -75,7 +75,11 @@ export function validate(args) {
   }
 
   // Validate child index
-  if (args.child_index === undefined || typeof args.child_index !== 'number' || args.child_index < 0) {
+  if (
+    args.child_index === undefined ||
+    typeof args.child_index !== 'number' ||
+    args.child_index < 0
+  ) {
     errors.child_index = 'Child index must be a non-negative number';
   }
 

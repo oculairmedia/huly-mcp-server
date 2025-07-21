@@ -141,9 +141,7 @@ describe('TemplateService', () => {
         email: 'user@example.com',
       };
 
-      mockClient.findOne
-        .mockResolvedValueOnce(mockProject)
-        .mockResolvedValueOnce(mockUser);
+      mockClient.findOne.mockResolvedValueOnce(mockProject).mockResolvedValueOnce(mockUser);
       mockClient.createDoc.mockResolvedValueOnce('template-123');
 
       const result = await templateService.createTemplate(
@@ -194,10 +192,9 @@ describe('TemplateService', () => {
       expect(result).toHaveLength(2);
       expect(result[0].title).toBe('Bug Template');
       expect(result[1].title).toBe('Feature Template');
-      expect(mockClient.findAll).toHaveBeenCalledWith(
-        'tracker:class:IssueTemplate',
-        { space: mockProject._id }
-      );
+      expect(mockClient.findAll).toHaveBeenCalledWith('tracker:class:IssueTemplate', {
+        space: mockProject._id,
+      });
     });
 
     it('should handle empty template list', async () => {
@@ -261,9 +258,9 @@ describe('TemplateService', () => {
     it('should handle template not found', async () => {
       mockClient.findOne.mockResolvedValueOnce(null);
 
-      await expect(
-        templateService.getTemplateDetails(mockClient, templateId)
-      ).rejects.toThrow('Template not found: template-123');
+      await expect(templateService.getTemplateDetails(mockClient, templateId)).rejects.toThrow(
+        'Template not found: template-123'
+      );
     });
 
     it('should handle template with no children', async () => {
@@ -329,7 +326,7 @@ describe('TemplateService', () => {
 
       mockClient.findOne.mockResolvedValueOnce(mockTemplate);
       mockClient.findAll.mockResolvedValueOnce(mockChildren);
-      
+
       // Parent issue creation
       mockClient.createDoc.mockResolvedValueOnce('issue-123');
       const mockParentIssue = {
@@ -573,10 +570,9 @@ describe('TemplateService', () => {
 
       await templateService.searchTemplates(mockClient, 'test', projectIdentifier);
 
-      expect(mockClient.findAll).toHaveBeenCalledWith(
-        'tracker:class:IssueTemplate',
-        { space: 'project-123' }
-      );
+      expect(mockClient.findAll).toHaveBeenCalledWith('tracker:class:IssueTemplate', {
+        space: 'project-123',
+      });
     });
   });
 
@@ -657,9 +653,9 @@ describe('TemplateService', () => {
       mockClient.findOne.mockResolvedValueOnce(mockParent);
       mockClient.findAll.mockResolvedValueOnce([{ _id: 'child-1' }]);
 
-      await expect(
-        templateService.removeChildTemplate(mockClient, parentId, 5)
-      ).rejects.toThrow('Invalid child index: 5');
+      await expect(templateService.removeChildTemplate(mockClient, parentId, 5)).rejects.toThrow(
+        'Invalid child index: 5'
+      );
     });
   });
 });

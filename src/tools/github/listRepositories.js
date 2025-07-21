@@ -53,7 +53,7 @@ export async function handler(args, context) {
  * @param {Object} args - Tool arguments
  * @returns {Object|null} Validation errors or null
  */
-export function validate(args) {
+export function validate(_args) {
   // No validation needed for this tool
   return null;
 }

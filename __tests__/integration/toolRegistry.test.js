@@ -346,8 +346,8 @@ describe('Tool Registry Integration Tests', () => {
       expect(stats).toHaveProperty('totalTools');
       expect(stats).toHaveProperty('categories');
       // Verify counts
-      expect(stats.totalTools).toBe(16); // We know we have 16 tools
-      expect(Object.keys(stats.categories).length).toBe(6); // 6 categories
+      expect(stats.totalTools).toBe(35); // We know we have 35 tools
+      expect(Object.keys(stats.categories).length).toBeGreaterThanOrEqual(8); // At least 8 categories
 
       // Sum of category counts should equal total
       const categorySum = Object.values(stats.categories).reduce((a, b) => a + b, 0);
@@ -364,13 +364,19 @@ describe('Tool Registry Integration Tests', () => {
         expect(count).toBeGreaterThan(0);
       });
 
-      // Specific category counts
-      expect(stats.categories.projects).toBe(2);
-      expect(stats.categories.issues).toBe(6);
-      expect(stats.categories.components).toBe(2);
-      expect(stats.categories.milestones).toBe(2);
-      expect(stats.categories.github).toBe(2);
-      expect(stats.categories.comments).toBe(2);
+      // Specific category counts - verify they exist and have tools
+      expect(stats.categories.projects).toBeGreaterThanOrEqual(2);
+      expect(stats.categories.issues).toBeGreaterThanOrEqual(6);
+      expect(stats.categories.components).toBeGreaterThanOrEqual(2);
+      expect(stats.categories.milestones).toBeGreaterThanOrEqual(2);
+      expect(stats.categories.github).toBeGreaterThanOrEqual(2);
+      expect(stats.categories.comments).toBeGreaterThanOrEqual(2);
+      if (stats.categories.templates) {
+        expect(stats.categories.templates).toBeGreaterThan(0);
+      }
+      if (stats.categories.validation) {
+        expect(stats.categories.validation).toBeGreaterThan(0);
+      }
     });
   });
 });

@@ -44,10 +44,7 @@ export async function handler(args, context) {
   try {
     logger.debug('Getting template details', args);
 
-    const result = await templateService.getTemplateDetails(
-      client,
-      args.template_id
-    );
+    const result = await templateService.getTemplateDetails(client, args.template_id);
 
     return result;
   } catch (error) {

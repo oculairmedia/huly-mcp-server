@@ -155,9 +155,7 @@ describe('createIssueFromTemplate tool', () => {
       template_id: 'template-123',
     };
 
-    mockTemplateService.createIssueFromTemplate.mockRejectedValue(
-      new Error('Template not found')
-    );
+    mockTemplateService.createIssueFromTemplate.mockRejectedValue(new Error('Template not found'));
 
     await expect(createIssueFromTemplateHandler(args, mockContext)).rejects.toThrow(
       'Template not found'

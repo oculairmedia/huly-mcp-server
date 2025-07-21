@@ -112,7 +112,7 @@ export class BulkOperationService {
       const cleanupTimer = setTimeout(() => {
         this.activeOperations.delete(operationId);
       }, 60000); // Keep for 1 minute for status queries
-      
+
       // Allow cleanup timer to be cleared in tests
       if (process.env.NODE_ENV === 'test') {
         cleanupTimer.unref();

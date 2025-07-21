@@ -72,7 +72,7 @@ export class MCPHandler {
         const { hulyClientWrapper } = this.services;
         return await hulyClientWrapper.withClient(async (client) => {
           context.client = client;
-          return await executeRegisteredTool(name, args, context);
+          return executeRegisteredTool(name, args, context);
         });
       } catch (error) {
         // Handle HulyError instances with structured responses

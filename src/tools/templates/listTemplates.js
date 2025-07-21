@@ -49,11 +49,7 @@ export async function handler(args, context) {
   try {
     logger.debug('Listing templates', args);
 
-    const result = await templateService.listTemplates(
-      client,
-      args.project_identifier,
-      args.limit
-    );
+    const result = await templateService.listTemplates(client, args.project_identifier, args.limit);
 
     return result;
   } catch (error) {
