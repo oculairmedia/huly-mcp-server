@@ -2,10 +2,27 @@
 
 A Model Context Protocol (MCP) server for interacting with Huly project management platform. This server provides tools for managing projects, issues, and other Huly resources through Claude Code and other MCP clients.
 
+## 🚀 Recent Updates (HULLY-121 Fix)
+
+### ✅ Atomic Issue Number Generation
+- Implemented SequenceService to prevent duplicate issue IDs
+- Uses MongoDB atomic operations for concurrent safety
+- Full backward compatibility maintained
+
+### 🔧 Enhanced Features
+- Component and milestone support in issue creation
+- Improved bulk operations with progress tracking
+- Standardized MCP response format across all tools
+- Better error handling and validation
+
+[See full documentation](docs/HULLY-121-fix-documentation.md) | [API Updates](docs/API-UPDATES.md)
+
 ## Features
 
 - **Project Management**: List, create, and manage Huly projects
 - **Issue Tracking**: Create, list, and update issues across projects with full metadata
+- **Atomic Operations**: Guaranteed unique issue numbers even under high concurrency
+- **Bulk Operations**: Efficiently handle multiple issues at once with atomic guarantees
 - **Git Worktree Integration**: Parallel development workflow with automatic issue tracking
 - **Dual Transport Support**: Both HTTP and stdio transports
 - **Docker Integration**: Fully containerized with Docker Compose
@@ -19,10 +36,10 @@ A Model Context Protocol (MCP) server for interacting with Huly project manageme
 |------|-------------|
 | `huly_list_projects` | List all projects with descriptions and issue counts |
 | `huly_list_issues` | List issues with full metadata (component, milestone, assignee, due date) |
-| `huly_create_issue` | Create new issues with title, description, and priority |
+| `huly_create_issue` | Create new issues with title, description, priority, component, and milestone |
 | `huly_update_issue` | Update existing issue fields (title, description, status, priority, component, milestone) |
 | `huly_create_project` | Create new projects with custom identifiers |
-| `huly_create_subissue` | Create subissues under existing parent issues |
+| `huly_create_subissue` | Create subissues under existing parent issues with component/milestone support |
 | `huly_create_component` | Create new components in projects |
 | `huly_list_components` | List all components in a project |
 | `huly_create_milestone` | Create new milestones with target dates |
@@ -33,7 +50,7 @@ A Model Context Protocol (MCP) server for interacting with Huly project manageme
 | `huly_get_issue_details` | Get comprehensive details about a specific issue |
 | `huly_list_comments` | List comments on an issue |
 | `huly_create_comment` | Create a comment on an issue |
-| `huly_bulk_create_issues` | Create multiple issues in a single operation |
+| `huly_bulk_create_issues` | Create multiple issues atomically with component/milestone support |
 | `huly_bulk_update_issues` | Update multiple issues with different values |
 | `huly_bulk_delete_issues` | Delete multiple issues and their sub-issues |
 | `huly_delete_issue` | Delete a single issue with cascade options |
@@ -191,7 +208,9 @@ Content-Type: application/json
   "project_identifier": "PROJ",
   "title": "New Issue",
   "description": "Issue description",
-  "priority": "high"
+  "priority": "high",
+  "component": "Frontend",
+  "milestone": "v2.0"
 }
 ```
 
@@ -424,21 +443,33 @@ curl http://localhost:3000/health
 
 This server uses Huly SDK version 0.6.500 for compatibility with Huly server v0.6.501. Version alignment is critical for proper operation.
 
+### Architecture Improvements
+
+The codebase now includes:
+- **SequenceService**: Atomic sequence generation for issue numbers
+- **ServiceRegistry**: Dependency injection container for clean service management
+- **Comprehensive Testing**: 80%+ test coverage with integration tests for concurrent operations
+
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Connection Failed**
+1. **Duplicate Issue IDs** (Fixed in HULLY-121)
+   - Update to latest version with SequenceService
+   - Uses atomic MongoDB operations to prevent duplicates
+   - See [HULLY-121 documentation](docs/HULLY-121-fix-documentation.md)
+
+2. **Connection Failed**
    - Verify HULY_URL is correct
    - Check credentials are valid
    - Ensure network connectivity to Huly instance
 
-2. **Module Import Errors**
+3. **Module Import Errors**
    - Verify Node.js version (18+)
    - Check package.json type is set to "module"
    - Ensure all dependencies are installed
 
-3. **Docker Issues**
+4. **Docker Issues**
    - Use internal Docker network URLs (e.g., `http://nginx:80`)
    - Check container logs: `docker-compose logs huly-mcp`
    - Verify environment variables are set
@@ -501,6 +532,8 @@ Huly uses two different patterns for storing text content:
 
 Comprehensive documentation is available in the `/docs` directory:
 
+- **[HULLY-121 Fix Documentation](./docs/HULLY-121-fix-documentation.md)** - Complete details on the duplicate ID fix
+- **[API Updates](./docs/API-UPDATES.md)** - Recent API changes and migration guide
 - **[Bulk Operations Guide](./docs/bulk-operations.md)** - Detailed guide for bulk creation, update, and deletion of issues
 - **[Templates Guide](./docs/templates.md)** - Using templates for standardized issue creation
 - **[Deletion Operations Guide](./docs/deletion-operations.md)** - Safe deletion practices and validation
