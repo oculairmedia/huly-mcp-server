@@ -12,6 +12,9 @@ COPY package.json ./
 # Copy working node_modules from the existing image
 COPY --from=working-deps /app/node_modules ./node_modules
 
+# Update just the MCP SDK package
+RUN npm install @modelcontextprotocol/sdk@latest --no-save
+
 # Copy source code
 COPY index.js ./
 COPY StatusManager.js ./

@@ -30,7 +30,7 @@
     "@hcengineering/rank": "0.6.500",
     "@hcengineering/task": "0.6.500",
     "@hcengineering/tracker": "0.6.500",
-    "@modelcontextprotocol/sdk": "^0.6.0",
+    "@modelcontextprotocol/sdk": "^1.16.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "ws": "^8.16.0"
