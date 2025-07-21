@@ -56,7 +56,7 @@ export const definition = {
   annotations: {
     title: 'Create Issue From Template',
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: false,
     openWorldHint: true,
   },
@@ -75,16 +75,15 @@ export async function handler(args, context) {
   try {
     logger.debug('Creating issue from template', args);
 
-    const overrides = {};
-
-    // Add overrides if provided
-    if (args.title !== undefined) overrides.title = args.title;
-    if (args.priority !== undefined) overrides.priority = args.priority;
-    if (args.assignee !== undefined) overrides.assignee = args.assignee;
-    if (args.component !== undefined) overrides.component = args.component;
-    if (args.milestone !== undefined) overrides.milestone = args.milestone;
-    if (args.estimation !== undefined) overrides.estimation = args.estimation;
-    if (args.include_children !== undefined) overrides.includeChildren = args.include_children;
+    const overrides = {
+      title: args.title,
+      priority: args.priority,
+      assignee: args.assignee,
+      component: args.component,
+      milestone: args.milestone,
+      estimation: args.estimation,
+      includeChildren: args.include_children ?? true,
+    };
 
     const result = await templateService.createIssueFromTemplate(
       client,
@@ -108,8 +107,26 @@ export function validate(args) {
   const errors = {};
 
   // Validate template ID
-  if (!args.template_id || args.template_id.trim().length === 0) {
+  if (
+    !args.template_id ||
+    typeof args.template_id !== 'string' ||
+    args.template_id.trim().length === 0
+  ) {
     errors.template_id = 'Template ID is required';
+  }
+
+  // Validate priority if provided
+  if (args.priority !== undefined && !['low', 'medium', 'high', 'urgent'].includes(args.priority)) {
+    errors.priority = 'Priority must be one of: low, medium, high, urgent';
+  }
+
+  // Validate assignee email format if provided
+  if (
+    args.assignee !== undefined &&
+    args.assignee &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.assignee)
+  ) {
+    errors.assignee = 'Assignee must be a valid email address';
   }
 
   // Validate estimation if provided
@@ -118,6 +135,11 @@ export function validate(args) {
     (typeof args.estimation !== 'number' || args.estimation < 0)
   ) {
     errors.estimation = 'Estimation must be a non-negative number';
+  }
+
+  // Validate include_children if provided
+  if (args.include_children !== undefined && typeof args.include_children !== 'boolean') {
+    errors.include_children = 'include_children must be a boolean value';
   }
 
   return Object.keys(errors).length > 0 ? errors : null;

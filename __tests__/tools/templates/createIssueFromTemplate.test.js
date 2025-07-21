@@ -33,15 +33,16 @@ describe('createIssueFromTemplate tool', () => {
       template_id: 'template-123',
     };
 
-    const mockResult = {
-      success: true,
-      issueId: 'issue-123',
-      identifier: 'PROJ-100',
-      title: 'Bug Report',
-      childrenCreated: 0,
+    const _mockResult = {
+      content: [
+        {
+          type: 'text',
+          text: '✅ Created 1 issue(s) from template "Bug Template"\n\n📋 **PROJ-100**: Bug Report\n',
+        },
+      ],
     };
 
-    mockTemplateService.createIssueFromTemplate.mockResolvedValue(mockResult);
+    mockTemplateService.createIssueFromTemplate.mockResolvedValue(_mockResult);
 
     const result = await createIssueFromTemplateHandler(args, mockContext);
 
@@ -50,16 +51,9 @@ describe('createIssueFromTemplate tool', () => {
       'template-123',
       {
         includeChildren: true,
-        title: undefined,
-        priority: undefined,
-        estimation: undefined,
-        assignee: undefined,
-        component: undefined,
-        milestone: undefined,
       }
     );
-    expect(result).toContain('✅ Issue created successfully');
-    expect(result).toContain('Issue: Bug Report (PROJ-100)');
+    expect(result).toEqual(_mockResult);
   });
 
   it('should create issue with children', async () => {
@@ -68,20 +62,20 @@ describe('createIssueFromTemplate tool', () => {
       include_children: true,
     };
 
-    const mockResult = {
-      success: true,
-      issueId: 'issue-123',
-      identifier: 'PROJ-100',
-      title: 'Feature Implementation',
-      childrenCreated: 3,
+    const _mockResult = {
+      content: [
+        {
+          type: 'text',
+          text: '✅ Created 4 issue(s) from template "Feature Template"\n\n📋 **PROJ-100**: Feature Implementation\n📋 **PROJ-101**: Sub Issue 1\n   Parent: PROJ-100\n📋 **PROJ-102**: Sub Issue 2\n   Parent: PROJ-100\n📋 **PROJ-103**: Sub Issue 3\n   Parent: PROJ-100\n',
+        },
+      ],
     };
 
-    mockTemplateService.createIssueFromTemplate.mockResolvedValue(mockResult);
+    mockTemplateService.createIssueFromTemplate.mockResolvedValue(_mockResult);
 
     const result = await createIssueFromTemplateHandler(args, mockContext);
 
-    expect(result).toContain('✅ Issue created successfully');
-    expect(result).toContain('Created 3 sub-issues from template children');
+    expect(result).toEqual(_mockResult);
   });
 
   it('should override template values', async () => {
@@ -95,15 +89,16 @@ describe('createIssueFromTemplate tool', () => {
       estimation: 5,
     };
 
-    const mockResult = {
-      success: true,
-      issueId: 'issue-123',
-      identifier: 'PROJ-100',
-      title: 'Custom Title',
-      childrenCreated: 0,
+    const _mockResult = {
+      content: [
+        {
+          type: 'text',
+          text: '✅ Created 1 issue(s) from template "Custom Template"\n\n📋 **PROJ-100**: Custom Title\n',
+        },
+      ],
     };
 
-    mockTemplateService.createIssueFromTemplate.mockResolvedValue(mockResult);
+    mockTemplateService.createIssueFromTemplate.mockResolvedValue(_mockResult);
 
     const result = await createIssueFromTemplateHandler(args, mockContext);
 
@@ -111,16 +106,16 @@ describe('createIssueFromTemplate tool', () => {
       mockContext.client,
       'template-123',
       {
-        includeChildren: true,
         title: 'Custom Title',
         priority: 'urgent',
         estimation: 5,
         assignee: 'user@example.com',
         component: 'Frontend',
         milestone: 'v2.0',
+        includeChildren: true,
       }
     );
-    expect(result).toContain('Custom Title');
+    expect(result).toEqual(_mockResult);
   });
 
   it('should skip children when requested', async () => {
@@ -129,15 +124,16 @@ describe('createIssueFromTemplate tool', () => {
       include_children: false,
     };
 
-    const mockResult = {
-      success: true,
-      issueId: 'issue-123',
-      identifier: 'PROJ-100',
-      title: 'Parent Issue Only',
-      childrenCreated: 0,
+    const _mockResult = {
+      content: [
+        {
+          type: 'text',
+          text: '✅ Created 1 issue(s) from template "Parent Template"\n\n📋 **PROJ-100**: Parent Issue Only\n',
+        },
+      ],
     };
 
-    mockTemplateService.createIssueFromTemplate.mockResolvedValue(mockResult);
+    mockTemplateService.createIssueFromTemplate.mockResolvedValue(_mockResult);
 
     await createIssueFromTemplateHandler(args, mockContext);
 
@@ -157,30 +153,40 @@ describe('createIssueFromTemplate tool', () => {
 
     mockTemplateService.createIssueFromTemplate.mockRejectedValue(new Error('Template not found'));
 
-    await expect(createIssueFromTemplateHandler(args, mockContext)).rejects.toThrow(
-      'Template not found'
-    );
+    const result = await createIssueFromTemplateHandler(args, mockContext);
+
+    expect(result.content[0].text).toBe('Error: Template not found');
     expect(mockContext.logger.error).toHaveBeenCalled();
   });
 
   it('should validate template ID', async () => {
+    // Test the validate function separately from the handler
+    const { validate } = await import('../../../src/tools/templates/createIssueFromTemplate.js');
+
     const args = {
       template_id: '',
     };
 
-    await expect(createIssueFromTemplateHandler(args, mockContext)).rejects.toThrow(
-      'Template ID is required'
-    );
+    const errors = validate(args);
+
+    expect(errors).toEqual({
+      template_id: 'Template ID is required',
+    });
   });
 
-  it('should validate priority value', async () => {
+  it('should validate estimation value', async () => {
+    // Test the validate function separately from the handler
+    const { validate } = await import('../../../src/tools/templates/createIssueFromTemplate.js');
+
     const args = {
       template_id: 'template-123',
-      priority: 'invalid',
+      estimation: -5,
     };
 
-    await expect(createIssueFromTemplateHandler(args, mockContext)).rejects.toThrow(
-      'Invalid priority value'
-    );
+    const errors = validate(args);
+
+    expect(errors).toEqual({
+      estimation: 'Estimation must be a non-negative number',
+    });
   });
 });

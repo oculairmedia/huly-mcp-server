@@ -75,12 +75,12 @@ export function validate(args) {
   }
 
   // Validate child index
-  if (
-    args.child_index === undefined ||
-    typeof args.child_index !== 'number' ||
-    args.child_index < 0
-  ) {
-    errors.child_index = 'Child index must be a non-negative number';
+  if (args.child_index === undefined || typeof args.child_index !== 'number') {
+    errors.child_index = 'Child index must be a non-negative integer';
+  } else if (args.child_index < 0) {
+    errors.child_index = 'Child index must be a non-negative integer';
+  } else if (!Number.isInteger(args.child_index)) {
+    errors.child_index = 'Child index must be an integer';
   }
 
   return Object.keys(errors).length > 0 ? errors : null;

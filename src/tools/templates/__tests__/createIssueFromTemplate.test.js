@@ -47,7 +47,7 @@ describe('createIssueFromTemplate tool', () => {
         template_id: 'template-123',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -56,7 +56,7 @@ describe('createIssueFromTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.createIssueFromTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.createIssueFromTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -73,7 +73,7 @@ describe('createIssueFromTemplate tool', () => {
           includeChildren: true,
         }
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should create issue with custom values', async () => {
@@ -88,7 +88,7 @@ describe('createIssueFromTemplate tool', () => {
         include_children: false,
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -97,7 +97,7 @@ describe('createIssueFromTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.createIssueFromTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.createIssueFromTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -114,7 +114,7 @@ describe('createIssueFromTemplate tool', () => {
           includeChildren: false,
         }
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle template not found error', async () => {

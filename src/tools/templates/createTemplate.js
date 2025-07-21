@@ -148,9 +148,22 @@ export async function handler(args, context) {
 export function validate(args) {
   const errors = {};
 
+  // Validate project_identifier
+  if (!args.project_identifier) {
+    errors.project_identifier = 'Project identifier is required';
+  } else if (!/^[A-Z][A-Z0-9]*$/.test(args.project_identifier)) {
+    errors.project_identifier =
+      'Project identifier must start with uppercase letter and contain only uppercase letters and numbers';
+  }
+
   // Validate title
   if (!args.title || args.title.trim().length === 0) {
     errors.title = 'Template title is required';
+  }
+
+  // Validate priority
+  if (args.priority && !['low', 'medium', 'high', 'urgent'].includes(args.priority)) {
+    errors.priority = 'Priority must be one of: low, medium, high, urgent';
   }
 
   // Validate estimation
@@ -159,6 +172,11 @@ export function validate(args) {
     (typeof args.estimation !== 'number' || args.estimation < 0)
   ) {
     errors.estimation = 'Estimation must be a non-negative number';
+  }
+
+  // Validate assignee email format
+  if (args.assignee && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.assignee)) {
+    errors.assignee = 'Assignee must be a valid email address';
   }
 
   // Validate children
@@ -171,11 +189,19 @@ export function validate(args) {
         childError.title = 'Child template title is required';
       }
 
+      if (child.priority && !['low', 'medium', 'high', 'urgent'].includes(child.priority)) {
+        childError.priority = 'Child priority must be one of: low, medium, high, urgent';
+      }
+
       if (
         child.estimation !== undefined &&
         (typeof child.estimation !== 'number' || child.estimation < 0)
       ) {
         childError.estimation = 'Child estimation must be a non-negative number';
+      }
+
+      if (child.assignee && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(child.assignee)) {
+        childError.assignee = 'Child assignee must be a valid email address';
       }
 
       if (Object.keys(childError).length > 0) {
@@ -186,6 +212,8 @@ export function validate(args) {
     if (childErrors.length > 0) {
       errors.children = childErrors;
     }
+  } else if (args.children && !Array.isArray(args.children)) {
+    errors.children = 'Children must be an array';
   }
 
   return Object.keys(errors).length > 0 ? errors : null;

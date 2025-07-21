@@ -53,7 +53,7 @@ describe('CreateProject Tool Tests', () => {
         name: 'Test Project',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -62,7 +62,7 @@ describe('CreateProject Tool Tests', () => {
         ],
       };
 
-      mockProjectService.createProject.mockResolvedValueOnce(mockResult);
+      mockProjectService.createProject.mockResolvedValueOnce(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -73,7 +73,7 @@ describe('CreateProject Tool Tests', () => {
         undefined,
         undefined
       );
-      expect(result).toBe(mockResult);
+      expect(result).toBe(_mockResult);
     });
 
     test('should create project with all fields', async () => {
@@ -83,7 +83,7 @@ describe('CreateProject Tool Tests', () => {
         identifier: 'TEST',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -92,7 +92,7 @@ describe('CreateProject Tool Tests', () => {
         ],
       };
 
-      mockProjectService.createProject.mockResolvedValueOnce(mockResult);
+      mockProjectService.createProject.mockResolvedValueOnce(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -103,7 +103,7 @@ describe('CreateProject Tool Tests', () => {
         'This is a test project for unit testing',
         'TEST'
       );
-      expect(result).toBe(mockResult);
+      expect(result).toBe(_mockResult);
     });
 
     test('should handle empty description', async () => {
@@ -113,7 +113,7 @@ describe('CreateProject Tool Tests', () => {
         identifier: 'TEST',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -122,7 +122,7 @@ describe('CreateProject Tool Tests', () => {
         ],
       };
 
-      mockProjectService.createProject.mockResolvedValueOnce(mockResult);
+      mockProjectService.createProject.mockResolvedValueOnce(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -132,7 +132,7 @@ describe('CreateProject Tool Tests', () => {
         '',
         'TEST'
       );
-      expect(result).toBe(mockResult);
+      expect(result).toBe(_mockResult);
     });
 
     test('should handle service errors', async () => {

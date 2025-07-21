@@ -56,7 +56,7 @@ export const definition = {
   annotations: {
     title: 'Add Child Template',
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: false,
     openWorldHint: true,
   },
@@ -77,7 +77,7 @@ export async function handler(args, context) {
 
     const childData = {
       title: args.title,
-      description: args.description || '',
+      description: args.description,
       priority: args.priority || 'medium',
       estimation: args.estimation || 0,
       assignee: args.assignee,
@@ -103,13 +103,31 @@ export function validate(args) {
   const errors = {};
 
   // Validate template ID
-  if (!args.template_id || args.template_id.trim().length === 0) {
+  if (
+    !args.template_id ||
+    typeof args.template_id !== 'string' ||
+    args.template_id.trim().length === 0
+  ) {
     errors.template_id = 'Template ID is required';
   }
 
   // Validate title
-  if (!args.title || args.title.trim().length === 0) {
+  if (!args.title || typeof args.title !== 'string' || args.title.trim().length === 0) {
     errors.title = 'Child template title is required';
+  }
+
+  // Validate priority if provided
+  if (args.priority !== undefined && !['low', 'medium', 'high', 'urgent'].includes(args.priority)) {
+    errors.priority = 'Priority must be one of: low, medium, high, urgent';
+  }
+
+  // Validate assignee email format if provided
+  if (
+    args.assignee !== undefined &&
+    args.assignee &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.assignee)
+  ) {
+    errors.assignee = 'Assignee must be a valid email address';
   }
 
   // Validate estimation

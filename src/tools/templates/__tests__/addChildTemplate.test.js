@@ -48,7 +48,7 @@ describe('addChildTemplate tool', () => {
         title: 'Child Task',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -57,7 +57,7 @@ describe('addChildTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.addChildTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.addChildTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -74,7 +74,7 @@ describe('addChildTemplate tool', () => {
           milestone: undefined,
         }
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should add child template with all fields', async () => {
@@ -89,7 +89,7 @@ describe('addChildTemplate tool', () => {
         milestone: 'v1.0',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -98,7 +98,7 @@ describe('addChildTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.addChildTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.addChildTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -115,7 +115,7 @@ describe('addChildTemplate tool', () => {
           milestone: 'v1.0',
         }
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle template not found error', async () => {

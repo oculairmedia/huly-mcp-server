@@ -47,7 +47,7 @@ describe('listComponents tool', () => {
         project_identifier: 'PROJ',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -70,12 +70,12 @@ Total components: 3`,
         ],
       };
 
-      mockProjectService.listComponents.mockResolvedValue(mockResult);
+      mockProjectService.listComponents.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
       expect(mockProjectService.listComponents).toHaveBeenCalledWith(mockContext.client, 'PROJ');
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle empty components list', async () => {
@@ -83,7 +83,7 @@ Total components: 3`,
         project_identifier: 'NEWPROJ',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -92,12 +92,12 @@ Total components: 3`,
         ],
       };
 
-      mockProjectService.listComponents.mockResolvedValue(mockResult);
+      mockProjectService.listComponents.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
       expect(mockProjectService.listComponents).toHaveBeenCalledWith(mockContext.client, 'NEWPROJ');
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle project not found error', async () => {

@@ -3,11 +3,30 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { handler, validate, definition } from '../bulkUpdateIssues.js';
+
+// Mock the tracker module
+const mockTrackerClass = { Issue: 'mock.issue.class' };
+jest.unstable_mockModule('@hcengineering/tracker', () => ({
+  default: {
+    class: mockTrackerClass,
+  },
+}));
+
+// Mock BulkOperationService
+const mockBulkOperationService = jest.fn();
+const mockExecuteBulkOperation = jest.fn();
+jest.unstable_mockModule('../../../services/BulkOperationService.js', () => ({
+  BulkOperationService: mockBulkOperationService,
+}));
+
+// Import after mocking
+const { handler, validate, definition } = await import('../bulkUpdateIssues.js');
 
 describe('bulkUpdateIssues integration', () => {
   let mockContext;
   let mockIssueService;
+  let mockClient;
+  let mockBulkService;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -17,8 +36,12 @@ describe('bulkUpdateIssues integration', () => {
       getIssue: jest.fn(),
     };
 
+    mockClient = {
+      findOne: jest.fn(),
+    };
+
     mockContext = {
-      client: { mock: 'client' },
+      client: mockClient,
       services: {
         issueService: mockIssueService,
       },
@@ -29,6 +52,12 @@ describe('bulkUpdateIssues integration', () => {
         error: jest.fn(),
       },
     };
+
+    // Setup BulkOperationService mock
+    mockBulkService = {
+      executeBulkOperation: mockExecuteBulkOperation,
+    };
+    mockBulkOperationService.mockImplementation(() => mockBulkService);
   });
 
   describe('definition', () => {
@@ -179,10 +208,33 @@ describe('bulkUpdateIssues integration', () => {
           data: { _id: '2', identifier: 'PROJ-2', priority: 'High' },
         });
 
+      // Mock BulkOperationService execution
+      mockExecuteBulkOperation.mockImplementation(async ({ items, operation, _options }) => {
+        const results = [];
+        for (let i = 0; i < items.length; i++) {
+          try {
+            const result = await operation(items[i]);
+            results.push({ success: true, item: items[i], result });
+          } catch (error) {
+            results.push({ success: false, item: items[i], error: error.message });
+          }
+        }
+        return {
+          summary: {
+            total: items.length,
+            succeeded: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
+            duration: 100,
+          },
+          results,
+          errors: [],
+        };
+      });
+
       const result = await handler(validArgs, mockContext);
 
       expect(result.content[0].type).toBe('text');
-      const data = result.content[0].text;
+      const data = JSON.parse(result.content[0].text);
       expect(data.success).toBe(true);
       expect(data.summary.total).toBe(2);
       expect(data.summary.succeeded).toBe(2);
@@ -193,13 +245,13 @@ describe('bulkUpdateIssues integration', () => {
       // Verify issue service was called correctly
       expect(mockIssueService.updateIssue).toHaveBeenCalledTimes(2);
       expect(mockIssueService.updateIssue).toHaveBeenCalledWith(
-        mockContext.client,
+        mockClient,
         'PROJ-1',
         'status',
         'done'
       );
       expect(mockIssueService.updateIssue).toHaveBeenCalledWith(
-        mockContext.client,
+        mockClient,
         'PROJ-2',
         'priority',
         'high'
@@ -215,10 +267,33 @@ describe('bulkUpdateIssues integration', () => {
         })
         .mockRejectedValueOnce(new Error('Issue not found'));
 
+      // Mock BulkOperationService execution
+      mockExecuteBulkOperation.mockImplementation(async ({ items, operation, _options }) => {
+        const results = [];
+        for (let i = 0; i < items.length; i++) {
+          try {
+            const result = await operation(items[i]);
+            results.push({ success: true, item: items[i], result });
+          } catch (error) {
+            results.push({ success: false, item: items[i], error: error.message });
+          }
+        }
+        return {
+          summary: {
+            total: items.length,
+            succeeded: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
+            duration: 100,
+          },
+          results,
+          errors: [],
+        };
+      });
+
       const result = await handler(validArgs, mockContext);
 
       expect(result.content[0].type).toBe('text');
-      const data = result.content[0].text;
+      const data = JSON.parse(result.content[0].text);
       expect(data.success).toBe(true);
       expect(data.summary.succeeded).toBe(1);
       expect(data.summary.failed).toBe(1);
@@ -236,14 +311,19 @@ describe('bulkUpdateIssues integration', () => {
       };
 
       // Mock issue existence checks
-      mockIssueService.getIssue
-        .mockResolvedValueOnce({ success: true, data: { _id: '1', identifier: 'PROJ-1' } })
-        .mockResolvedValueOnce({ success: true, data: { _id: '2', identifier: 'PROJ-2' } });
+      mockClient.findOne.mockImplementation((classRef, query) => {
+        if (query.identifier === 'PROJ-1') {
+          return Promise.resolve({ _id: '1', identifier: 'PROJ-1' });
+        } else if (query.identifier === 'PROJ-2') {
+          return Promise.resolve({ _id: '2', identifier: 'PROJ-2' });
+        }
+        return Promise.resolve(null);
+      });
 
       const result = await handler(argsWithDryRun, mockContext);
 
       expect(result.content[0].type).toBe('text');
-      const data = result.content[0].text;
+      const data = JSON.parse(result.content[0].text);
       expect(data.success).toBe(true);
       expect(data.dry_run).toBe(true);
       expect(data.valid_count).toBe(2);
@@ -253,7 +333,7 @@ describe('bulkUpdateIssues integration', () => {
       expect(mockIssueService.updateIssue).not.toHaveBeenCalled();
 
       // Verify existence checks were made
-      expect(mockIssueService.getIssue).toHaveBeenCalledTimes(2);
+      expect(mockClient.findOne).toHaveBeenCalledTimes(2);
     });
 
     it('should validate issues exist in dry run', async () => {
@@ -265,14 +345,17 @@ describe('bulkUpdateIssues integration', () => {
       };
 
       // Mock one existing and one non-existing issue
-      mockIssueService.getIssue
-        .mockResolvedValueOnce({ success: true, data: { _id: '1' } })
-        .mockRejectedValueOnce(new Error('Issue PROJ-2 not found'));
+      mockClient.findOne.mockImplementation((classRef, query) => {
+        if (query.identifier === 'PROJ-1') {
+          return Promise.resolve({ _id: '1' });
+        }
+        return Promise.resolve(null); // PROJ-2 not found
+      });
 
       const result = await handler(argsWithDryRun, mockContext);
 
       expect(result.content[0].type).toBe('text');
-      const data = result.content[0].text;
+      const data = JSON.parse(result.content[0].text);
       expect(data.success).toBe(true);
       expect(data.valid_count).toBe(1);
       expect(data.invalid_count).toBe(1);
@@ -300,10 +383,48 @@ describe('bulkUpdateIssues integration', () => {
         data: { status: 'Done' },
       });
 
+      // Mock BulkOperationService execution with batching
+      mockExecuteBulkOperation.mockImplementation(async ({ items, operation, options }) => {
+        const results = [];
+        let _progressCallCount = 0;
+
+        // Simulate batch processing
+        const batchSize = options.batchSize || 10;
+        for (let i = 0; i < items.length; i += batchSize) {
+          const batch = items.slice(i, i + batchSize);
+          for (const item of batch) {
+            const result = await operation(item);
+            results.push({ success: true, item, result });
+          }
+
+          // Call progress callback
+          if (options.progressCallback) {
+            _progressCallCount++;
+            options.progressCallback({
+              processed: Math.min(i + batchSize, items.length),
+              total: items.length,
+              succeeded: results.filter((r) => r.success).length,
+              failed: 0,
+            });
+          }
+        }
+
+        return {
+          summary: {
+            total: items.length,
+            succeeded: items.length,
+            failed: 0,
+            duration: 500,
+          },
+          results,
+          errors: [],
+        };
+      });
+
       const result = await handler(largeBatch, mockContext);
 
       expect(result.content[0].type).toBe('text');
-      const data = result.content[0].text;
+      const data = JSON.parse(result.content[0].text);
       expect(data.success).toBe(true);
       expect(data.summary.total).toBe(25);
       expect(data.summary.succeeded).toBe(25);
@@ -319,10 +440,32 @@ describe('bulkUpdateIssues integration', () => {
       // Mock all updates failing
       mockIssueService.updateIssue.mockRejectedValue(new Error('Service unavailable'));
 
+      // Mock BulkOperationService execution with all failures
+      mockExecuteBulkOperation.mockImplementation(async ({ items, operation, _options }) => {
+        const results = [];
+        for (const item of items) {
+          try {
+            await operation(item);
+          } catch (error) {
+            results.push({ success: false, item, error: error.message });
+          }
+        }
+        return {
+          summary: {
+            total: items.length,
+            succeeded: 0,
+            failed: items.length,
+            duration: 100,
+          },
+          results,
+          errors: results.map((r) => ({ item: r.item, error: r.error })),
+        };
+      });
+
       const result = await handler(validArgs, mockContext);
 
       expect(result.content[0].type).toBe('text');
-      const data = result.content[0].text;
+      const data = JSON.parse(result.content[0].text);
       expect(data.success).toBe(true); // Tool succeeds even if all updates fail
       expect(data.summary.succeeded).toBe(0);
       expect(data.summary.failed).toBe(2);
@@ -346,10 +489,37 @@ describe('bulkUpdateIssues integration', () => {
         .mockResolvedValueOnce({ success: true, data: { status: 'Done' } })
         .mockRejectedValueOnce(new Error('Update failed'));
 
+      // Mock BulkOperationService execution that stops on error
+      mockExecuteBulkOperation.mockImplementation(async ({ items, operation, options }) => {
+        const results = [];
+        for (const item of items) {
+          try {
+            const result = await operation(item);
+            results.push({ success: true, item, result });
+          } catch (error) {
+            results.push({ success: false, item, error: error.message });
+            // Stop processing if continueOnError is false
+            if (!options.continueOnError) {
+              throw error;
+            }
+          }
+        }
+        return {
+          summary: {
+            total: items.length,
+            succeeded: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
+            duration: 100,
+          },
+          results,
+          errors: [],
+        };
+      });
+
       const result = await handler(argsWithStopOnError, mockContext);
 
       expect(result.content[0].type).toBe('text');
-      expect(result.content[0].text).toContain('Update failed');
+      expect(result.content[0].text).toBe('Error: Update failed');
 
       // Should have only tried 2 updates (stopped after failure)
       expect(mockIssueService.updateIssue).toHaveBeenCalledTimes(2);

@@ -37,7 +37,7 @@ describe('updateTemplate tool', () => {
       expect(definition.name).toBe('huly_update_template');
       expect(definition.description).toContain('Update an existing template');
       expect(definition.inputSchema.required).toEqual(['template_id', 'field', 'value']);
-      expect(definition.annotations.destructiveHint).toBe(true);
+      expect(definition.annotations.destructiveHint).toBe(false);
     });
   });
 
@@ -49,7 +49,7 @@ describe('updateTemplate tool', () => {
         value: 'Updated Bug Fix Template',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -58,7 +58,7 @@ describe('updateTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.updateTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.updateTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -68,7 +68,7 @@ describe('updateTemplate tool', () => {
         'title',
         'Updated Bug Fix Template'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should update template description', async () => {
@@ -78,7 +78,7 @@ describe('updateTemplate tool', () => {
         value: 'Updated description with more details',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -87,7 +87,7 @@ describe('updateTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.updateTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.updateTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -97,7 +97,7 @@ describe('updateTemplate tool', () => {
         'description',
         'Updated description with more details'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should update template priority', async () => {
@@ -107,7 +107,7 @@ describe('updateTemplate tool', () => {
         value: 'urgent',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -116,7 +116,7 @@ describe('updateTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.updateTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.updateTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -126,7 +126,7 @@ describe('updateTemplate tool', () => {
         'priority',
         'urgent'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle template not found', async () => {
@@ -188,10 +188,18 @@ describe('updateTemplate tool', () => {
       ];
 
       validFields.forEach((field) => {
+        // Use appropriate test values for different field types
+        let testValue = 'test value';
+        if (field === 'estimation') {
+          testValue = 5; // Use a valid number for estimation
+        } else if (field === 'priority') {
+          testValue = 'medium'; // Use a valid priority
+        }
+
         const args = {
           template_id: 'template-123',
           field,
-          value: 'test value',
+          value: testValue,
         };
         const errors = validate(args);
         expect(errors).toBeNull();

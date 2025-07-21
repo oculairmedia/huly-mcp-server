@@ -234,7 +234,9 @@ describe('bulkCreateIssues', () => {
         'PROJ',
         'Issue 1',
         'Description 1',
-        'high'
+        'high',
+        null, // component
+        null // milestone
       );
     });
 
@@ -299,7 +301,9 @@ describe('bulkCreateIssues', () => {
         'PROJ',
         'Issue 1',
         undefined,
-        'low'
+        'low',
+        'Backend', // component from defaults
+        null // milestone
       );
 
       // Second issue should override default priority
@@ -308,7 +312,9 @@ describe('bulkCreateIssues', () => {
         'PROJ',
         'Issue 2',
         undefined,
-        'high'
+        'high',
+        'Backend', // component from defaults
+        null // milestone
       );
     });
 
@@ -410,14 +416,18 @@ describe('bulkCreateIssues', () => {
         'PROJ-100',
         'Sub-issue 1',
         undefined,
-        'high'
+        'high',
+        null, // component
+        null // milestone
       );
       expect(mockIssueService.createIssue).toHaveBeenCalledWith(
         mockContext.client,
         'PROJ',
         'Regular issue',
         undefined,
-        'medium'
+        'medium',
+        null, // component
+        null // milestone
       );
     });
 

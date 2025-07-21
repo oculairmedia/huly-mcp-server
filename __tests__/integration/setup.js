@@ -45,7 +45,13 @@ export async function setupTestEnvironment() {
 
 // Test data generators
 export function generateTestProjectIdentifier() {
-  return `TEST${Date.now().toString(36).toUpperCase().slice(-3)}`;
+  // Generate a 5-character identifier with T prefix and 4 random characters
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = 'T';
+  for (let i = 0; i < 4; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 export function generateTestIssueData(overrides = {}) {

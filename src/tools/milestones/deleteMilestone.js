@@ -38,6 +38,13 @@ export const definition = {
     },
     required: ['project_identifier', 'milestone_label'],
   },
+  annotations: {
+    title: 'Delete Milestone',
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
 };
 
 /**
@@ -99,13 +106,36 @@ export function validate(args) {
   const errors = {};
 
   // Validate project_identifier
-  if (!args.project_identifier || args.project_identifier.trim().length === 0) {
+  if (
+    !args.project_identifier ||
+    typeof args.project_identifier !== 'string' ||
+    args.project_identifier.trim().length === 0
+  ) {
     errors.project_identifier = 'Project identifier is required';
+  } else if (args.project_identifier.trim().length > 5) {
+    errors.project_identifier = 'Project identifier must be 1-5 characters';
+  } else if (!/^[A-Z][A-Z0-9]*$/.test(args.project_identifier)) {
+    errors.project_identifier =
+      'Project identifier must start with uppercase letter and contain only uppercase letters and numbers';
   }
 
   // Validate milestone_label
-  if (!args.milestone_label || args.milestone_label.trim().length === 0) {
+  if (
+    !args.milestone_label ||
+    typeof args.milestone_label !== 'string' ||
+    args.milestone_label.trim().length === 0
+  ) {
     errors.milestone_label = 'Milestone label is required';
+  }
+
+  // Validate dry_run
+  if (args.dry_run !== undefined && typeof args.dry_run !== 'boolean') {
+    errors.dry_run = 'dry_run must be a boolean value';
+  }
+
+  // Validate force
+  if (args.force !== undefined && typeof args.force !== 'boolean') {
+    errors.force = 'force must be a boolean value';
   }
 
   return Object.keys(errors).length > 0 ? errors : null;

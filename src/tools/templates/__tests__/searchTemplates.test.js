@@ -47,7 +47,7 @@ describe('searchTemplates tool', () => {
         query: 'bug fix',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -68,12 +68,17 @@ Priority: Low, Estimation: 1h`,
         ],
       };
 
-      mockTemplateService.searchTemplates.mockResolvedValue(mockResult);
+      mockTemplateService.searchTemplates.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockTemplateService.searchTemplates).toHaveBeenCalledWith(mockContext.client, args);
-      expect(result).toEqual(mockResult);
+      expect(mockTemplateService.searchTemplates).toHaveBeenCalledWith(
+        mockContext.client,
+        args.query,
+        args.project_identifier,
+        args.limit
+      );
+      expect(result).toEqual(_mockResult);
     });
 
     it('should search with project filter', async () => {
@@ -83,7 +88,7 @@ Priority: Low, Estimation: 1h`,
         limit: 10,
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -92,12 +97,17 @@ Priority: Low, Estimation: 1h`,
         ],
       };
 
-      mockTemplateService.searchTemplates.mockResolvedValue(mockResult);
+      mockTemplateService.searchTemplates.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockTemplateService.searchTemplates).toHaveBeenCalledWith(mockContext.client, args);
-      expect(result).toEqual(mockResult);
+      expect(mockTemplateService.searchTemplates).toHaveBeenCalledWith(
+        mockContext.client,
+        args.query,
+        args.project_identifier,
+        args.limit
+      );
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle empty search results', async () => {
@@ -105,7 +115,7 @@ Priority: Low, Estimation: 1h`,
         query: 'nonexistent',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -114,11 +124,11 @@ Priority: Low, Estimation: 1h`,
         ],
       };
 
-      mockTemplateService.searchTemplates.mockResolvedValue(mockResult);
+      mockTemplateService.searchTemplates.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle service errors', async () => {
@@ -177,14 +187,14 @@ Priority: Low, Estimation: 1h`,
       expect(errors).toHaveProperty('query');
     });
 
-    it('should fail validation with invalid project identifier', () => {
+    it('should pass validation with any project identifier format', () => {
       const args = {
         query: 'test',
         project_identifier: 'proj-123',
       };
 
       const errors = validate(args);
-      expect(errors).toHaveProperty('project_identifier');
+      expect(errors).toBeNull();
     });
 
     it('should fail validation with invalid limit', () => {

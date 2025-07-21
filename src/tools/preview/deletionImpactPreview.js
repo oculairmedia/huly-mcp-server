@@ -1,4 +1,4 @@
-import { isValidIssueIdentifier } from '../../utils/validation.js';
+import { isValidIssueIdentifier } from '../../utils/validators.js';
 
 export const definition = {
   name: 'huly_deletion_impact_preview',

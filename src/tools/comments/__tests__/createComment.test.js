@@ -48,7 +48,7 @@ describe('createComment tool', () => {
         message: 'This looks good to me!',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -57,7 +57,7 @@ describe('createComment tool', () => {
         ],
       };
 
-      mockIssueService.createComment.mockResolvedValue(mockResult);
+      mockIssueService.createComment.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -66,7 +66,7 @@ describe('createComment tool', () => {
         'PROJ-123',
         'This looks good to me!'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should create comment with markdown', async () => {
@@ -75,7 +75,7 @@ describe('createComment tool', () => {
         message: '## Update\n\n- Fixed the bug\n- Added tests\n\n**Ready for review!**',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -84,7 +84,7 @@ describe('createComment tool', () => {
         ],
       };
 
-      mockIssueService.createComment.mockResolvedValue(mockResult);
+      mockIssueService.createComment.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -93,7 +93,7 @@ describe('createComment tool', () => {
         'PROJ-123',
         args.message
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle issue not found error', async () => {

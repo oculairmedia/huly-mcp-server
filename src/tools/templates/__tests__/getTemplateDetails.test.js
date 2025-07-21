@@ -47,7 +47,7 @@ describe('getTemplateDetails tool', () => {
         template_id: 'template-123',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -78,7 +78,7 @@ Priority: Medium, Estimation: 1h`,
         ],
       };
 
-      mockTemplateService.getTemplateDetails.mockResolvedValue(mockResult);
+      mockTemplateService.getTemplateDetails.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -86,7 +86,7 @@ Priority: Medium, Estimation: 1h`,
         mockContext.client,
         'template-123'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle template not found', async () => {

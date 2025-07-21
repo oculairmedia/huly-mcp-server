@@ -33,6 +33,14 @@ export const definition = {
         enum: ['low', 'medium', 'high', 'urgent'],
         default: 'medium',
       },
+      component: {
+        type: 'string',
+        description: 'Component name (optional)',
+      },
+      milestone: {
+        type: 'string',
+        description: 'Milestone name (optional)',
+      },
     },
     required: ['project_identifier', 'title'],
   },
@@ -63,7 +71,9 @@ export async function handler(args, context) {
       args.project_identifier,
       args.title,
       args.description,
-      args.priority
+      args.priority,
+      args.component,
+      args.milestone
     );
 
     return result;

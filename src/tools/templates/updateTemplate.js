@@ -103,7 +103,11 @@ export function validate(args) {
   }
 
   // Validate value
-  if (args.value === undefined || args.value === null) {
+  if (
+    args.value === undefined ||
+    args.value === null ||
+    (typeof args.value === 'string' && args.value.trim() === '')
+  ) {
     errors.value = 'Value is required';
   }
 

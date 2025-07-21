@@ -37,7 +37,7 @@ describe('createTemplate tool', () => {
       expect(definition.name).toBe('huly_create_template');
       expect(definition.description).toContain('Create a new issue template');
       expect(definition.inputSchema.required).toEqual(['project_identifier', 'title']);
-      expect(definition.annotations.destructiveHint).toBe(true);
+      expect(definition.annotations.destructiveHint).toBe(false);
     });
   });
 
@@ -48,7 +48,7 @@ describe('createTemplate tool', () => {
         title: 'Bug Report Template',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -57,7 +57,7 @@ describe('createTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.createTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.createTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -71,7 +71,7 @@ describe('createTemplate tool', () => {
         milestone: undefined,
         children: [],
       });
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should create template with all fields', async () => {
@@ -100,7 +100,7 @@ describe('createTemplate tool', () => {
         ],
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -109,7 +109,7 @@ describe('createTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.createTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.createTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -123,7 +123,7 @@ describe('createTemplate tool', () => {
         milestone: 'v2.0',
         children: args.children,
       });
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle project not found error', async () => {

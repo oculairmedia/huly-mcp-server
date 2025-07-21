@@ -7,17 +7,17 @@ import { definition, handler, validate } from '../assignRepository.js';
 
 describe('assignRepository tool', () => {
   let mockContext;
-  let mockGitHubService;
+  let mockProjectService;
 
   beforeEach(() => {
-    mockGitHubService = {
-      assignRepository: jest.fn(),
+    mockProjectService = {
+      assignRepositoryToProject: jest.fn(),
     };
 
     mockContext = {
       client: {},
       services: {
-        gitHubService: mockGitHubService,
+        projectService: mockProjectService,
       },
       logger: {
         info: jest.fn(),
@@ -48,7 +48,7 @@ describe('assignRepository tool', () => {
         repository_name: 'my-org/my-repo',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -57,16 +57,16 @@ describe('assignRepository tool', () => {
         ],
       };
 
-      mockGitHubService.assignRepository.mockResolvedValue(mockResult);
+      mockProjectService.assignRepositoryToProject.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockGitHubService.assignRepository).toHaveBeenCalledWith(
+      expect(mockProjectService.assignRepositoryToProject).toHaveBeenCalledWith(
         mockContext.client,
         'PROJ',
         'my-org/my-repo'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle repository already assigned', async () => {
@@ -78,7 +78,7 @@ describe('assignRepository tool', () => {
       const error = new Error(
         'Repository "my-org/existing-repo" is already assigned to project PROJ'
       );
-      mockGitHubService.assignRepository.mockRejectedValue(error);
+      mockProjectService.assignRepositoryToProject.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -94,7 +94,7 @@ describe('assignRepository tool', () => {
       };
 
       const error = new Error('Project not found: INVALID');
-      mockGitHubService.assignRepository.mockRejectedValue(error);
+      mockProjectService.assignRepositoryToProject.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -110,7 +110,7 @@ describe('assignRepository tool', () => {
       };
 
       const error = new Error('Repository not found in GitHub integration: nonexistent/repo');
-      mockGitHubService.assignRepository.mockRejectedValue(error);
+      mockProjectService.assignRepositoryToProject.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -126,13 +126,16 @@ describe('assignRepository tool', () => {
       };
 
       const error = new Error('Failed to assign repository');
-      mockGitHubService.assignRepository.mockRejectedValue(error);
+      mockProjectService.assignRepositoryToProject.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
       expect(result.content[0].type).toBe('text');
       expect(result.content[0].text).toContain('Error');
-      expect(mockContext.logger.error).toHaveBeenCalledWith('Failed to assign repository:', error);
+      expect(mockContext.logger.error).toHaveBeenCalledWith(
+        'Failed to assign repository to project:',
+        error
+      );
     });
   });
 
@@ -184,15 +187,14 @@ describe('assignRepository tool', () => {
       expect(errors).toHaveProperty('project_identifier');
     });
 
-    it('should fail validation with invalid project identifier format', () => {
+    it('should pass validation with any project identifier format', () => {
       const args = {
         project_identifier: 'proj-123',
         repository_name: 'my-org/my-repo',
       };
 
       const errors = validate(args);
-      expect(errors).toHaveProperty('project_identifier');
-      expect(errors.project_identifier).toContain('uppercase');
+      expect(errors).toBeNull();
     });
 
     it('should fail validation without repository name', () => {

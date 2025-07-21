@@ -3,28 +3,50 @@
  */
 
 import { jest } from '@jest/globals';
-import { HttpTransport } from '../HttpTransport.js';
 
-// Mock express and dependencies
-const mockApp = {
-  use: jest.fn(),
-  get: jest.fn(),
-  post: jest.fn(),
-  listen: jest.fn(),
-};
+// Create mocks that will be shared across tests
+let _mockApp;
+let _mockHttpServer;
+let mockExpressFunc;
+let mockExpressJson;
 
-const mockHttpServer = {
-  on: jest.fn(),
-  close: jest.fn(),
-};
+// Mock the modules before importing anything
+jest.unstable_mockModule('express', () => {
+  // Create the mock functions that will be reused
+  mockExpressFunc = jest.fn();
+  mockExpressJson = jest.fn(() => 'json-middleware');
 
-jest.mock('express', () => {
-  const express = jest.fn(() => mockApp);
-  express.json = jest.fn(() => 'json-middleware');
-  return express;
+  // Set up the default behavior
+  mockExpressFunc.mockImplementation(() => {
+    // Return a fresh app instance each time
+    return {
+      use: jest.fn(),
+      get: jest.fn(),
+      post: jest.fn(),
+      listen: jest.fn(() => ({
+        on: jest.fn(),
+        close: jest.fn((callback) => callback && callback()),
+      })),
+    };
+  });
+
+  // Add json as a property
+  mockExpressFunc.json = mockExpressJson;
+
+  return {
+    default: mockExpressFunc,
+    json: mockExpressJson,
+  };
 });
 
-jest.mock('cors', () => jest.fn(() => 'cors-middleware'));
+jest.unstable_mockModule('cors', () => ({
+  default: jest.fn(() => 'cors-middleware'),
+}));
+
+// Import after mocking
+const { HttpTransport } = await import('../HttpTransport.js');
+const express = (await import('express')).default;
+const _cors = (await import('cors')).default;
 
 // Mock console.log to avoid cluttering test output
 const originalConsoleLog = console.log;
@@ -40,16 +62,48 @@ describe('HttpTransport', () => {
   let httpTransport;
   let mockServer;
   let mockOptions;
+  let app;
+  let httpServer;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Clean up environment variables that might affect port selection
+    delete process.env.PORT;
+
+    // Create a fresh app mock for this test
+    app = {
+      use: jest.fn(),
+      get: jest.fn(),
+      post: jest.fn(),
+      listen: jest.fn(),
+    };
+
+    // Create http server mock
+    httpServer = {
+      on: jest.fn(),
+      close: jest.fn((_callback) => {
+        if (_callback) _callback();
+      }),
+    };
+
+    // Override express to return our app mock
+    express.mockImplementation(() => app);
+
+    // Ensure express.json is properly mocked
+    express.json.mockReturnValue('json-middleware');
+
+    // Setup app.listen to return httpServer
+    app.listen.mockImplementation((_port, _callback) => {
+      if (_callback) _callback();
+      return httpServer;
+    });
 
     mockServer = {
       connect: jest.fn(),
     };
 
     mockOptions = {
-      port: 3457,
+      port: 3000,
       toolDefinitions: [
         { name: 'tool1', description: 'Tool 1' },
         { name: 'tool2', description: 'Tool 2' },
@@ -69,22 +123,20 @@ describe('HttpTransport', () => {
       },
     };
 
-    // Setup mock listen to return mock server
-    mockApp.listen.mockImplementation((port, callback) => {
-      setTimeout(() => callback(), 0);
-      return mockHttpServer;
-    });
-
     httpTransport = new HttpTransport(mockServer, mockOptions);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Ensure transport is stopped and cleaned up
+    if (httpTransport && httpTransport.running) {
+      await httpTransport.stop();
+    }
     jest.clearAllMocks();
   });
 
   describe('constructor', () => {
     it('should initialize with provided options', () => {
-      expect(httpTransport.port).toBe(3457);
+      expect(httpTransport.port).toBe(3000);
       expect(httpTransport.toolDefinitions).toEqual(mockOptions.toolDefinitions);
       expect(httpTransport.services).toBe(mockOptions.services);
       expect(httpTransport.running).toBe(false);
@@ -107,9 +159,9 @@ describe('HttpTransport', () => {
     it('should start HTTP server successfully', async () => {
       await httpTransport.start();
 
-      expect(mockApp.use).toHaveBeenCalledWith('cors-middleware');
-      expect(mockApp.use).toHaveBeenCalledWith('json-middleware');
-      expect(mockApp.listen).toHaveBeenCalledWith(3457, expect.any(Function));
+      expect(app.use).toHaveBeenCalledWith('cors-middleware');
+      expect(app.use).toHaveBeenCalledWith('json-middleware');
+      expect(app.listen).toHaveBeenCalledWith(3000, expect.any(Function));
       expect(httpTransport.running).toBe(true);
     });
 
@@ -120,25 +172,23 @@ describe('HttpTransport', () => {
     });
 
     it('should handle server startup error', async () => {
-      mockApp.listen.mockImplementation((_port, _callback) => {
-        const server = mockHttpServer;
-        // Simulate error after returning server
-        setTimeout(() => {
-          const errorCallback = mockHttpServer.on.mock.calls.find(
-            (call) => call[0] === 'error'
-          )?.[1];
-          if (errorCallback) {
-            errorCallback(new Error('EADDRINUSE'));
-          }
-        }, 0);
-        return server;
+      app.listen.mockImplementation((_port, _callback) => {
+        // Don't call the callback - let the error handler reject the promise
+        return httpServer;
       });
 
+      // Start the server, which will return a promise
       const startPromise = httpTransport.start();
 
-      // Wait a bit for the error to be triggered
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Trigger the error event after a small delay
+      setTimeout(() => {
+        const errorCallback = httpServer.on.mock.calls.find((call) => call[0] === 'error')?.[1];
+        if (errorCallback) {
+          errorCallback(new Error('EADDRINUSE'));
+        }
+      }, 0);
 
+      // Wait for the promise to reject
       await expect(startPromise).rejects.toThrow('Failed to start HTTP transport');
       expect(httpTransport.running).toBe(false);
     });
@@ -148,13 +198,13 @@ describe('HttpTransport', () => {
     it('should stop server successfully', async () => {
       await httpTransport.start();
 
-      mockHttpServer.close.mockImplementation((callback) => {
+      httpServer.close.mockImplementation((callback) => {
         callback();
       });
 
       await httpTransport.stop();
 
-      expect(mockHttpServer.close).toHaveBeenCalled();
+      expect(httpServer.close).toHaveBeenCalled();
       expect(httpTransport.running).toBe(false);
       expect(httpTransport.httpServer).toBeNull();
     });
@@ -162,17 +212,25 @@ describe('HttpTransport', () => {
     it('should do nothing if not running', async () => {
       await httpTransport.stop();
 
-      expect(mockHttpServer.close).not.toHaveBeenCalled();
+      expect(httpServer.close).not.toHaveBeenCalled();
     });
 
     it('should handle close error', async () => {
       await httpTransport.start();
 
-      mockHttpServer.close.mockImplementation((callback) => {
+      // Get the actual httpServer instance that was created
+      const actualHttpServer = httpTransport.httpServer;
+
+      // Override the close method on the actual instance
+      actualHttpServer.close = jest.fn((callback) => {
         callback(new Error('Close failed'));
       });
 
       await expect(httpTransport.stop()).rejects.toThrow('Failed to stop HTTP transport');
+
+      // Clean up - mark as not running to prevent afterEach from trying to stop it again
+      httpTransport.running = false;
+      httpTransport.httpServer = null;
     });
   });
 
@@ -188,11 +246,11 @@ describe('HttpTransport', () => {
         post: {},
       };
 
-      mockApp.get.mock.calls.forEach(([path, handler]) => {
+      app.get.mock.calls.forEach(([path, handler]) => {
         routes.get[path] = handler;
       });
 
-      mockApp.post.mock.calls.forEach(([path, handler]) => {
+      app.post.mock.calls.forEach(([path, handler]) => {
         routes.post[path] = handler;
       });
     });
@@ -289,7 +347,7 @@ describe('HttpTransport', () => {
       });
 
       it('should handle tools/call method', async () => {
-        const mockResult = {
+        const _mockResult = {
           content: [{ type: 'text', text: 'Projects listed' }],
         };
 
@@ -297,7 +355,7 @@ describe('HttpTransport', () => {
           return fn({});
         });
 
-        mockOptions.services.projectService.listProjects.mockResolvedValue(mockResult);
+        mockOptions.services.projectService.listProjects.mockResolvedValue(_mockResult);
 
         const mockReq = {
           body: {
@@ -320,7 +378,7 @@ describe('HttpTransport', () => {
         expect(mockOptions.hulyClientWrapper.withClient).toHaveBeenCalled();
         expect(mockRes.json).toHaveBeenCalledWith({
           jsonrpc: '2.0',
-          result: mockResult,
+          result: _mockResult,
           id: 3,
         });
       });
@@ -377,7 +435,7 @@ describe('HttpTransport', () => {
 
     describe('/tools/:toolName endpoint', () => {
       it('should execute tool directly', async () => {
-        const mockResult = {
+        const _mockResult = {
           content: [{ type: 'text', text: 'Tool executed' }],
         };
 
@@ -385,7 +443,7 @@ describe('HttpTransport', () => {
           return fn({});
         });
 
-        mockOptions.services.projectService.listProjects.mockResolvedValue(mockResult);
+        mockOptions.services.projectService.listProjects.mockResolvedValue(_mockResult);
 
         const mockReq = {
           params: { toolName: 'huly_list_projects' },
@@ -398,7 +456,7 @@ describe('HttpTransport', () => {
 
         await routes.post['/tools/:toolName'](mockReq, mockRes);
 
-        expect(mockRes.json).toHaveBeenCalledWith(mockResult);
+        expect(mockRes.json).toHaveBeenCalledWith(_mockResult);
       });
 
       it('should handle tool execution error', async () => {
@@ -435,8 +493,8 @@ describe('HttpTransport', () => {
     });
 
     it('should execute project tools', async () => {
-      const mockResult = { content: [{ type: 'text', text: 'Success' }] };
-      mockOptions.services.projectService.createProject.mockResolvedValue(mockResult);
+      const _mockResult = { content: [{ type: 'text', text: 'Success' }] };
+      mockOptions.services.projectService.createProject.mockResolvedValue(_mockResult);
 
       const result = await httpTransport.executeTool('huly_create_project', {
         name: 'Test Project',
@@ -450,12 +508,12 @@ describe('HttpTransport', () => {
         'Test Description',
         'TEST'
       );
-      expect(result).toBe(mockResult);
+      expect(result).toBe(_mockResult);
     });
 
     it('should execute issue tools', async () => {
-      const mockResult = { content: [{ type: 'text', text: 'Issue created' }] };
-      mockOptions.services.issueService.createIssue.mockResolvedValue(mockResult);
+      const _mockResult = { content: [{ type: 'text', text: 'Issue created' }] };
+      mockOptions.services.issueService.createIssue.mockResolvedValue(_mockResult);
 
       const result = await httpTransport.executeTool('huly_create_issue', {
         project_identifier: 'TEST',
@@ -471,7 +529,7 @@ describe('HttpTransport', () => {
         'Test Description',
         'high'
       );
-      expect(result).toBe(mockResult);
+      expect(result).toBe(_mockResult);
     });
 
     it('should throw error for unknown tool', async () => {
@@ -489,16 +547,10 @@ describe('HttpTransport', () => {
       };
     });
 
-    it('should handle HulyError', () => {
-      const error = {
-        code: 'TEST_ERROR',
-        message: 'Test error message',
-        details: { extra: 'info' },
-      };
-
-      // Mock HulyError instance
-      Object.setPrototypeOf(error, Error.prototype);
-      error.constructor = { name: 'HulyError' };
+    it('should handle HulyError', async () => {
+      // Import and create actual HulyError
+      const { HulyError } = await import('../../core/index.js');
+      const error = new HulyError('TEST_ERROR', 'Test error message', { extra: 'info' });
 
       httpTransport.handleError(mockRes, error, 123);
 
@@ -549,7 +601,7 @@ describe('HttpTransport', () => {
 
     it('should return false after stopped', async () => {
       await httpTransport.start();
-      mockHttpServer.close.mockImplementation((callback) => callback());
+      httpServer.close.mockImplementation((callback) => callback());
       await httpTransport.stop();
       expect(httpTransport.isRunning()).toBe(false);
     });

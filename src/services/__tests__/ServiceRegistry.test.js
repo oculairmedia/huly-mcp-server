@@ -5,14 +5,12 @@
 import { jest } from '@jest/globals';
 import ServiceRegistry from '../ServiceRegistry.js';
 
-// Mock all services
+// Mock existing services
 jest.mock('../IssueService.js');
 jest.mock('../ProjectService.js');
-jest.mock('../CommentService.js');
-jest.mock('../ComponentService.js');
-jest.mock('../MilestoneService.js');
-jest.mock('../GitHubService.js');
 jest.mock('../TemplateService.js');
+jest.mock('../DeletionService.js');
+jest.mock('../SequenceService.js');
 
 describe('ServiceRegistry', () => {
   let mockClient;
@@ -28,11 +26,17 @@ describe('ServiceRegistry', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      child: jest.fn().mockReturnThis(),
     };
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Reset the singleton's state
+    const registry = ServiceRegistry.getInstance();
+    registry._initialized = false;
+    registry._services = null;
+    registry._logger = null;
   });
 
   describe('getInstance', () => {
@@ -50,13 +54,13 @@ describe('ServiceRegistry', () => {
       const registry = ServiceRegistry.getInstance();
       registry.initialize(mockClient, mockLogger);
 
-      expect(registry.issueService).toBeDefined();
-      expect(registry.projectService).toBeDefined();
-      expect(registry.commentService).toBeDefined();
-      expect(registry.componentService).toBeDefined();
-      expect(registry.milestoneService).toBeDefined();
-      expect(registry.gitHubService).toBeDefined();
-      expect(registry.templateService).toBeDefined();
+      const services = registry.getServices();
+      expect(services.issueService).toBeDefined();
+      expect(services.projectService).toBeDefined();
+      expect(services.templateService).toBeDefined();
+      expect(services.deletionService).toBeDefined();
+      expect(services.sequenceService).toBeDefined();
+      expect(services.statusManager).toBeDefined();
     });
 
     it('should log initialization', () => {
@@ -76,19 +80,18 @@ describe('ServiceRegistry', () => {
 
       expect(services).toHaveProperty('issueService');
       expect(services).toHaveProperty('projectService');
-      expect(services).toHaveProperty('commentService');
-      expect(services).toHaveProperty('componentService');
-      expect(services).toHaveProperty('milestoneService');
-      expect(services).toHaveProperty('gitHubService');
       expect(services).toHaveProperty('templateService');
+      expect(services).toHaveProperty('deletionService');
+      expect(services).toHaveProperty('sequenceService');
+      expect(services).toHaveProperty('statusManager');
     });
 
     it('should throw error if not initialized', () => {
-      // Create a new instance to ensure it's not initialized
-      const ServiceRegistryClass = ServiceRegistry.constructor;
-      const newRegistry = new ServiceRegistryClass();
+      // We can't create a new instance of the singleton, so let's test with a mock
+      const registry = ServiceRegistry.getInstance();
+      registry._initialized = false; // Reset the initialized flag
 
-      expect(() => newRegistry.getServices()).toThrow('ServiceRegistry not initialized');
+      expect(() => registry.getServices()).toThrow('ServiceRegistry not initialized');
     });
   });
 
@@ -103,6 +106,8 @@ describe('ServiceRegistry', () => {
       expect(services1.issueService).toBe(services2.issueService);
       expect(services1.projectService).toBe(services2.projectService);
       expect(services1.templateService).toBe(services2.templateService);
+      expect(services1.deletionService).toBe(services2.deletionService);
+      expect(services1.sequenceService).toBe(services2.sequenceService);
     });
 
     it('should pass client and logger to service constructors', () => {

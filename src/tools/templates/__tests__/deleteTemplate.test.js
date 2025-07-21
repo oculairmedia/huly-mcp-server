@@ -47,7 +47,7 @@ describe('deleteTemplate tool', () => {
         template_id: 'template-123',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -56,7 +56,7 @@ describe('deleteTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.deleteTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.deleteTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -64,7 +64,7 @@ describe('deleteTemplate tool', () => {
         mockContext.client,
         'template-123'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle template with children deletion', async () => {
@@ -72,7 +72,7 @@ describe('deleteTemplate tool', () => {
         template_id: 'parent-template',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -81,7 +81,7 @@ describe('deleteTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.deleteTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.deleteTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -89,7 +89,7 @@ describe('deleteTemplate tool', () => {
         mockContext.client,
         'parent-template'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle template not found error', async () => {

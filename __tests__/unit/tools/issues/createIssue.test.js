@@ -55,7 +55,7 @@ describe('CreateIssue Tool Tests', () => {
         title: 'Test Issue',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -64,7 +64,7 @@ describe('CreateIssue Tool Tests', () => {
         ],
       };
 
-      mockIssueService.createIssue.mockResolvedValueOnce(mockResult);
+      mockIssueService.createIssue.mockResolvedValueOnce(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -74,9 +74,11 @@ describe('CreateIssue Tool Tests', () => {
         'PROJ',
         'Test Issue',
         undefined,
+        undefined,
+        undefined,
         undefined
       );
-      expect(result).toBe(mockResult);
+      expect(result).toBe(_mockResult);
     });
 
     test('should create issue with all fields', async () => {
@@ -87,7 +89,7 @@ describe('CreateIssue Tool Tests', () => {
         priority: 'urgent',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -96,7 +98,7 @@ describe('CreateIssue Tool Tests', () => {
         ],
       };
 
-      mockIssueService.createIssue.mockResolvedValueOnce(mockResult);
+      mockIssueService.createIssue.mockResolvedValueOnce(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -106,9 +108,11 @@ describe('CreateIssue Tool Tests', () => {
         'PROJ',
         'Critical Bug',
         'This is a critical bug that needs immediate attention',
-        'urgent'
+        'urgent',
+        undefined,
+        undefined
       );
-      expect(result).toBe(mockResult);
+      expect(result).toBe(_mockResult);
     });
 
     test('should handle empty description', async () => {
@@ -119,7 +123,7 @@ describe('CreateIssue Tool Tests', () => {
         priority: 'medium',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -128,7 +132,7 @@ describe('CreateIssue Tool Tests', () => {
         ],
       };
 
-      mockIssueService.createIssue.mockResolvedValueOnce(mockResult);
+      mockIssueService.createIssue.mockResolvedValueOnce(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -137,9 +141,11 @@ describe('CreateIssue Tool Tests', () => {
         'PROJ',
         'Test Issue',
         '',
-        'medium'
+        'medium',
+        undefined,
+        undefined
       );
-      expect(result).toBe(mockResult);
+      expect(result).toBe(_mockResult);
     });
 
     test('should handle service errors', async () => {

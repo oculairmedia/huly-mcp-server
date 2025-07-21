@@ -33,13 +33,16 @@ describe('deleteIssue tool', () => {
       issue_identifier: 'PROJ-123',
     };
 
-    const mockResult = {
-      success: true,
-      deletedCount: 1,
-      deletedIssues: ['PROJ-123'],
+    const _mockResult = {
+      content: [
+        {
+          type: 'text',
+          text: '✅ Successfully deleted 1 issue:\n• PROJ-123',
+        },
+      ],
     };
 
-    mockDeletionService.deleteIssue.mockResolvedValue(mockResult);
+    mockDeletionService.deleteIssue.mockResolvedValue(_mockResult);
 
     const result = await deleteIssueHandler(args, mockContext);
 
@@ -48,8 +51,8 @@ describe('deleteIssue tool', () => {
       force: false,
       dryRun: false,
     });
-    expect(result).toContain('✅ Successfully deleted 1 issue');
-    expect(result).toContain('PROJ-123');
+    expect(result.content[0].text).toContain('✅ Successfully deleted 1 issue');
+    expect(result.content[0].text).toContain('PROJ-123');
   });
 
   it('should handle cascade deletion of sub-issues', async () => {
@@ -58,18 +61,21 @@ describe('deleteIssue tool', () => {
       cascade: true,
     };
 
-    const mockResult = {
-      success: true,
-      deletedCount: 3,
-      deletedIssues: ['PROJ-123', 'PROJ-124', 'PROJ-125'],
+    const _mockResult = {
+      content: [
+        {
+          type: 'text',
+          text: '✅ Successfully deleted 3 issues:\n• PROJ-123\n• PROJ-124\n• PROJ-125\nIncluding 2 sub-issues',
+        },
+      ],
     };
 
-    mockDeletionService.deleteIssue.mockResolvedValue(mockResult);
+    mockDeletionService.deleteIssue.mockResolvedValue(_mockResult);
 
     const result = await deleteIssueHandler(args, mockContext);
 
-    expect(result).toContain('✅ Successfully deleted 3 issues');
-    expect(result).toContain('Including 2 sub-issues');
+    expect(result.content[0].text).toContain('✅ Successfully deleted 3 issues');
+    expect(result.content[0].text).toContain('Including 2 sub-issues');
   });
 
   it('should handle dry run mode', async () => {
@@ -78,19 +84,21 @@ describe('deleteIssue tool', () => {
       dry_run: true,
     };
 
-    const mockResult = {
-      success: true,
-      dryRun: true,
-      deletedCount: 0,
-      wouldDelete: ['PROJ-123', 'PROJ-124'],
+    const _mockResult = {
+      content: [
+        {
+          type: 'text',
+          text: '🔍 Dry run - would delete 2 items:\n• PROJ-123\n• PROJ-124',
+        },
+      ],
     };
 
-    mockDeletionService.deleteIssue.mockResolvedValue(mockResult);
+    mockDeletionService.deleteIssue.mockResolvedValue(_mockResult);
 
     const result = await deleteIssueHandler(args, mockContext);
 
-    expect(result).toContain('🔍 Dry Run Results');
-    expect(result).toContain('Would delete 2 issues');
+    expect(result.content[0].text).toContain('🔍 Dry run');
+    expect(result.content[0].text).toContain('would delete 2 items');
     expect(mockDeletionService.deleteIssue).toHaveBeenCalledWith(mockContext.client, 'PROJ-123', {
       cascade: true,
       force: false,
@@ -104,18 +112,20 @@ describe('deleteIssue tool', () => {
       force: true,
     };
 
-    const mockResult = {
-      success: true,
-      deletedCount: 1,
-      deletedIssues: ['PROJ-123'],
-      forcedDeletion: true,
+    const _mockResult = {
+      content: [
+        {
+          type: 'text',
+          text: '✅ Successfully deleted 1 issue:\n• PROJ-123\n⚠️ Force deletion applied',
+        },
+      ],
     };
 
-    mockDeletionService.deleteIssue.mockResolvedValue(mockResult);
+    mockDeletionService.deleteIssue.mockResolvedValue(_mockResult);
 
     const result = await deleteIssueHandler(args, mockContext);
 
-    expect(result).toContain('⚠️ Force deletion applied');
+    expect(result.content[0].text).toContain('⚠️ Force deletion applied');
   });
 
   it('should handle deletion with warnings', async () => {
@@ -124,19 +134,20 @@ describe('deleteIssue tool', () => {
       cascade: false,
     };
 
-    const mockResult = {
-      success: true,
-      deletedCount: 1,
-      deletedIssues: ['PROJ-123'],
-      warnings: ['Issue has 2 sub-issues that were not deleted'],
+    const _mockResult = {
+      content: [
+        {
+          type: 'text',
+          text: '✅ Successfully deleted 1 issue:\n• PROJ-123\n⚠️ Issue has 2 sub-issues that were not deleted',
+        },
+      ],
     };
 
-    mockDeletionService.deleteIssue.mockResolvedValue(mockResult);
+    mockDeletionService.deleteIssue.mockResolvedValue(_mockResult);
 
     const result = await deleteIssueHandler(args, mockContext);
 
-    expect(result).toContain('⚠️ Warnings');
-    expect(result).toContain('Issue has 2 sub-issues that were not deleted');
+    expect(result.content[0].text).toContain('⚠️ Issue has 2 sub-issues that were not deleted');
   });
 
   it('should handle invalid issue identifier', async () => {
@@ -144,9 +155,10 @@ describe('deleteIssue tool', () => {
       issue_identifier: 'invalid-format',
     };
 
-    await expect(deleteIssueHandler(args, mockContext)).rejects.toThrow(
-      'Invalid issue identifier format'
-    );
+    const result = await deleteIssueHandler(args, mockContext);
+
+    expect(result.content[0].text).toContain('Error');
+    expect(result.content[0].text).toContain("Invalid value for field 'issue_identifier'");
   });
 
   it('should handle deletion failure', async () => {
@@ -156,7 +168,10 @@ describe('deleteIssue tool', () => {
 
     mockDeletionService.deleteIssue.mockRejectedValue(new Error('Issue not found'));
 
-    await expect(deleteIssueHandler(args, mockContext)).rejects.toThrow('Issue not found');
+    const result = await deleteIssueHandler(args, mockContext);
+
+    expect(result.content[0].text).toContain('Error');
+    expect(result.content[0].text).toContain('Issue not found');
     expect(mockContext.logger.error).toHaveBeenCalled();
   });
 });

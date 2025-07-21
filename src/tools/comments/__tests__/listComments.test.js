@@ -47,7 +47,7 @@ describe('listComments tool', () => {
         issue_identifier: 'PROJ-123',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -67,7 +67,7 @@ Total comments: 3`,
         ],
       };
 
-      mockIssueService.listComments.mockResolvedValue(mockResult);
+      mockIssueService.listComments.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -76,7 +76,7 @@ Total comments: 3`,
         'PROJ-123',
         undefined
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should list comments with custom limit', async () => {
@@ -85,7 +85,7 @@ Total comments: 3`,
         limit: 10,
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -94,7 +94,7 @@ Total comments: 3`,
         ],
       };
 
-      mockIssueService.listComments.mockResolvedValue(mockResult);
+      mockIssueService.listComments.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -103,7 +103,7 @@ Total comments: 3`,
         'PROJ-123',
         10
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle no comments case', async () => {
@@ -111,7 +111,7 @@ Total comments: 3`,
         issue_identifier: 'PROJ-123',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -120,11 +120,11 @@ Total comments: 3`,
         ],
       };
 
-      mockIssueService.listComments.mockResolvedValue(mockResult);
+      mockIssueService.listComments.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle issue not found error', async () => {

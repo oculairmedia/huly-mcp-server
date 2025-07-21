@@ -50,7 +50,7 @@ describe('searchIssues tool', () => {
         query: 'bug fix',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -59,12 +59,12 @@ describe('searchIssues tool', () => {
         ],
       };
 
-      mockIssueService.searchIssues.mockResolvedValue(mockResult);
+      mockIssueService.searchIssues.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
       expect(mockIssueService.searchIssues).toHaveBeenCalledWith(mockContext.client, args);
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should search with multiple filters', async () => {
@@ -76,7 +76,7 @@ describe('searchIssues tool', () => {
         limit: 20,
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -85,12 +85,12 @@ describe('searchIssues tool', () => {
         ],
       };
 
-      mockIssueService.searchIssues.mockResolvedValue(mockResult);
+      mockIssueService.searchIssues.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
       expect(mockIssueService.searchIssues).toHaveBeenCalledWith(mockContext.client, args);
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should search with date filters', async () => {
@@ -99,7 +99,7 @@ describe('searchIssues tool', () => {
         modified_before: '2024-12-31',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -108,12 +108,12 @@ describe('searchIssues tool', () => {
         ],
       };
 
-      mockIssueService.searchIssues.mockResolvedValue(mockResult);
+      mockIssueService.searchIssues.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
       expect(mockIssueService.searchIssues).toHaveBeenCalledWith(mockContext.client, args);
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle empty search results', async () => {
@@ -121,7 +121,7 @@ describe('searchIssues tool', () => {
         query: 'nonexistent',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -130,11 +130,11 @@ describe('searchIssues tool', () => {
         ],
       };
 
-      mockIssueService.searchIssues.mockResolvedValue(mockResult);
+      mockIssueService.searchIssues.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle service errors', async () => {

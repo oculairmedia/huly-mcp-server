@@ -192,7 +192,9 @@ export async function handler(args, context) {
             issue.parent_issue,
             issue.title,
             issue.description,
-            issue.priority || 'medium'
+            issue.priority || 'medium',
+            issue.component || null,
+            issue.milestone || null
           );
         } else {
           return issueService.createIssue(
@@ -200,7 +202,9 @@ export async function handler(args, context) {
             issue.project_identifier,
             issue.title,
             issue.description,
-            issue.priority || 'medium'
+            issue.priority || 'medium',
+            issue.component || null,
+            issue.milestone || null
           );
         }
       },

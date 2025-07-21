@@ -17,7 +17,9 @@ const core = coreModule.default || coreModule;
 const { generateId } = coreModule;
 
 class TemplateService {
-  constructor() {}
+  constructor(sequenceService = null) {
+    this.sequenceService = sequenceService;
+  }
 
   /**
    * Create a new issue template
@@ -454,7 +456,9 @@ class TemplateService {
       comments: 0,
       attachments: 0,
       reportedTime: 0,
+      childInfo: [],
       relations: [],
+      kind: tracker.taskTypes.Issue,
     };
 
     // Generate identifier
@@ -503,7 +507,9 @@ class TemplateService {
           comments: 0,
           attachments: 0,
           reportedTime: 0,
+          childInfo: [],
           relations: [],
+          kind: tracker.taskTypes.Issue,
         };
 
         const childIssueId = await client.addCollection(
@@ -749,28 +755,41 @@ class TemplateService {
   }
 
   async _getDefaultStatus(client, projectSpace) {
-    const statuses = await client.findAll(tracker.class.IssueStatus, {
-      space: projectSpace,
-      category: 'backlog',
-    });
-
-    if (statuses.length > 0) {
-      return statuses[0]._id;
+    // First try to get the project's default status
+    const project = await client.findOne(tracker.class.Project, { _id: projectSpace });
+    if (project && project.defaultIssueStatus) {
+      return project.defaultIssueStatus;
     }
 
-    // Fallback to any status
+    // Fallback to finding Backlog status (statuses are global, not in project space)
+    const backlogStatus = await client.findOne(tracker.class.IssueStatus, {
+      name: 'Backlog',
+      ofAttribute: tracker.attribute.IssueStatus,
+    });
+
+    if (backlogStatus) {
+      return backlogStatus._id;
+    }
+
+    // Fallback to any issue status
     const anyStatus = await client.findOne(tracker.class.IssueStatus, {
-      space: projectSpace,
+      ofAttribute: tracker.attribute.IssueStatus,
     });
 
     if (anyStatus) {
       return anyStatus._id;
     }
 
-    throw new HulyError('OPERATION_FAILED', 'No issue statuses found in project');
+    throw new HulyError('OPERATION_FAILED', 'No issue statuses found in system');
   }
 
   async _getNextIssueNumber(client, projectSpace) {
+    // Use SequenceService if available for atomic number generation
+    if (this.sequenceService) {
+      return this.sequenceService.getNextIssueNumber(client, projectSpace);
+    }
+
+    // Fallback to old method if SequenceService not available
     const lastIssue = await client.findOne(
       tracker.class.Issue,
       { space: projectSpace },

@@ -7,17 +7,17 @@ import { definition, handler, validate } from '../listRepositories.js';
 
 describe('listRepositories tool', () => {
   let mockContext;
-  let mockGitHubService;
+  let mockProjectService;
 
   beforeEach(() => {
-    mockGitHubService = {
-      listRepositories: jest.fn(),
+    mockProjectService = {
+      listGithubRepositories: jest.fn(),
     };
 
     mockContext = {
       client: {},
       services: {
-        gitHubService: mockGitHubService,
+        projectService: mockProjectService,
       },
       logger: {
         info: jest.fn(),
@@ -46,7 +46,7 @@ describe('listRepositories tool', () => {
     it('should list repositories successfully', async () => {
       const args = {};
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -75,18 +75,18 @@ Total repositories: 3`,
         ],
       };
 
-      mockGitHubService.listRepositories.mockResolvedValue(mockResult);
+      mockProjectService.listGithubRepositories.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockGitHubService.listRepositories).toHaveBeenCalledWith(mockContext.client);
-      expect(result).toEqual(mockResult);
+      expect(mockProjectService.listGithubRepositories).toHaveBeenCalledWith(mockContext.client);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle empty repositories list', async () => {
       const args = {};
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -95,19 +95,19 @@ Total repositories: 3`,
         ],
       };
 
-      mockGitHubService.listRepositories.mockResolvedValue(mockResult);
+      mockProjectService.listGithubRepositories.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockGitHubService.listRepositories).toHaveBeenCalledWith(mockContext.client);
-      expect(result).toEqual(mockResult);
+      expect(mockProjectService.listGithubRepositories).toHaveBeenCalledWith(mockContext.client);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle GitHub integration not configured', async () => {
       const args = {};
 
       const error = new Error('GitHub integration not configured');
-      mockGitHubService.listRepositories.mockRejectedValue(error);
+      mockProjectService.listGithubRepositories.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -120,7 +120,7 @@ Total repositories: 3`,
       const args = {};
 
       const error = new Error('GitHub authentication failed: Invalid token');
-      mockGitHubService.listRepositories.mockRejectedValue(error);
+      mockProjectService.listGithubRepositories.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -133,7 +133,7 @@ Total repositories: 3`,
       const args = {};
 
       const error = new Error('Failed to list repositories');
-      mockGitHubService.listRepositories.mockRejectedValue(error);
+      mockProjectService.listGithubRepositories.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -149,7 +149,7 @@ Total repositories: 3`,
       const args = {};
 
       const error = new Error('GitHub API rate limit exceeded');
-      mockGitHubService.listRepositories.mockRejectedValue(error);
+      mockProjectService.listGithubRepositories.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 

@@ -7,10 +7,10 @@ describe('validateDeletion tool', () => {
 
   beforeEach(() => {
     mockDeletionService = {
-      validateIssueDelete: jest.fn(),
-      validateProjectDelete: jest.fn(),
-      validateComponentDelete: jest.fn(),
-      validateMilestoneDelete: jest.fn(),
+      analyzeIssueDeletionImpact: jest.fn(),
+      analyzeProjectDeletionImpact: jest.fn(),
+      deleteComponent: jest.fn(),
+      deleteMilestone: jest.fn(),
     };
 
     mockContext = {
@@ -38,25 +38,26 @@ describe('validateDeletion tool', () => {
         entity_identifier: 'PROJ-123',
       };
 
-      const mockValidation = {
-        canDelete: true,
-        name: 'Test Issue',
+      const mockImpact = {
+        issue: {
+          title: 'Test Issue',
+        },
         blockers: [],
-        warnings: [],
-        dependencies: {},
-        impact: {},
+        subIssues: [],
+        comments: 0,
+        attachments: 0,
       };
 
-      mockDeletionService.validateIssueDelete.mockResolvedValue(mockValidation);
+      mockDeletionService.analyzeIssueDeletionImpact.mockResolvedValue(mockImpact);
 
       const result = await validateDeletionHandler(args, mockContext);
 
-      expect(mockDeletionService.validateIssueDelete).toHaveBeenCalledWith(
+      expect(mockDeletionService.analyzeIssueDeletionImpact).toHaveBeenCalledWith(
         mockContext.client,
         'PROJ-123'
       );
-      expect(result).toContain('✅ Yes');
-      expect(result).toContain('Test Issue');
+      expect(result.content[0].text).toContain('✅ Yes');
+      expect(result.content[0].text).toContain('Test Issue');
     });
 
     it('should show blockers for undeletable issue', async () => {
@@ -65,23 +66,24 @@ describe('validateDeletion tool', () => {
         entity_identifier: 'PROJ-123',
       };
 
-      const mockValidation = {
-        canDelete: false,
-        name: 'Blocked Issue',
+      const mockImpact = {
+        issue: {
+          title: 'Blocked Issue',
+        },
         blockers: ['Issue is referenced by PROJ-456', 'Issue has active pull request'],
-        warnings: [],
-        dependencies: {},
-        impact: {},
+        subIssues: [],
+        comments: 0,
+        attachments: 0,
       };
 
-      mockDeletionService.validateIssueDelete.mockResolvedValue(mockValidation);
+      mockDeletionService.analyzeIssueDeletionImpact.mockResolvedValue(mockImpact);
 
       const result = await validateDeletionHandler(args, mockContext);
 
-      expect(result).toContain('❌ No');
-      expect(result).toContain('⚠️ Blockers');
-      expect(result).toContain('Issue is referenced by PROJ-456');
-      expect(result).toContain('Issue has active pull request');
+      expect(result.content[0].text).toContain('❌ No');
+      expect(result.content[0].text).toContain('⚠️ Blockers');
+      expect(result.content[0].text).toContain('Issue is referenced by PROJ-456');
+      expect(result.content[0].text).toContain('Issue has active pull request');
     });
 
     it('should show warnings for issue with dependencies', async () => {
@@ -90,29 +92,28 @@ describe('validateDeletion tool', () => {
         entity_identifier: 'PROJ-123',
       };
 
-      const mockValidation = {
-        canDelete: true,
-        name: 'Issue with Dependencies',
-        blockers: [],
-        warnings: ['Has 3 sub-issues that will be deleted', 'Has 5 comments'],
-        dependencies: {
-          subIssues: [
-            { identifier: 'PROJ-124', title: 'Sub 1' },
-            { identifier: 'PROJ-125', title: 'Sub 2' },
-            { identifier: 'PROJ-126', title: 'Sub 3' },
-          ],
+      const mockImpact = {
+        issue: {
+          title: 'Issue with Dependencies',
         },
-        impact: {},
+        blockers: [],
+        subIssues: [
+          { identifier: 'PROJ-124', title: 'Sub 1' },
+          { identifier: 'PROJ-125', title: 'Sub 2' },
+          { identifier: 'PROJ-126', title: 'Sub 3' },
+        ],
+        comments: 5,
+        attachments: 0,
       };
 
-      mockDeletionService.validateIssueDelete.mockResolvedValue(mockValidation);
+      mockDeletionService.analyzeIssueDeletionImpact.mockResolvedValue(mockImpact);
 
       const result = await validateDeletionHandler(args, mockContext);
 
-      expect(result).toContain('✅ Yes');
-      expect(result).toContain('⚠️ Warnings');
-      expect(result).toContain('Has 3 sub-issues that will be deleted');
-      expect(result).toContain('Has 5 comments');
+      expect(result.content[0].text).toContain('✅ Yes');
+      expect(result.content[0].text).toContain('⚠️ Warnings');
+      expect(result.content[0].text).toContain('Has 3 sub-issues that will be deleted');
+      expect(result.content[0].text).toContain('Has 5 comments that will be deleted');
     });
 
     it('should handle invalid issue identifier', async () => {
@@ -121,9 +122,9 @@ describe('validateDeletion tool', () => {
         entity_identifier: 'invalid-format',
       };
 
-      await expect(validateDeletionHandler(args, mockContext)).rejects.toThrow(
-        'Invalid issue identifier format'
-      );
+      const result = await validateDeletionHandler(args, mockContext);
+      expect(result.content[0].text).toContain('Error');
+      expect(result.content[0].text).toContain('Invalid value');
     });
   });
 
@@ -134,26 +135,23 @@ describe('validateDeletion tool', () => {
         entity_identifier: 'PROJ',
       };
 
-      const mockValidation = {
-        canDelete: true,
-        name: 'Empty Project',
-        blockers: [],
-        warnings: [],
-        dependencies: {},
-        impact: {
-          issues: 0,
-          components: 0,
-          milestones: 0,
-          templates: 0,
+      const mockImpact = {
+        project: {
+          name: 'Empty Project',
         },
+        blockers: [],
+        issues: [],
+        components: [],
+        milestones: [],
+        templates: [],
       };
 
-      mockDeletionService.validateProjectDelete.mockResolvedValue(mockValidation);
+      mockDeletionService.analyzeProjectDeletionImpact.mockResolvedValue(mockImpact);
 
       const result = await validateDeletionHandler(args, mockContext);
 
-      expect(result).toContain('✅ Yes');
-      expect(result).toContain('Empty Project');
+      expect(result.content[0].text).toContain('✅ Yes');
+      expect(result.content[0].text).toContain('Empty Project');
     });
 
     it('should show impact summary for project with data', async () => {
@@ -162,34 +160,27 @@ describe('validateDeletion tool', () => {
         entity_identifier: 'PROJ',
       };
 
-      const mockValidation = {
-        canDelete: false,
-        name: 'Active Project',
-        blockers: ['Project has active issues', 'Project has GitHub integration enabled'],
-        warnings: [
-          'Has 150 issues that will be deleted',
-          'Has 10 components that will be deleted',
-          'Has 5 milestones that will be deleted',
-        ],
-        dependencies: {},
-        impact: {
-          issues: 150,
-          components: 10,
-          milestones: 5,
-          templates: 2,
+      const mockImpact = {
+        project: {
+          name: 'Active Project',
         },
+        blockers: ['Project has active issues', 'Project has GitHub integration enabled'],
+        issues: new Array(150).fill({ id: 'test' }),
+        components: new Array(10).fill({ id: 'test' }),
+        milestones: new Array(5).fill({ id: 'test' }),
+        templates: new Array(2).fill({ id: 'test' }),
       };
 
-      mockDeletionService.validateProjectDelete.mockResolvedValue(mockValidation);
+      mockDeletionService.analyzeProjectDeletionImpact.mockResolvedValue(mockImpact);
 
       const result = await validateDeletionHandler(args, mockContext);
 
-      expect(result).toContain('❌ No');
-      expect(result).toContain('📊 Impact Summary');
-      expect(result).toContain('issues: 150');
-      expect(result).toContain('components: 10');
-      expect(result).toContain('milestones: 5');
-      expect(result).toContain('templates: 2');
+      expect(result.content[0].text).toContain('❌ No');
+      expect(result.content[0].text).toContain('📊 Impact Summary');
+      expect(result.content[0].text).toContain('issues: 150');
+      expect(result.content[0].text).toContain('components: 10');
+      expect(result.content[0].text).toContain('milestones: 5');
+      expect(result.content[0].text).toContain('templates: 2');
     });
   });
 
@@ -201,37 +192,28 @@ describe('validateDeletion tool', () => {
         project_identifier: 'PROJ',
       };
 
-      const mockValidation = {
-        canDelete: true,
-        name: 'Backend Component',
-        blockers: [],
-        warnings: ['5 issues will have their component cleared'],
-        dependencies: {
-          issues: [
-            { identifier: 'PROJ-1', title: 'Issue 1' },
-            { identifier: 'PROJ-2', title: 'Issue 2' },
-            { identifier: 'PROJ-3', title: 'Issue 3' },
-            { identifier: 'PROJ-4', title: 'Issue 4' },
-            { identifier: 'PROJ-5', title: 'Issue 5' },
-          ],
-        },
-        impact: {
-          issues: 5,
-        },
+      const mockDryRunResult = {
+        content: [
+          {
+            type: 'text',
+            text: '🔍 DRY RUN: Would delete component "Backend"\n\nAffected issues: 5\n- PROJ-1: Issue 1\n- PROJ-2: Issue 2\n- PROJ-3: Issue 3\n- PROJ-4: Issue 4\n- PROJ-5: Issue 5',
+          },
+        ],
       };
 
-      mockDeletionService.validateComponentDelete.mockResolvedValue(mockValidation);
+      mockDeletionService.deleteComponent.mockResolvedValue(mockDryRunResult);
 
       const result = await validateDeletionHandler(args, mockContext);
 
-      expect(mockDeletionService.validateComponentDelete).toHaveBeenCalledWith(
+      expect(mockDeletionService.deleteComponent).toHaveBeenCalledWith(
         mockContext.client,
         'PROJ',
-        'Backend'
+        'Backend',
+        { dryRun: true }
       );
-      expect(result).toContain('✅ Yes');
-      expect(result).toContain('5 issues will have their component cleared');
-      expect(result).toContain('issues: 5');
+      expect(result.content[0].text).toContain('❌ No');
+      expect(result.content[0].text).toContain('5 issues use this component');
+      expect(result.content[0].text).toContain('affected issues: 5');
     });
 
     it('should require project identifier for component', async () => {
@@ -240,9 +222,9 @@ describe('validateDeletion tool', () => {
         entity_identifier: 'Backend',
       };
 
-      await expect(validateDeletionHandler(args, mockContext)).rejects.toThrow(
-        'project_identifier is required for component validation'
-      );
+      const result = await validateDeletionHandler(args, mockContext);
+      expect(result.content[0].text).toContain('Error');
+      expect(result.content[0].text).toContain('project_identifier');
     });
   });
 
@@ -254,33 +236,27 @@ describe('validateDeletion tool', () => {
         project_identifier: 'PROJ',
       };
 
-      const mockValidation = {
-        canDelete: true,
-        name: 'Version 1.0',
-        blockers: [],
-        warnings: ['10 issues will have their milestone cleared'],
-        dependencies: {
-          issues: Array.from({ length: 10 }, (_, i) => ({
-            identifier: `PROJ-${i + 1}`,
-            title: `Issue ${i + 1}`,
-          })),
-        },
-        impact: {
-          issues: 10,
-        },
+      const mockDryRunResult = {
+        content: [
+          {
+            type: 'text',
+            text: '🔍 DRY RUN: Would delete milestone "v1.0"\n\nAffected issues: 10\n- PROJ-1: Issue 1\n- PROJ-2: Issue 2\n[...and more]',
+          },
+        ],
       };
 
-      mockDeletionService.validateMilestoneDelete.mockResolvedValue(mockValidation);
+      mockDeletionService.deleteMilestone.mockResolvedValue(mockDryRunResult);
 
       const result = await validateDeletionHandler(args, mockContext);
 
-      expect(mockDeletionService.validateMilestoneDelete).toHaveBeenCalledWith(
+      expect(mockDeletionService.deleteMilestone).toHaveBeenCalledWith(
         mockContext.client,
         'PROJ',
-        'v1.0'
+        'v1.0',
+        { dryRun: true }
       );
-      expect(result).toContain('✅ Yes');
-      expect(result).toContain('10 issues will have their milestone cleared');
+      expect(result.content[0].text).toContain('❌ No');
+      expect(result.content[0].text).toContain('10 issues use this milestone');
     });
 
     it('should require project identifier for milestone', async () => {
@@ -289,9 +265,9 @@ describe('validateDeletion tool', () => {
         entity_identifier: 'v1.0',
       };
 
-      await expect(validateDeletionHandler(args, mockContext)).rejects.toThrow(
-        'project_identifier is required for milestone validation'
-      );
+      const result = await validateDeletionHandler(args, mockContext);
+      expect(result.content[0].text).toContain('Error');
+      expect(result.content[0].text).toContain('project_identifier');
     });
   });
 
@@ -301,9 +277,9 @@ describe('validateDeletion tool', () => {
       entity_identifier: 'something',
     };
 
-    await expect(validateDeletionHandler(args, mockContext)).rejects.toThrow(
-      'Unknown entity type: unknown'
-    );
+    const result = await validateDeletionHandler(args, mockContext);
+    expect(result.content[0].text).toContain('Error');
+    expect(result.content[0].text).toContain('entity_type');
   });
 
   it('should handle validation errors', async () => {
@@ -312,9 +288,11 @@ describe('validateDeletion tool', () => {
       entity_identifier: 'PROJ-123',
     };
 
-    mockDeletionService.validateIssueDelete.mockRejectedValue(new Error('Database error'));
+    mockDeletionService.analyzeIssueDeletionImpact.mockRejectedValue(new Error('Database error'));
 
-    await expect(validateDeletionHandler(args, mockContext)).rejects.toThrow('Database error');
+    const result = await validateDeletionHandler(args, mockContext);
+    expect(result.content[0].text).toContain('Error');
+    expect(result.content[0].text).toContain('Database error');
     expect(mockContext.logger.error).toHaveBeenCalled();
   });
 });

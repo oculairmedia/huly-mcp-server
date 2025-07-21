@@ -49,7 +49,7 @@ describe('updateIssue tool', () => {
         value: 'Updated Title',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -58,7 +58,7 @@ describe('updateIssue tool', () => {
         ],
       };
 
-      mockIssueService.updateIssue.mockResolvedValue(mockResult);
+      mockIssueService.updateIssue.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -68,7 +68,7 @@ describe('updateIssue tool', () => {
         'title',
         'Updated Title'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should update issue status successfully', async () => {
@@ -78,7 +78,7 @@ describe('updateIssue tool', () => {
         value: 'done',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -87,7 +87,7 @@ describe('updateIssue tool', () => {
         ],
       };
 
-      mockIssueService.updateIssue.mockResolvedValue(mockResult);
+      mockIssueService.updateIssue.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -97,7 +97,7 @@ describe('updateIssue tool', () => {
         'status',
         'done'
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle service errors', async () => {

@@ -37,8 +37,9 @@ const _activity = activityModule.default || activityModule;
 const _task = taskModule.default || taskModule;
 
 class IssueService {
-  constructor(statusManager = null) {
+  constructor(statusManager = null, sequenceService = null) {
     this.statusManager = statusManager;
+    this.sequenceService = sequenceService;
   }
 
   /**
@@ -133,7 +134,15 @@ class IssueService {
   /**
    * Create a new issue
    */
-  async createIssue(client, projectIdentifier, title, description = '', priority = 'NoPriority') {
+  async createIssue(
+    client,
+    projectIdentifier,
+    title,
+    description = '',
+    priority = 'NoPriority',
+    component = null,
+    milestone = null
+  ) {
     // Validate priority
     priority = validateEnum(priority, 'priority', getValidPriorities(), 'NoPriority');
 
@@ -177,21 +186,71 @@ class IssueService {
       });
     }
 
-    // Generate issue number
-    const lastOne = await client.findOne(
-      tracker.class.Issue,
-      { space: project._id },
-      { sort: { number: -1 } }
-    );
-    const number = (lastOne?.number ?? 0) + 1;
+    // Generate issue number atomically
+    let number;
+    if (this.sequenceService) {
+      number = await this.sequenceService.getNextIssueNumber(client, project._id);
+    } else {
+      // Fallback to old method if SequenceService not available
+      const lastOne = await client.findOne(
+        tracker.class.Issue,
+        { space: project._id },
+        { sort: { number: -1 } }
+      );
+      number = (lastOne?.number ?? 0) + 1;
+    }
     const identifier = `${project.identifier}-${number}`;
+
+    // Resolve component if provided
+    let componentId = null;
+    if (component) {
+      const components = await client.findAll(tracker.class.Component, {
+        space: project._id,
+      });
+
+      // Use fuzzy matching to find the best match
+      const normalizedComponent = normalizeLabel(component, components);
+
+      // Find component by normalized label
+      const foundComponent = await client.findOne(tracker.class.Component, {
+        space: project._id,
+        label: normalizedComponent,
+      });
+
+      if (foundComponent) {
+        componentId = foundComponent._id;
+      }
+      // If not found, componentId remains null
+    }
+
+    // Resolve milestone if provided
+    let milestoneId = null;
+    if (milestone) {
+      const milestones = await client.findAll(tracker.class.Milestone, {
+        space: project._id,
+      });
+
+      // Use fuzzy matching to find the best match
+      const normalizedMilestone = normalizeLabel(milestone, milestones);
+
+      // Find milestone by normalized label
+      const foundMilestone = await client.findOne(tracker.class.Milestone, {
+        space: project._id,
+        label: normalizedMilestone,
+      });
+
+      if (foundMilestone) {
+        milestoneId = foundMilestone._id;
+      }
+      // If not found, milestoneId remains null
+    }
 
     const issueData = {
       title,
       description: '', // Will be updated after issue creation
       assignee: null,
-      component: null,
-      milestone: null,
+      component: componentId,
+      milestone: milestoneId,
       number,
       identifier,
       priority: PRIORITY_MAP[priority],
@@ -203,8 +262,10 @@ class IssueService {
       comments: 0,
       subIssues: 0,
       estimation: 0,
+      remainingTime: 0, // Should match estimation initially
       reportedTime: 0,
       childInfo: [],
+      relations: [],
       kind: tracker.taskTypes.Issue,
     };
 
@@ -251,6 +312,12 @@ class IssueService {
           text: `✅ Created issue ${identifier}: "${title}"\n\nPriority: ${priorityName}\nStatus: ${defaultStatusName}\nProject: ${project.name}`,
         },
       ],
+      data: {
+        identifier,
+        project: project.identifier,
+        status: defaultStatusName,
+        priority: priorityName,
+      },
     };
   }
 
@@ -396,12 +463,7 @@ class IssueService {
           );
         }
 
-        updateData.priority =
-          tracker.component.Priority[
-            normalizedPriority === 'NoPriority'
-              ? 'NoPriority'
-              : normalizedPriority.charAt(0).toUpperCase() + normalizedPriority.slice(1)
-          ];
+        updateData.priority = PRIORITY_MAP[normalizedPriority];
         displayValue = normalizedPriority === 'NoPriority' ? 'No Priority' : normalizedPriority;
         break;
       }
@@ -508,7 +570,9 @@ class IssueService {
     parentIssueIdentifier,
     title,
     description = '',
-    priority = 'NoPriority'
+    priority = 'NoPriority',
+    component = null,
+    milestone = null
   ) {
     // Validate priority
     priority = validateEnum(priority, 'priority', getValidPriorities(), 'NoPriority');
@@ -530,6 +594,7 @@ class IssueService {
 
     // Get the default status for new issues
     let defaultStatus;
+    let defaultStatusName = 'Backlog';
     try {
       // Find all statuses in the project
       let statuses = await client.findAll(tracker.class.IssueStatus, {
@@ -552,6 +617,7 @@ class IssueService {
       }
 
       defaultStatus = selectedStatus._id;
+      defaultStatusName = selectedStatus.name;
     } catch (error) {
       console.error('Error getting default status:', error);
       throw new HulyError('OPERATION_FAILED', 'Failed to get default status for project', {
@@ -560,21 +626,69 @@ class IssueService {
       });
     }
 
-    // Generate issue number
-    const lastOne = await client.findOne(
-      tracker.class.Issue,
-      { space: project._id },
-      { sort: { number: -1 } }
-    );
-    const number = (lastOne?.number ?? 0) + 1;
+    // Generate issue number atomically
+    let number;
+    if (this.sequenceService) {
+      number = await this.sequenceService.getNextIssueNumber(client, project._id);
+    } else {
+      // Fallback to old method if SequenceService not available
+      const lastOne = await client.findOne(
+        tracker.class.Issue,
+        { space: project._id },
+        { sort: { number: -1 } }
+      );
+      number = (lastOne?.number ?? 0) + 1;
+    }
     const identifier = `${project.identifier}-${number}`;
+
+    // Resolve component if provided, otherwise inherit from parent
+    let componentId = parentIssue.component; // Default to parent's component
+    if (component) {
+      const components = await client.findAll(tracker.class.Component, {
+        space: project._id,
+      });
+
+      // Use fuzzy matching to find the best match
+      const normalizedComponent = normalizeLabel(component, components);
+
+      // Find component by normalized label
+      const foundComponent = await client.findOne(tracker.class.Component, {
+        space: project._id,
+        label: normalizedComponent,
+      });
+
+      if (foundComponent) {
+        componentId = foundComponent._id;
+      }
+    }
+
+    // Resolve milestone if provided, otherwise inherit from parent
+    let milestoneId = parentIssue.milestone; // Default to parent's milestone
+    if (milestone) {
+      const milestones = await client.findAll(tracker.class.Milestone, {
+        space: project._id,
+      });
+
+      // Use fuzzy matching to find the best match
+      const normalizedMilestone = normalizeLabel(milestone, milestones);
+
+      // Find milestone by normalized label
+      const foundMilestone = await client.findOne(tracker.class.Milestone, {
+        space: project._id,
+        label: normalizedMilestone,
+      });
+
+      if (foundMilestone) {
+        milestoneId = foundMilestone._id;
+      }
+    }
 
     const issueData = {
       title,
       description: '', // Will be updated after issue creation
       assignee: null,
-      component: parentIssue.component, // Inherit from parent
-      milestone: parentIssue.milestone, // Inherit from parent
+      component: componentId,
+      milestone: milestoneId,
       number,
       identifier,
       priority: PRIORITY_MAP[priority],
@@ -586,8 +700,10 @@ class IssueService {
       comments: 0,
       subIssues: 0,
       estimation: 0,
+      remainingTime: 0, // Should match estimation initially
       reportedTime: 0,
       childInfo: [],
+      relations: [],
       kind: tracker.taskTypes.Issue,
     };
 
@@ -637,6 +753,12 @@ class IssueService {
           text: `✅ Created subissue ${identifier}: "${title}"\n\nParent: ${parentIssueIdentifier}\nPriority: ${priorityName}\nProject: ${project.name}`,
         },
       ],
+      data: {
+        identifier,
+        project: project.identifier,
+        status: defaultStatusName,
+        priority: priorityName,
+      },
     };
   }
 
@@ -653,7 +775,7 @@ class IssueService {
 
     // Find all comments attached to this issue
     const comments = await client.findAll(
-      _activity.class.ActivityMessage,
+      chunter.class.ChatMessage,
       {
         attachedTo: issue._id,
         attachedToClass: tracker.class.Issue,
@@ -690,13 +812,16 @@ class IssueService {
       // Extract comment text
       let commentText = 'No content';
       if (comment.message) {
-        // Comments use direct Markup storage, not blob references
-        try {
-          commentText = await extractTextFromMarkup(comment.message);
-        } catch {
-          // If extraction fails, use the raw message
-          commentText =
-            typeof comment.message === 'string' ? comment.message : JSON.stringify(comment.message);
+        // Comments can be plain strings or markup objects
+        if (typeof comment.message === 'string') {
+          commentText = comment.message;
+        } else {
+          try {
+            commentText = await extractTextFromMarkup(comment.message);
+          } catch {
+            // If extraction fails, use JSON representation
+            commentText = JSON.stringify(comment.message);
+          }
         }
       }
 
@@ -857,7 +982,7 @@ class IssueService {
     // Recent comments
     result += '\n\n## Recent Comments\n\n';
     const comments = await client.findAll(
-      _activity.class.ActivityMessage,
+      chunter.class.ChatMessage,
       {
         attachedTo: issue._id,
         attachedToClass: tracker.class.Issue,
@@ -877,12 +1002,15 @@ class IssueService {
         // Extract comment text
         let commentText = '';
         if (comment.message) {
-          // Comments use direct Markup storage, not blob references
-          try {
-            commentText = await extractTextFromMarkup(comment.message);
-          } catch {
-            commentText =
-              typeof comment.message === 'string' ? comment.message : 'Unable to display comment';
+          // Comments can be plain strings or markup objects
+          if (typeof comment.message === 'string') {
+            commentText = comment.message;
+          } else {
+            try {
+              commentText = await extractTextFromMarkup(comment.message);
+            } catch {
+              commentText = 'Unable to display comment';
+            }
           }
         }
         result += `${commentText}\n\n`;
@@ -1014,21 +1142,13 @@ class IssueService {
       // Use fuzzy priority normalization
       const normalizedPriority = fuzzyNormalizePriority(priority);
 
-      const priorityMap = {
-        low: tracker.component.Priority.Low,
-        medium: tracker.component.Priority.Medium,
-        high: tracker.component.Priority.High,
-        urgent: tracker.component.Priority.Urgent,
-        NoPriority: tracker.component.Priority.NoPriority,
-      };
-
-      if (priorityMap[normalizedPriority] !== undefined) {
-        searchCriteria.priority = priorityMap[normalizedPriority];
+      if (PRIORITY_MAP[normalizedPriority] !== undefined) {
+        searchCriteria.priority = PRIORITY_MAP[normalizedPriority];
       } else {
         // Try lowercase version as fallback
         const lowerPriority = normalizedPriority.toLowerCase();
-        if (priorityMap[lowerPriority] !== undefined) {
-          searchCriteria.priority = priorityMap[lowerPriority];
+        if (PRIORITY_MAP[lowerPriority] !== undefined) {
+          searchCriteria.priority = PRIORITY_MAP[lowerPriority];
         }
       }
     }
@@ -1178,7 +1298,7 @@ class IssueService {
     const projects = await Promise.all(
       projectIds.map((id) => client.findOne(tracker.class.Project, { _id: id }))
     );
-    const projectMap = new Map(projects.map((p) => [p._id, p]));
+    const projectMap = new Map(projects.filter((p) => p !== null).map((p) => [p._id, p]));
 
     let result = `Found ${issues.length} issues:\n\n`;
 
@@ -1649,6 +1769,6 @@ class IssueService {
 
 // Export class and create instance function
 export { IssueService };
-export function createIssueService(statusManager) {
-  return new IssueService(statusManager);
+export function createIssueService(statusManager, sequenceService) {
+  return new IssueService(statusManager, sequenceService);
 }

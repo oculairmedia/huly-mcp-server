@@ -7,17 +7,17 @@ import { definition, handler, validate } from '../listMilestones.js';
 
 describe('listMilestones tool', () => {
   let mockContext;
-  let mockMilestoneService;
+  let mockProjectService;
 
   beforeEach(() => {
-    mockMilestoneService = {
+    mockProjectService = {
       listMilestones: jest.fn(),
     };
 
     mockContext = {
       client: {},
       services: {
-        milestoneService: mockMilestoneService,
+        projectService: mockProjectService,
       },
       logger: {
         info: jest.fn(),
@@ -47,7 +47,7 @@ describe('listMilestones tool', () => {
         project_identifier: 'PROJ',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -76,12 +76,12 @@ Total milestones: 3`,
         ],
       };
 
-      mockMilestoneService.listMilestones.mockResolvedValue(mockResult);
+      mockProjectService.listMilestones.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockMilestoneService.listMilestones).toHaveBeenCalledWith(mockContext.client, 'PROJ');
-      expect(result).toEqual(mockResult);
+      expect(mockProjectService.listMilestones).toHaveBeenCalledWith(mockContext.client, 'PROJ');
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle empty milestones list', async () => {
@@ -89,7 +89,7 @@ Total milestones: 3`,
         project_identifier: 'NEWPROJ',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -98,15 +98,12 @@ Total milestones: 3`,
         ],
       };
 
-      mockMilestoneService.listMilestones.mockResolvedValue(mockResult);
+      mockProjectService.listMilestones.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockMilestoneService.listMilestones).toHaveBeenCalledWith(
-        mockContext.client,
-        'NEWPROJ'
-      );
-      expect(result).toEqual(mockResult);
+      expect(mockProjectService.listMilestones).toHaveBeenCalledWith(mockContext.client, 'NEWPROJ');
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle project not found error', async () => {
@@ -115,7 +112,7 @@ Total milestones: 3`,
       };
 
       const error = new Error('Project not found: INVALID');
-      mockMilestoneService.listMilestones.mockRejectedValue(error);
+      mockProjectService.listMilestones.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -130,7 +127,7 @@ Total milestones: 3`,
       };
 
       const error = new Error('Failed to list milestones');
-      mockMilestoneService.listMilestones.mockRejectedValue(error);
+      mockProjectService.listMilestones.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -217,14 +214,13 @@ Total milestones: 3`,
       expect(errors.project_identifier).toContain('uppercase');
     });
 
-    it('should fail validation with numbers in project identifier', () => {
+    it('should pass validation with numbers in project identifier', () => {
       const args = {
         project_identifier: 'PRO1',
       };
 
       const errors = validate(args);
-      expect(errors).toHaveProperty('project_identifier');
-      expect(errors.project_identifier).toContain('uppercase');
+      expect(errors).toBeNull();
     });
   });
 });

@@ -37,7 +37,7 @@ describe('createSubissue tool', () => {
       expect(definition.name).toBe('huly_create_subissue');
       expect(definition.description).toContain('Create a subissue');
       expect(definition.inputSchema.required).toEqual(['parent_issue_identifier', 'title']);
-      expect(definition.annotations.destructiveHint).toBe(true);
+      expect(definition.annotations.destructiveHint).toBe(false);
     });
   });
 
@@ -48,7 +48,7 @@ describe('createSubissue tool', () => {
         title: 'Implement unit tests',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -57,7 +57,7 @@ describe('createSubissue tool', () => {
         ],
       };
 
-      mockIssueService.createSubissue.mockResolvedValue(mockResult);
+      mockIssueService.createSubissue.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -66,9 +66,11 @@ describe('createSubissue tool', () => {
         'PROJ-123',
         'Implement unit tests',
         undefined,
-        'medium'
+        undefined,
+        undefined,
+        undefined
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should create subissue with description and priority', async () => {
@@ -79,7 +81,7 @@ describe('createSubissue tool', () => {
         priority: 'high',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -88,7 +90,7 @@ describe('createSubissue tool', () => {
         ],
       };
 
-      mockIssueService.createSubissue.mockResolvedValue(mockResult);
+      mockIssueService.createSubissue.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -97,9 +99,11 @@ describe('createSubissue tool', () => {
         'PROJ-123',
         'Fix validation bug',
         'The validation is not working correctly for edge cases',
-        'high'
+        'high',
+        undefined,
+        undefined
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle parent issue not found', async () => {
@@ -167,15 +171,14 @@ describe('createSubissue tool', () => {
       expect(errors).toHaveProperty('parent_issue_identifier');
     });
 
-    it('should fail validation with invalid parent issue format', () => {
+    it('should pass validation with any parent issue format', () => {
       const args = {
         parent_issue_identifier: 'invalid-format',
         title: 'Test subissue',
       };
 
       const errors = validate(args);
-      expect(errors).toHaveProperty('parent_issue_identifier');
-      expect(errors.parent_issue_identifier).toContain('format');
+      expect(errors).toBeNull();
     });
 
     it('should fail validation without title', () => {

@@ -9,27 +9,12 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { createHulyClient } from './src/core/index.js';
-import {
-  projectService,
-  createIssueService,
-  TemplateService,
-  DeletionService,
-} from './src/services/index.js';
+import { ServiceRegistry } from './src/services/index.js';
 import { createMCPHandler } from './src/protocol/index.js';
 import { getAllToolDefinitions } from './src/tools/index.js';
 import { TransportFactory } from './src/transport/index.js';
 import { getConfigManager } from './src/config/index.js';
 import { createLoggerWithConfig } from './src/utils/index.js';
-import statusManager from './StatusManager.js';
-
-// Create issueService instance with statusManager
-const issueService = createIssueService(statusManager);
-
-// Create templateService instance
-const templateService = new TemplateService();
-
-// Create deletionService instance
-const deletionService = new DeletionService();
 
 // Get configuration manager instance
 const configManager = getConfigManager();
@@ -66,12 +51,12 @@ class HulyMCPServer {
       workspace: hulyConfig.workspace,
     });
 
-    this.services = {
-      projectService,
-      issueService,
-      templateService,
-      deletionService,
-    };
+    // Initialize ServiceRegistry with dependencies
+    const serviceRegistry = ServiceRegistry.getInstance();
+    serviceRegistry.initialize(this.hulyClientWrapper, this.logger);
+
+    // Get all services from the registry
+    this.services = serviceRegistry.getServices();
 
     // Initialize MCP protocol handler
     this.mcpHandler = createMCPHandler(this.server, {

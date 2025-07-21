@@ -7,17 +7,17 @@ import { definition, handler, validate } from '../deleteMilestone.js';
 
 describe('deleteMilestone tool', () => {
   let mockContext;
-  let mockMilestoneService;
+  let mockDeletionService;
 
   beforeEach(() => {
-    mockMilestoneService = {
+    mockDeletionService = {
       deleteMilestone: jest.fn(),
     };
 
     mockContext = {
       client: {},
       services: {
-        milestoneService: mockMilestoneService,
+        deletionService: mockDeletionService,
       },
       logger: {
         info: jest.fn(),
@@ -48,7 +48,7 @@ describe('deleteMilestone tool', () => {
         milestone_label: 'v1.0',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -57,20 +57,20 @@ describe('deleteMilestone tool', () => {
         ],
       };
 
-      mockMilestoneService.deleteMilestone.mockResolvedValue(mockResult);
+      mockDeletionService.deleteMilestone.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockMilestoneService.deleteMilestone).toHaveBeenCalledWith(
+      expect(mockDeletionService.deleteMilestone).toHaveBeenCalledWith(
         mockContext.client,
         'PROJ',
         'v1.0',
         {
-          dry_run: false,
+          dryRun: false,
           force: false,
         }
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle dry run mode', async () => {
@@ -80,7 +80,7 @@ describe('deleteMilestone tool', () => {
         dry_run: true,
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -97,20 +97,20 @@ Total issues that would be affected: 15`,
         ],
       };
 
-      mockMilestoneService.deleteMilestone.mockResolvedValue(mockResult);
+      mockDeletionService.deleteMilestone.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockMilestoneService.deleteMilestone).toHaveBeenCalledWith(
+      expect(mockDeletionService.deleteMilestone).toHaveBeenCalledWith(
         mockContext.client,
         'PROJ',
         'v1.0',
         {
-          dry_run: true,
+          dryRun: true,
           force: false,
         }
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle force deletion', async () => {
@@ -120,7 +120,7 @@ Total issues that would be affected: 15`,
         force: true,
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -129,20 +129,20 @@ Total issues that would be affected: 15`,
         ],
       };
 
-      mockMilestoneService.deleteMilestone.mockResolvedValue(mockResult);
+      mockDeletionService.deleteMilestone.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
-      expect(mockMilestoneService.deleteMilestone).toHaveBeenCalledWith(
+      expect(mockDeletionService.deleteMilestone).toHaveBeenCalledWith(
         mockContext.client,
         'PROJ',
         'v1.0',
         {
-          dry_run: false,
+          dryRun: false,
           force: true,
         }
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle milestone not found error', async () => {
@@ -152,7 +152,7 @@ Total issues that would be affected: 15`,
       };
 
       const error = new Error('Milestone "v99.0" not found in project PROJ');
-      mockMilestoneService.deleteMilestone.mockRejectedValue(error);
+      mockDeletionService.deleteMilestone.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -168,7 +168,7 @@ Total issues that would be affected: 15`,
       };
 
       const error = new Error('Milestone is in use by 10 issues. Use force=true to delete anyway.');
-      mockMilestoneService.deleteMilestone.mockRejectedValue(error);
+      mockDeletionService.deleteMilestone.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -184,7 +184,7 @@ Total issues that would be affected: 15`,
       };
 
       const error = new Error('Failed to delete milestone');
-      mockMilestoneService.deleteMilestone.mockRejectedValue(error);
+      mockDeletionService.deleteMilestone.mockRejectedValue(error);
 
       const result = await handler(args, mockContext);
 
@@ -244,7 +244,7 @@ Total issues that would be affected: 15`,
 
       const errors = validate(args);
       expect(errors).toHaveProperty('project_identifier');
-      expect(errors.project_identifier).toContain('uppercase');
+      expect(errors.project_identifier).toContain('1-5 characters');
     });
 
     it('should fail validation without milestone label', () => {

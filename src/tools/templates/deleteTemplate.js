@@ -62,7 +62,11 @@ export function validate(args) {
   const errors = {};
 
   // Validate template ID
-  if (!args.template_id || args.template_id.trim().length === 0) {
+  if (!args.template_id) {
+    errors.template_id = 'Template ID is required';
+  } else if (typeof args.template_id !== 'string') {
+    errors.template_id = 'Template ID must be a string';
+  } else if (args.template_id.trim().length === 0) {
     errors.template_id = 'Template ID is required';
   }
 

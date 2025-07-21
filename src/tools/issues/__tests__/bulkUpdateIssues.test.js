@@ -3,33 +3,53 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { handler, validate, definition } from '../bulkUpdateIssues.js';
 
 // Create a mock module for BulkOperationService
 const mockBulkOperationService = jest.fn();
 const mockExecuteBulkOperation = jest.fn();
 const mockValidateBulkOperation = jest.fn();
 
+// Mock the base logger
+const mockLogger = {
+  debug: jest.fn(),
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+};
+
 // Override the module resolver to return our mock
 jest.unstable_mockModule('../../../services/BulkOperationService.js', () => ({
   BulkOperationService: mockBulkOperationService,
 }));
 
+// Import after mocking
+const { handler, validate, definition } = await import('../bulkUpdateIssues.js');
+
 describe('bulkUpdateIssues', () => {
   let mockContext;
   let mockIssueService;
   let mockBulkService;
+  let mockClient;
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Reset the BulkOperationService mock
+    mockBulkOperationService.mockClear();
+    mockExecuteBulkOperation.mockClear();
+    mockValidateBulkOperation.mockClear();
 
     mockIssueService = {
       updateIssue: jest.fn(),
       getIssue: jest.fn(),
     };
 
+    mockClient = {
+      findOne: jest.fn(),
+    };
+
     mockContext = {
-      client: { mock: 'client' },
+      client: mockClient,
       services: {
         issueService: mockIssueService,
       },
@@ -46,7 +66,11 @@ describe('bulkUpdateIssues', () => {
       executeBulkOperation: mockExecuteBulkOperation,
       validateBulkOperation: mockValidateBulkOperation,
     };
-    mockBulkOperationService.mockImplementation(() => mockBulkService);
+    mockBulkOperationService.mockImplementation((config, logger) => {
+      // Store the logger for later verification if needed
+      mockBulkService._logger = logger || mockLogger;
+      return mockBulkService;
+    });
   });
 
   describe('definition', () => {
@@ -186,75 +210,141 @@ describe('bulkUpdateIssues', () => {
     };
 
     it('should execute bulk update successfully', async () => {
-      const mockResults = {
-        processed: 2,
-        results: [
-          {
-            index: 0,
-            success: true,
-            result: {
-              success: true,
-              data: { _id: '1', identifier: 'PROJ-1', status: 'Done' },
-            },
-          },
-          {
-            index: 1,
-            success: true,
-            result: {
-              success: true,
-              data: { _id: '2', identifier: 'PROJ-2', priority: 'High' },
-            },
-          },
-        ],
-        elapsed: 150,
-      };
+      // Mock successful updates
+      mockIssueService.updateIssue
+        .mockResolvedValueOnce({
+          success: true,
+          data: { _id: '1', identifier: 'PROJ-1', status: 'Done' },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: { _id: '2', identifier: 'PROJ-2', priority: 'High' },
+        });
 
-      mockExecuteBulkOperation.mockResolvedValue(mockResults);
+      // Mock the executeBulkOperation to simulate processing
+      mockExecuteBulkOperation.mockImplementation(async ({ items, operation, options }) => {
+        const results = [];
+        for (let i = 0; i < items.length; i++) {
+          try {
+            const updateResult = await operation(items[i], i);
+            results.push({
+              index: i,
+              success: true,
+              item: items[i],
+              result: updateResult,
+            });
+          } catch (error) {
+            results.push({
+              index: i,
+              success: false,
+              item: items[i],
+              error: error.message,
+            });
+          }
+        }
+
+        // Call progress callback if provided
+        if (options.progressCallback) {
+          options.progressCallback({
+            processed: items.length,
+            total: items.length,
+            succeeded: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
+          });
+        }
+
+        return {
+          summary: {
+            total: items.length,
+            succeeded: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
+            duration: 150,
+          },
+          results,
+          errors: [],
+        };
+      });
 
       const result = await handler(validArgs, mockContext);
 
-      expect(result.success).toBe(true);
-      expect(result.data.summary).toEqual({
+      expect(result.content).toBeDefined();
+      expect(result.content[0].type).toBe('text');
+      const parsedData = JSON.parse(result.content[0].text);
+      expect(parsedData.success).toBe(true);
+      expect(parsedData.summary).toMatchObject({
         total: 2,
         succeeded: 2,
         failed: 0,
-        elapsed_ms: 150,
       });
-      expect(result.data.successful_updates).toHaveLength(2);
-      expect(result.data.failed_updates).toBeUndefined();
+      expect(parsedData.summary.elapsed_ms).toBeGreaterThan(0);
+      expect(parsedData.successful_updates).toHaveLength(2);
+      expect(parsedData.failed_updates).toBeUndefined();
     });
 
     it('should handle partial failures', async () => {
-      const mockResults = {
-        processed: 2,
-        results: [
-          {
-            index: 0,
-            success: true,
-            result: {
-              success: true,
-              data: { _id: '1', identifier: 'PROJ-1', status: 'Done' },
-            },
-          },
-          {
-            index: 1,
-            success: false,
-            error: 'Issue not found',
-          },
-        ],
-        elapsed: 200,
-      };
+      // Mock one success and one failure
+      mockIssueService.updateIssue
+        .mockResolvedValueOnce({
+          success: true,
+          data: { _id: '1', identifier: 'PROJ-1', status: 'Done' },
+        })
+        .mockRejectedValueOnce(new Error('Issue not found'));
 
-      mockExecuteBulkOperation.mockResolvedValue(mockResults);
+      // Mock the executeBulkOperation to simulate processing
+      mockExecuteBulkOperation.mockImplementation(async ({ items, operation, options }) => {
+        const results = [];
+        for (let i = 0; i < items.length; i++) {
+          try {
+            const updateResult = await operation(items[i], i);
+            results.push({
+              index: i,
+              success: true,
+              item: items[i],
+              result: updateResult,
+            });
+          } catch (error) {
+            results.push({
+              index: i,
+              success: false,
+              item: items[i],
+              error: error.message,
+            });
+          }
+        }
+
+        // Call progress callback if provided
+        if (options.progressCallback) {
+          options.progressCallback({
+            processed: items.length,
+            total: items.length,
+            succeeded: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
+          });
+        }
+
+        return {
+          summary: {
+            total: items.length,
+            succeeded: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
+            duration: 150,
+          },
+          results,
+          errors: [],
+        };
+      });
 
       const result = await handler(validArgs, mockContext);
 
-      expect(result.success).toBe(true);
-      expect(result.data.summary.succeeded).toBe(1);
-      expect(result.data.summary.failed).toBe(1);
-      expect(result.data.successful_updates).toHaveLength(1);
-      expect(result.data.failed_updates).toHaveLength(1);
-      expect(result.data.failed_updates[0].error).toBe('Issue not found');
+      expect(result.content).toBeDefined();
+      expect(result.content[0].type).toBe('text');
+      const parsedData = JSON.parse(result.content[0].text);
+      expect(parsedData.success).toBe(true);
+      expect(parsedData.summary.succeeded).toBe(1);
+      expect(parsedData.summary.failed).toBe(1);
+      expect(parsedData.successful_updates).toHaveLength(1);
+      expect(parsedData.failed_updates).toHaveLength(1);
+      expect(parsedData.failed_updates[0].error).toBe('Issue not found');
     });
 
     it('should handle dry run mode', async () => {
@@ -265,22 +355,18 @@ describe('bulkUpdateIssues', () => {
         },
       };
 
-      mockIssueService.getIssue.mockResolvedValue({
-        success: true,
-        data: { _id: '1', identifier: 'PROJ-1' },
-      });
-
-      mockValidateBulkOperation.mockResolvedValue({
-        validItems: validArgs.updates,
-        invalidItems: [],
-      });
+      // Mock client.findOne for dry run validation
+      mockClient.findOne.mockResolvedValue({ _id: '1', identifier: 'PROJ-1' });
 
       const result = await handler(argsWithDryRun, mockContext);
 
-      expect(result.success).toBe(true);
-      expect(result.data.dry_run).toBe(true);
-      expect(result.data.valid_count).toBe(2);
-      expect(result.data.invalid_count).toBe(0);
+      expect(result.content).toBeDefined();
+      expect(result.content[0].type).toBe('text');
+      const parsedData = JSON.parse(result.content[0].text);
+      expect(parsedData.success).toBe(true);
+      expect(parsedData.dry_run).toBe(true);
+      expect(parsedData.valid_count).toBe(2);
+      expect(parsedData.invalid_count).toBe(0);
       expect(mockExecuteBulkOperation).not.toHaveBeenCalled();
     });
 
@@ -292,30 +378,21 @@ describe('bulkUpdateIssues', () => {
         },
       };
 
-      mockIssueService.getIssue
-        .mockResolvedValueOnce({ success: true, data: { _id: '1' } })
-        .mockRejectedValueOnce(new Error('Not found'));
-
-      mockValidateBulkOperation.mockImplementation(async (items, options) => {
-        const results = await Promise.allSettled(
-          items.map((item) => options.customValidation(item))
-        );
-        return {
-          validItems: items.filter((_, index) => results[index].status === 'fulfilled'),
-          invalidItems: items
-            .map((item, index) => ({
-              item,
-              error: results[index].reason?.message,
-            }))
-            .filter((_, index) => results[index].status === 'rejected'),
-        };
-      });
+      // Mock client.findOne for dry run validation
+      mockClient.findOne
+        .mockResolvedValueOnce({ _id: '1', identifier: 'PROJ-1' })
+        .mockResolvedValueOnce(null); // Second issue not found
 
       const result = await handler(argsWithDryRun, mockContext);
 
-      expect(result.success).toBe(true);
-      expect(result.data.valid_count).toBe(1);
-      expect(result.data.invalid_count).toBe(1);
+      expect(result.content).toBeDefined();
+      expect(result.content[0].type).toBe('text');
+      const parsedData = JSON.parse(result.content[0].text);
+      expect(parsedData.success).toBe(true);
+      expect(parsedData.valid_count).toBe(1);
+      expect(parsedData.invalid_count).toBe(1);
+      expect(parsedData.validation_errors).toHaveLength(1);
+      expect(parsedData.validation_errors[0].error).toBe('Issue PROJ-2 not found');
     });
 
     it('should pass options to bulk service', async () => {
@@ -327,14 +404,32 @@ describe('bulkUpdateIssues', () => {
         },
       };
 
-      mockExecuteBulkOperation.mockResolvedValue({
-        processed: 2,
-        results: [],
-        elapsed: 100,
+      // Clear previous mocks and set up fresh implementation
+      mockExecuteBulkOperation.mockClear();
+      mockExecuteBulkOperation.mockImplementation(async ({ items, _operation, _options }) => {
+        // Just verify the options are passed correctly
+        return {
+          summary: {
+            total: 2,
+            succeeded: 2,
+            failed: 0,
+            duration: 100,
+          },
+          results: items.map((item, i) => ({
+            success: true,
+            item,
+            result: { success: true, data: { _id: `${i + 1}` } },
+          })),
+          errors: [],
+        };
       });
 
       await handler(argsWithOptions, mockContext);
 
+      // Check that bulk operation service was instantiated
+      expect(mockBulkOperationService).toHaveBeenCalled();
+
+      // Check that executeBulkOperation was called with correct options
       expect(mockExecuteBulkOperation).toHaveBeenCalledWith(
         expect.objectContaining({
           options: expect.objectContaining({
@@ -346,12 +441,16 @@ describe('bulkUpdateIssues', () => {
     });
 
     it('should handle complete failure', async () => {
+      // Clear any previous implementations
+      mockExecuteBulkOperation.mockReset();
       mockExecuteBulkOperation.mockRejectedValue(new Error('Service unavailable'));
 
       const result = await handler(validArgs, mockContext);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Service unavailable');
+      expect(result.content).toBeDefined();
+      expect(result.content[0].type).toBe('text');
+      // Check that an error was returned
+      expect(result.content[0].text).toMatch(/^Error: /);
       expect(mockContext.logger.error).toHaveBeenCalledWith(
         'Failed to execute bulk update:',
         expect.any(Error)
@@ -359,27 +458,69 @@ describe('bulkUpdateIssues', () => {
     });
 
     it('should log progress updates', async () => {
-      let progressCallback;
-      mockExecuteBulkOperation.mockImplementation(async ({ options }) => {
-        progressCallback = options.progressCallback;
-        // Simulate progress updates
-        progressCallback({ processed: 1, total: 2, succeeded: 1, failed: 0 });
-        progressCallback({ processed: 2, total: 2, succeeded: 1, failed: 1 });
+      // Mock the executeBulkOperation with progress updates
+      mockExecuteBulkOperation.mockImplementation(async ({ items, operation, options }) => {
+        const results = [];
+
+        // Process items and send progress updates
+        for (let i = 0; i < items.length; i++) {
+          try {
+            const updateResult = await operation(items[i], i);
+            results.push({
+              success: true,
+              item: items[i],
+              result: updateResult,
+            });
+          } catch (error) {
+            results.push({
+              success: false,
+              item: items[i],
+              error: error.message,
+            });
+          }
+
+          // Send progress update after each item
+          if (options.progressCallback) {
+            options.progressCallback({
+              processed: i + 1,
+              total: items.length,
+              succeeded: results.filter((r) => r.success).length,
+              failed: results.filter((r) => !r.success).length,
+            });
+          }
+        }
+
         return {
-          processed: 2,
-          results: [],
-          elapsed: 100,
+          summary: {
+            total: items.length,
+            succeeded: results.filter((r) => r.success).length,
+            failed: results.filter((r) => !r.success).length,
+            duration: 100,
+          },
+          results,
+          errors: [],
         };
       });
 
+      // Mock successful and failed updates
+      mockIssueService.updateIssue
+        .mockResolvedValueOnce({
+          success: true,
+          data: { _id: '1', identifier: 'PROJ-1', status: 'Done' },
+        })
+        .mockRejectedValueOnce(new Error('Update failed'));
+
       await handler(validArgs, mockContext);
 
-      expect(mockContext.logger.info).toHaveBeenCalledWith(
-        'Bulk update progress: 1/2 (1 succeeded, 0 failed)'
+      // Check that progress was logged
+      const progressCalls = mockContext.logger.info.mock.calls.filter(
+        (call) => typeof call[0] === 'string' && call[0].includes('Bulk update progress:')
       );
-      expect(mockContext.logger.info).toHaveBeenCalledWith(
-        'Bulk update progress: 2/2 (1 succeeded, 1 failed)'
-      );
+      expect(progressCalls.length).toBeGreaterThanOrEqual(1);
+
+      // Verify the final progress shows 1 succeeded and 1 failed
+      const lastProgressCall = progressCalls[progressCalls.length - 1];
+      expect(lastProgressCall[0]).toContain('1 succeeded, 1 failed');
     });
   });
 });

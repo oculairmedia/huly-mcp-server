@@ -47,7 +47,7 @@ describe('getIssueDetails tool', () => {
         issue_identifier: 'PROJ-123',
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -79,12 +79,12 @@ Confirmed the issue in production.`,
         ],
       };
 
-      mockIssueService.getIssueDetails.mockResolvedValue(mockResult);
+      mockIssueService.getIssueDetails.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
       expect(mockIssueService.getIssueDetails).toHaveBeenCalledWith(mockContext.client, 'PROJ-123');
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle issue not found', async () => {

@@ -48,7 +48,7 @@ describe('removeChildTemplate tool', () => {
         child_index: 1,
       };
 
-      const mockResult = {
+      const _mockResult = {
         content: [
           {
             type: 'text',
@@ -57,7 +57,7 @@ describe('removeChildTemplate tool', () => {
         ],
       };
 
-      mockTemplateService.removeChildTemplate.mockResolvedValue(mockResult);
+      mockTemplateService.removeChildTemplate.mockResolvedValue(_mockResult);
 
       const result = await handler(args, mockContext);
 
@@ -66,7 +66,7 @@ describe('removeChildTemplate tool', () => {
         'parent-template',
         1
       );
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(_mockResult);
     });
 
     it('should handle template not found', async () => {
@@ -192,7 +192,7 @@ describe('removeChildTemplate tool', () => {
 
       const errors = validate(args);
       expect(errors).toHaveProperty('child_index');
-      expect(errors.child_index).toContain('number');
+      expect(errors.child_index).toContain('integer');
     });
 
     it('should fail validation with decimal child_index', () => {

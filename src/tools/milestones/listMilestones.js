@@ -62,8 +62,17 @@ export function validate(args) {
   const errors = {};
 
   // Validate project identifier
-  if (!args.project_identifier || args.project_identifier.trim().length === 0) {
+  if (
+    !args.project_identifier ||
+    typeof args.project_identifier !== 'string' ||
+    args.project_identifier.trim().length === 0
+  ) {
     errors.project_identifier = 'Project identifier is required';
+  } else if (args.project_identifier.trim().length > 5) {
+    errors.project_identifier = 'Project identifier must be 1-5 characters';
+  } else if (!/^[A-Z][A-Z0-9]*$/.test(args.project_identifier)) {
+    errors.project_identifier =
+      'Project identifier must start with uppercase letter and contain only uppercase letters and numbers';
   }
 
   return Object.keys(errors).length > 0 ? errors : null;
