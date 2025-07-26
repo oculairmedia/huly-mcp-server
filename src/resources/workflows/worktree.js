@@ -85,7 +85,7 @@ export async function registerResources() {
     title: 'Git Worktree Creation Workflow',
     description:
       'Interactive workflow for creating Git worktrees with Huly integration and automatic issue status updates',
-    handler: async () => {
+    handler: async (_services) => {
       try {
         // Get current worktree status
         const worktreeList = executeScript('worktree-list.sh');
@@ -165,7 +165,7 @@ export async function registerResources() {
     title: 'Git Worktree Merge & Cleanup Workflow',
     description:
       'Complete workflow for merging pull requests and cleaning up worktrees with Huly status updates',
-    handler: async () => {
+    handler: async (_services) => {
       try {
         const worktreeList = executeScript('worktree-list.sh');
         const metadata = getCommandMetadata('worktree-merge');
@@ -234,7 +234,7 @@ export async function registerResources() {
     name: 'worktree-pr',
     title: 'Pull Request Creation Workflow',
     description: 'Automated pull request creation with GitHub integration and Huly status updates',
-    handler: async () => {
+    handler: async (_services) => {
       try {
         const metadata = getCommandMetadata('worktree-pr');
 
@@ -292,7 +292,7 @@ export async function registerResources() {
     name: 'huly-status',
     title: 'Huly Issue Status Update Workflow',
     description: 'Quick status update workflow for Huly issues with validation',
-    handler: async () => {
+    handler: async (_services) => {
       try {
         const metadata = getCommandMetadata('huly-status');
 

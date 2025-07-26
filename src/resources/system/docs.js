@@ -54,7 +54,7 @@ export async function registerResources() {
     title: 'Huly MCP Server API Documentation',
     description: 'Complete API documentation for all available MCP tools and workflows',
     mimeType: 'text/markdown',
-    handler: async () => {
+    handler: async (_services) => {
       try {
         let docs = '# Huly MCP Server API Documentation\n\n';
         docs += 'Complete documentation for all available MCP tools and workflows.\n\n';
@@ -119,7 +119,7 @@ export async function registerResources() {
     title: 'Workflow Integration Guide',
     description: 'Guide for integrating Huly MCP workflows with development processes',
     mimeType: 'text/markdown',
-    handler: async () => {
+    handler: async (_services) => {
       return {
         text: `# Huly MCP Workflow Integration Guide
 
@@ -252,18 +252,19 @@ mcp-client read "huly://workflows/huly-status?issue=123&status=done"
     name: 'status',
     title: 'System Status',
     description: 'Current status and health of the Huly MCP Server',
-    handler: async () => {
+    handler: async (services) => {
       try {
         const startTime = process.hrtime();
 
         // Test Huly connectivity
         let hulyStatus = 'unknown';
         try {
-          const { ServiceRegistry } = await import('../../services/index.js');
-          const serviceRegistry = ServiceRegistry.getInstance();
-          const projectService = serviceRegistry.getService('projectService');
-          await projectService.listProjects({ limit: 1 });
-          hulyStatus = 'connected';
+          if (services && services.projectService) {
+            await services.projectService.listProjects({ limit: 1 });
+            hulyStatus = 'connected';
+          } else {
+            hulyStatus = 'disconnected';
+          }
         } catch {
           hulyStatus = 'disconnected';
         }

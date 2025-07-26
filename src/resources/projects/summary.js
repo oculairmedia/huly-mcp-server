@@ -6,7 +6,6 @@
 import { registerProjectResourceTemplate, registerSystemResource } from '../index.js';
 import { createLoggerWithConfig } from '../../utils/index.js';
 import { getConfigManager } from '../../config/index.js';
-import { ServiceRegistry } from '../../services/index.js';
 
 // Initialize logger
 const configManager = getConfigManager();
@@ -39,11 +38,13 @@ export async function registerResources() {
     name: 'projects-overview',
     title: 'All Projects Overview',
     description: 'Summary of all projects with key metrics and status indicators',
-    handler: async () => {
+    handler: async (services) => {
       try {
-        // Get services from registry
-        const serviceRegistry = ServiceRegistry.getInstance();
-        const projectService = serviceRegistry.getService('projectService');
+        // Get services from context
+        if (!services || !services.projectService) {
+          throw new Error('Services context not available');
+        }
+        const { projectService } = services;
 
         // Get all projects
         const projects = await projectService.listProjects();
@@ -52,7 +53,7 @@ export async function registerResources() {
           projects.map(async (project) => {
             try {
               // Get issues for each project
-              const issueService = serviceRegistry.getService('issueService');
+              const { issueService } = services;
               const issues = await issueService.listIssues(project.identifier, { limit: 1000 });
 
               // Calculate metrics
@@ -166,12 +167,13 @@ export async function registerResources() {
     title: 'Global Activity Feed',
     description:
       'Recent activity across all projects including issue updates, comments, and status changes',
-    handler: async () => {
+    handler: async (services) => {
       try {
-        // Get services from registry
-        const serviceRegistry = ServiceRegistry.getInstance();
-        const projectService = serviceRegistry.getService('projectService');
-        const issueService = serviceRegistry.getService('issueService');
+        // Get services from context
+        if (!services || !services.projectService || !services.issueService) {
+          throw new Error('Services context not available');
+        }
+        const { projectService, issueService } = services;
 
         const projects = await projectService.listProjects();
         const allActivity = [];
