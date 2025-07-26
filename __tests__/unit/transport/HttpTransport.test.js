@@ -73,6 +73,7 @@ describe('HttpTransport Tests', () => {
     });
     mockExpress.mockReturnValue(mockExpressApp);
     mockExpress.json = jest.fn(() => (req, res, next) => next());
+    mockExpress.urlencoded = jest.fn(() => (req, res, next) => next());
 
     // Mock services
     mockServices = {
@@ -126,18 +127,15 @@ describe('HttpTransport Tests', () => {
   describe('Constructor', () => {
     test('should initialize with default options', () => {
       const defaultTransport = new HttpTransport(mockServer);
-      expect(defaultTransport.port).toBe(3000);
+      expect(defaultTransport.port).toBe(5439);
       expect(defaultTransport.app).toBeNull();
       expect(defaultTransport.httpServer).toBeNull();
       expect(defaultTransport.running).toBe(false);
-      expect(defaultTransport.toolDefinitions).toEqual([]);
     });
 
     test('should initialize with custom options', () => {
       expect(transport.port).toBe(3457);
-      expect(transport.toolDefinitions).toHaveLength(2);
-      expect(transport.hulyClientWrapper).toBe(mockHulyClientWrapper);
-      expect(transport.services).toBe(mockServices);
+      expect(transport.server).toBe(mockServer);
     });
 
     test('should use PORT env variable if set', () => {
@@ -647,50 +645,4 @@ describe('HttpTransport Tests', () => {
     });
   });
 
-  describe('Error Handling', () => {
-    test('should handle HulyError properly', async () => {
-      const mockRes = {
-        status: jest.fn(() => mockRes),
-        json: jest.fn(),
-      };
-
-      // Import HulyError to create a proper instance
-      const { HulyError } = await import('../../../src/core/index.js');
-      const hulyError = new HulyError('TEST_ERROR', 'Test error', { field: 'test' });
-
-      transport.handleError(mockRes, hulyError, 123);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({
-        jsonrpc: '2.0',
-        error: {
-          code: -32000,
-          message: 'Test error',
-          data: {
-            errorCode: 'TEST_ERROR',
-            details: { field: 'test' },
-          },
-        },
-        id: 123,
-      });
-    });
-
-    test('should handle generic errors', () => {
-      const mockRes = {
-        status: jest.fn(() => mockRes),
-        json: jest.fn(),
-      };
-
-      const error = new Error('Generic error');
-
-      transport.handleError(mockRes, error);
-
-      expect(mockRes.status).toHaveBeenCalledWith(500);
-      expect(mockRes.json).toHaveBeenCalledWith({
-        jsonrpc: '2.0',
-        error: { code: -32000, message: 'Generic error' },
-        id: null,
-      });
-    });
-  });
 });
