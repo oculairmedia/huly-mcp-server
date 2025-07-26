@@ -21,18 +21,18 @@ const resourceRegistry = new Map();
 const resourceTemplates = new Map();
 const subscriptions = new Map(); // uri -> Set of client ids
 
-// Store services context for resource handlers
-let servicesContext = null;
+// Store context for resource handlers
+let resourceContext = null;
 
 /**
  * Register resource handlers with the MCP server
  * @param {Object} server - The MCP server instance
- * @param {Object} services - Services context
+ * @param {Object} context - Context with client and services
  */
-export function registerResourceHandlers(server, services = null) {
-  // Store services context for resource handlers
-  if (services) {
-    servicesContext = services;
+export function registerResourceHandlers(server, context = null) {
+  // Store context for resource handlers
+  if (context) {
+    resourceContext = context;
   }
   logger.info('Registering MCP resource handlers');
 
@@ -89,7 +89,7 @@ export function registerResourceHandlers(server, services = null) {
 
     try {
       // Get the resource content
-      const content = await resource.handler(servicesContext);
+      const content = await resource.handler(resourceContext);
 
       return {
         contents: [

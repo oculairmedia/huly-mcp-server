@@ -252,15 +252,20 @@ mcp-client read "huly://workflows/huly-status?issue=123&status=done"
     name: 'status',
     title: 'System Status',
     description: 'Current status and health of the Huly MCP Server',
-    handler: async (services) => {
+    handler: async (context) => {
       try {
         const startTime = process.hrtime();
 
         // Test Huly connectivity
         let hulyStatus = 'unknown';
         try {
-          if (services && services.projectService) {
-            await services.projectService.listProjects({ limit: 1 });
+          if (context && context.client) {
+            // Test by fetching one project
+            await context.client.findAll(
+              await import('@hcengineering/tracker').then((m) => (m.default || m).class.Project),
+              {},
+              { limit: 1 }
+            );
             hulyStatus = 'connected';
           } else {
             hulyStatus = 'disconnected';

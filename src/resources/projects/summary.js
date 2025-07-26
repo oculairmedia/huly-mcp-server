@@ -38,23 +38,29 @@ export async function registerResources() {
     name: 'projects-overview',
     title: 'All Projects Overview',
     description: 'Summary of all projects with key metrics and status indicators',
-    handler: async (services) => {
+    handler: async (context) => {
       try {
-        // Get services from context
-        if (!services || !services.projectService) {
-          throw new Error('Services context not available');
+        // Get client from context
+        if (!context || !context.client) {
+          throw new Error('Context not available');
         }
-        const { projectService } = services;
+        const { client } = context;
 
-        // Get all projects
-        const projects = await projectService.listProjects();
+        // Get all projects (raw data, not formatted string)
+        const projects = await client.findAll(
+          await import('@hcengineering/tracker').then((m) => (m.default || m).class.Project),
+          {},
+          { sort: { modifiedOn: -1 } }
+        );
 
         const projectSummaries = await Promise.all(
           projects.map(async (project) => {
             try {
-              // Get issues for each project
-              const { issueService } = services;
-              const issues = await issueService.listIssues(project.identifier, { limit: 1000 });
+              // Get issues for each project (raw data)
+              const issues = await client.findAll(
+                await import('@hcengineering/tracker').then((m) => (m.default || m).class.Issue),
+                { space: project._id }
+              );
 
               // Calculate metrics
               const statusCounts = issues.reduce((acc, issue) => {
@@ -167,21 +173,30 @@ export async function registerResources() {
     title: 'Global Activity Feed',
     description:
       'Recent activity across all projects including issue updates, comments, and status changes',
-    handler: async (services) => {
+    handler: async (context) => {
       try {
-        // Get services from context
-        if (!services || !services.projectService || !services.issueService) {
-          throw new Error('Services context not available');
+        // Get client from context
+        if (!context || !context.client) {
+          throw new Error('Context not available');
         }
-        const { projectService, issueService } = services;
+        const { client } = context;
 
-        const projects = await projectService.listProjects();
+        // Get all projects (raw data)
+        const projects = await client.findAll(
+          await import('@hcengineering/tracker').then((m) => (m.default || m).class.Project),
+          {},
+          { sort: { modifiedOn: -1 } }
+        );
         const allActivity = [];
 
         // Collect recent issues from all projects
         for (const project of projects) {
           try {
-            const issues = await issueService.listIssues(project.identifier, { limit: 50 });
+            const issues = await client.findAll(
+              await import('@hcengineering/tracker').then((m) => (m.default || m).class.Issue),
+              { space: project._id },
+              { limit: 50, sort: { modifiedOn: -1 } }
+            );
             const recentIssues = issues
               .sort(
                 (a, b) =>

@@ -77,8 +77,13 @@ class HulyMCPServer {
     this.logger.info('Initializing MCP resource system');
 
     try {
-      // Register resource handlers with the MCP server and services context
-      registerResourceHandlers(this.server, this.services);
+      // Register resource handlers with the MCP server and full context
+      const resourceContext = {
+        client: this.hulyClientWrapper,
+        services: this.services,
+        logger: this.logger,
+      };
+      registerResourceHandlers(this.server, resourceContext);
 
       // Initialize and load all resources
       await initializeResources();
