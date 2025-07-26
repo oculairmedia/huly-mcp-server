@@ -15,6 +15,8 @@ import { getAllToolDefinitions } from './src/tools/index.js';
 import { TransportFactory } from './src/transport/index.js';
 import { getConfigManager } from './src/config/index.js';
 import { createLoggerWithConfig } from './src/utils/index.js';
+import { registerResourceHandlers } from './src/handlers/resources.js';
+import { initializeResources } from './src/resources/index.js';
 
 // Get configuration manager instance
 const configManager = getConfigManager();
@@ -37,6 +39,7 @@ class HulyMCPServer {
       {
         capabilities: {
           tools: {},
+          resources: {},
         },
       }
     );
@@ -64,7 +67,27 @@ class HulyMCPServer {
       hulyClientWrapper: this.hulyClientWrapper,
     });
 
+    // Initialize resource system
+    this.initializeResourceSystem();
+
     this.transport = null;
+  }
+
+  async initializeResourceSystem() {
+    this.logger.info('Initializing MCP resource system');
+
+    try {
+      // Register resource handlers with the MCP server
+      registerResourceHandlers(this.server);
+
+      // Initialize and load all resources
+      await initializeResources();
+
+      this.logger.info('Resource system initialized successfully');
+    } catch (error) {
+      this.logger.error('Failed to initialize resource system:', error);
+      throw error;
+    }
   }
 
   async cleanup() {
