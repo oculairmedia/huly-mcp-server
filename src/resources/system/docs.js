@@ -10,10 +10,12 @@ import { registerSystemResource } from '../index.js';
 import { createLoggerWithConfig } from '../../utils/index.js';
 import { getConfigManager } from '../../config/index.js';
 import { getAllToolDefinitions } from '../../tools/index.js';
+import trackerModule from '@hcengineering/tracker';
 
-// Initialize logger
+// Initialize logger and tracker
 const configManager = getConfigManager();
 const logger = createLoggerWithConfig(configManager).child('system-docs');
+const tracker = trackerModule.default || trackerModule;
 
 /**
  * Generate tool documentation
@@ -261,11 +263,7 @@ mcp-client read "huly://workflows/huly-status?issue=123&status=done"
         try {
           if (context && context.client) {
             // Test by fetching one project
-            await context.client.findAll(
-              await import('@hcengineering/tracker').then((m) => (m.default || m).class.Project),
-              {},
-              { limit: 1 }
-            );
+            await context.client.findAll(tracker.class.Project, {}, { limit: 1 });
             hulyStatus = 'connected';
           } else {
             hulyStatus = 'disconnected';

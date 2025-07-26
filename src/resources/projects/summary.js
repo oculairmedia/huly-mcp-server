@@ -6,10 +6,12 @@
 import { registerProjectResourceTemplate, registerSystemResource } from '../index.js';
 import { createLoggerWithConfig } from '../../utils/index.js';
 import { getConfigManager } from '../../config/index.js';
+import trackerModule from '@hcengineering/tracker';
 
-// Initialize logger
+// Initialize logger and tracker
 const configManager = getConfigManager();
 const logger = createLoggerWithConfig(configManager).child('project-resources');
+const tracker = trackerModule.default || trackerModule;
 
 /**
  * Register project summary resources
@@ -48,7 +50,7 @@ export async function registerResources() {
 
         // Get all projects (raw data, not formatted string)
         const projects = await client.findAll(
-          await import('@hcengineering/tracker').then((m) => (m.default || m).class.Project),
+          tracker.class.Project,
           {},
           { sort: { modifiedOn: -1 } }
         );
@@ -57,10 +59,7 @@ export async function registerResources() {
           projects.map(async (project) => {
             try {
               // Get issues for each project (raw data)
-              const issues = await client.findAll(
-                await import('@hcengineering/tracker').then((m) => (m.default || m).class.Issue),
-                { space: project._id }
-              );
+              const issues = await client.findAll(tracker.class.Issue, { space: project._id });
 
               // Calculate metrics
               const statusCounts = issues.reduce((acc, issue) => {
@@ -183,7 +182,7 @@ export async function registerResources() {
 
         // Get all projects (raw data)
         const projects = await client.findAll(
-          await import('@hcengineering/tracker').then((m) => (m.default || m).class.Project),
+          tracker.class.Project,
           {},
           { sort: { modifiedOn: -1 } }
         );
@@ -193,7 +192,7 @@ export async function registerResources() {
         for (const project of projects) {
           try {
             const issues = await client.findAll(
-              await import('@hcengineering/tracker').then((m) => (m.default || m).class.Issue),
+              tracker.class.Issue,
               { space: project._id },
               { limit: 50, sort: { modifiedOn: -1 } }
             );
