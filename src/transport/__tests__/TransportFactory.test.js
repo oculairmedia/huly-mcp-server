@@ -39,7 +39,7 @@ describe('TransportFactory', () => {
       };
       const transport = TransportFactory.create('http', mockServer, options);
       expect(transport.port).toBe(4000);
-      expect(transport.toolDefinitions).toEqual(mockToolDefinitions);
+      expect(transport.server).toBe(mockServer);
     });
 
     it('should throw error for unknown transport type', () => {
