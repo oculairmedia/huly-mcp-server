@@ -259,9 +259,10 @@ mcp-client read "huly://workflows/huly-status?issue=123&status=done"
         // Test Huly connectivity
         let hulyStatus = 'unknown';
         try {
-          const HulyClient = (await import('../../core/HulyClient.js')).HulyClient;
-          const client = new HulyClient(configManager);
-          await client.listProjects({ limit: 1 });
+          const { ServiceRegistry } = await import('../../services/index.js');
+          const serviceRegistry = ServiceRegistry.getInstance();
+          const projectService = serviceRegistry.getService('projectService');
+          await projectService.listProjects({ limit: 1 });
           hulyStatus = 'connected';
         } catch {
           hulyStatus = 'disconnected';

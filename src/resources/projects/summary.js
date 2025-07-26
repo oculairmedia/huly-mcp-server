@@ -6,12 +6,11 @@
 import { registerProjectResourceTemplate, registerSystemResource } from '../index.js';
 import { createLoggerWithConfig } from '../../utils/index.js';
 import { getConfigManager } from '../../config/index.js';
-import { HulyClient } from '../../core/HulyClient.js';
+import { ServiceRegistry } from '../../services/index.js';
 
-// Initialize logger and client
+// Initialize logger
 const configManager = getConfigManager();
 const logger = createLoggerWithConfig(configManager).child('project-resources');
-const hulyClient = new HulyClient(configManager);
 
 /**
  * Register project summary resources
@@ -42,14 +41,19 @@ export async function registerResources() {
     description: 'Summary of all projects with key metrics and status indicators',
     handler: async () => {
       try {
+        // Get services from registry
+        const serviceRegistry = ServiceRegistry.getInstance();
+        const projectService = serviceRegistry.getService('projectService');
+
         // Get all projects
-        const projects = await hulyClient.listProjects();
+        const projects = await projectService.listProjects();
 
         const projectSummaries = await Promise.all(
           projects.map(async (project) => {
             try {
               // Get issues for each project
-              const issues = await hulyClient.listIssues(project.identifier, { limit: 1000 });
+              const issueService = serviceRegistry.getService('issueService');
+              const issues = await issueService.listIssues(project.identifier, { limit: 1000 });
 
               // Calculate metrics
               const statusCounts = issues.reduce((acc, issue) => {
@@ -164,13 +168,18 @@ export async function registerResources() {
       'Recent activity across all projects including issue updates, comments, and status changes',
     handler: async () => {
       try {
-        const projects = await hulyClient.listProjects();
+        // Get services from registry
+        const serviceRegistry = ServiceRegistry.getInstance();
+        const projectService = serviceRegistry.getService('projectService');
+        const issueService = serviceRegistry.getService('issueService');
+
+        const projects = await projectService.listProjects();
         const allActivity = [];
 
         // Collect recent issues from all projects
         for (const project of projects) {
           try {
-            const issues = await hulyClient.listIssues(project.identifier, { limit: 50 });
+            const issues = await issueService.listIssues(project.identifier, { limit: 50 });
             const recentIssues = issues
               .sort(
                 (a, b) =>
