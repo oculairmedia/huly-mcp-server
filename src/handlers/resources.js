@@ -88,8 +88,15 @@ export function registerResourceHandlers(server, context = null) {
     }
 
     try {
-      // Get the resource content
-      const content = await resource.handler(resourceContext);
+      // Get the resource content with client wrapper pattern
+      const { hulyClientWrapper } = resourceContext;
+      const content = await hulyClientWrapper.withClient(async (client) => {
+        const context = {
+          ...resourceContext,
+          client,
+        };
+        return resource.handler(context);
+      });
 
       return {
         contents: [

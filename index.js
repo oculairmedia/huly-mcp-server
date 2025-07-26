@@ -79,7 +79,7 @@ class HulyMCPServer {
     try {
       // Register resource handlers with the MCP server and full context
       const resourceContext = {
-        client: this.hulyClientWrapper,
+        hulyClientWrapper: this.hulyClientWrapper,
         services: this.services,
         logger: this.logger,
       };
