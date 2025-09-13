@@ -1107,8 +1107,28 @@ class IssueService {
       const normalizedStatus = fuzzyNormalizeStatus(status);
 
       // Find all statuses in the project (if project specified) or workspace
-      const statusQuery = project_identifier ? { space: searchCriteria.space } : {};
-      const statuses = await client.findAll(tracker.class.IssueStatus, statusQuery);
+      let statuses = [];
+      if (project_identifier && searchCriteria.space) {
+        // First try project-specific statuses
+        statuses = await client.findAll(tracker.class.IssueStatus, { space: searchCriteria.space });
+
+        // If no project-specific statuses, look for global/model statuses
+        if (statuses.length === 0) {
+          statuses = await client.findAll(tracker.class.IssueStatus, {
+            space: 'core:space:Model',
+          });
+        }
+      } else {
+        // If no project specified, search all statuses
+        statuses = await client.findAll(tracker.class.IssueStatus, {});
+
+        // If still empty, try global/model statuses
+        if (statuses.length === 0) {
+          statuses = await client.findAll(tracker.class.IssueStatus, {
+            space: 'core:space:Model',
+          });
+        }
+      }
 
       // Find matching status by normalized name (case-insensitive)
       let targetStatus = statuses.find(
