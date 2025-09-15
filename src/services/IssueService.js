@@ -8,6 +8,7 @@
 import { HulyError } from '../core/HulyError.js';
 import { PRIORITY_MAP, DEFAULTS } from '../core/constants.js';
 import { extractTextFromMarkup, extractTextFromDoc } from '../utils/textExtractor.js';
+import { urlGenerator } from '../utils/urlGenerator.js';
 import {
   validateEnum,
   getValidPriorities,
@@ -72,7 +73,11 @@ class IssueService {
     let result = `Found ${issues.length} issues in ${project.name}:\n\n`;
 
     for (const issue of issues) {
+      const issueUrl = urlGenerator.getIssueUrl(projectIdentifier, issue.identifier);
       result += `📋 **${issue.identifier}**: ${issue.title}\n`;
+      if (issueUrl) {
+        result += `   🔗 ${issueUrl}\n`;
+      }
 
       // Use StatusManager to display human-readable status
       try {
@@ -247,7 +252,7 @@ class IssueService {
 
     const issueData = {
       title,
-      description: '', // Will be updated after issue creation
+      description: description || '', // Use provided description or empty string
       assignee: null,
       component: componentId,
       milestone: milestoneId,
@@ -305,11 +310,14 @@ class IssueService {
       Object.keys(PRIORITY_MAP).find((key) => PRIORITY_MAP[key] === issueData.priority) ||
       'NoPriority';
 
+    // Generate issue URL
+    const issueUrl = urlGenerator.getIssueUrl(project.identifier, identifier);
+
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Created issue ${identifier}: "${title}"\n\nPriority: ${priorityName}\nStatus: ${defaultStatusName}\nProject: ${project.name}`,
+          text: `✅ Created issue ${identifier}: "${title}"\n\nPriority: ${priorityName}\nStatus: ${defaultStatusName}\nProject: ${project.name}${issueUrl ? `\n🔗 ${issueUrl}` : ''}`,
         },
       ],
       data: {
@@ -317,6 +325,7 @@ class IssueService {
         project: project.identifier,
         status: defaultStatusName,
         priority: priorityName,
+        url: issueUrl,
       },
     };
   }
@@ -552,13 +561,24 @@ class IssueService {
 
     await client.updateDoc(tracker.class.Issue, issue.space, issue._id, updateData);
 
+    // Get project identifier for URL generation
+    const project = await client.findOne(tracker.class.Project, { _id: issue.space });
+    const issueUrl = urlGenerator.getIssueUrl(project?.identifier, issueIdentifier);
+
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Updated issue ${issueIdentifier}\n\n${field}: ${displayValue}`,
+          text: `✅ Updated issue ${issueIdentifier}\n\n${field}: ${displayValue}${issueUrl ? `\n🔗 ${issueUrl}` : ''}`,
         },
       ],
+      data: {
+        identifier: issueIdentifier,
+        project: project?.identifier,
+        field,
+        value: displayValue,
+        url: issueUrl,
+      },
     };
   }
 
@@ -685,7 +705,7 @@ class IssueService {
 
     const issueData = {
       title,
-      description: '', // Will be updated after issue creation
+      description: description || '', // Use provided description or empty string
       assignee: null,
       component: componentId,
       milestone: milestoneId,
@@ -746,11 +766,14 @@ class IssueService {
       Object.keys(PRIORITY_MAP).find((key) => PRIORITY_MAP[key] === issueData.priority) ||
       'NoPriority';
 
+    // Generate issue URL
+    const issueUrl = urlGenerator.getIssueUrl(project.identifier, identifier);
+
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Created subissue ${identifier}: "${title}"\n\nParent: ${parentIssueIdentifier}\nPriority: ${priorityName}\nProject: ${project.name}`,
+          text: `✅ Created subissue ${identifier}: "${title}"\n\nParent: ${parentIssueIdentifier}\nPriority: ${priorityName}\nProject: ${project.name}${issueUrl ? `\n🔗 ${issueUrl}` : ''}`,
         },
       ],
       data: {
@@ -758,6 +781,7 @@ class IssueService {
         project: project.identifier,
         status: defaultStatusName,
         priority: priorityName,
+        url: issueUrl,
       },
     };
   }
@@ -903,6 +927,12 @@ class IssueService {
 
     let result = `# ${issue.identifier}: ${issue.title}\n\n`;
 
+    // Issue URL
+    const issueUrl = urlGenerator.getIssueUrl(project?.identifier, issue.identifier);
+    if (issueUrl) {
+      result += `**🔗 Issue URL**: ${issueUrl}\n\n`;
+    }
+
     // Basic information
     result += `**Project**: ${project?.name || 'Unknown'}\n`;
 
@@ -1041,6 +1071,14 @@ class IssueService {
           text: result,
         },
       ],
+      data: {
+        identifier: issue.identifier,
+        project: project?.identifier,
+        title: issue.title,
+        status: issue.status,
+        priority: issue.priority,
+        url: issueUrl,
+      },
     };
   }
 
@@ -1324,7 +1362,11 @@ class IssueService {
 
     for (const issue of issues) {
       const project = projectMap.get(issue.space);
+      const issueUrl = urlGenerator.getIssueUrl(project?.identifier, issue.identifier);
       result += `📋 **${issue.identifier}**: ${issue.title}\n`;
+      if (issueUrl) {
+        result += `   🔗 ${issueUrl}\n`;
+      }
       result += `   Project: ${project?.name || 'Unknown'}\n`;
 
       // Status
@@ -1405,7 +1447,9 @@ class IssueService {
         const descriptionContent = await client.fetchMarkup(
           tracker.class.Issue,
           issue._id,
-          'description'
+          'description',
+          issue.description,
+          'markdown'
         );
 
         // The content should be returned as markdown text
