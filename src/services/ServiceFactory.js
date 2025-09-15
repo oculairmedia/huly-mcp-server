@@ -10,6 +10,7 @@ import TemplateService from './TemplateService.js';
 import { DeletionService } from './DeletionService.js';
 import { SequenceService } from './SequenceService.js';
 import { projectService } from './ProjectService.js';
+import { employeeService } from './EmployeeService.js';
 
 /**
  * Factory class for creating service instances
@@ -60,6 +61,14 @@ export class ServiceFactory {
   }
 
   /**
+   * Get the EmployeeService singleton
+   * @returns {EmployeeService} EmployeeService instance
+   */
+  static getEmployeeService() {
+    return employeeService;
+  }
+
+  /**
    * Create all services with proper dependency injection
    * @param {Object} dependencies - Required dependencies
    * @param {Object} dependencies.statusManager - Status manager instance
@@ -73,6 +82,7 @@ export class ServiceFactory {
     const templateService = this.createTemplateService(sequenceService);
     const deletionService = this.createDeletionService();
     const projectServiceInstance = this.getProjectService();
+    const employeeServiceInstance = this.getEmployeeService();
 
     return {
       sequenceService,
@@ -80,6 +90,7 @@ export class ServiceFactory {
       templateService,
       deletionService,
       projectService: projectServiceInstance,
+      employeeService: employeeServiceInstance,
       statusManager,
     };
   }

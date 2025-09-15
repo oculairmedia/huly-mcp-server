@@ -46,7 +46,7 @@ export class ConfigManager {
 
       // Protocol configuration
       protocol: {
-        version: process.env.MCP_PROTOCOL_VERSION || '2024-11-05',
+        version: process.env.MCP_PROTOCOL_VERSION || '2025-06-18',
       },
 
       // Logging configuration

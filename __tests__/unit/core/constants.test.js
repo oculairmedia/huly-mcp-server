@@ -182,7 +182,7 @@ describe('Constants Tests', () => {
 
   describe('MCP_PROTOCOL', () => {
     test('should have valid protocol version', () => {
-      expect(MCP_PROTOCOL.VERSION).toBe('2024-11-05');
+      expect(MCP_PROTOCOL.VERSION).toBe('2025-06-18');
       expect(MCP_PROTOCOL.JSON_RPC_VERSION).toBe('2.0');
     });
   });

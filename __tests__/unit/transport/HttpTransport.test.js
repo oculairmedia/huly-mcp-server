@@ -298,7 +298,7 @@ describe('HttpTransport Tests', () => {
       expect(mockRes.json).toHaveBeenCalledWith({
         jsonrpc: '2.0',
         result: {
-          protocolVersion: '2024-11-05',
+          protocolVersion: '2025-06-18',
           capabilities: { tools: {} },
           serverInfo: { name: 'huly-mcp-server', version: '1.0.0' },
         },

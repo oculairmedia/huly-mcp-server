@@ -12,7 +12,7 @@ import { createErrorResponse } from '../base/ToolInterface.js';
 export const definition = {
   name: 'huly_get_issue_details',
   description:
-    'Get comprehensive details about a specific issue including full description, comments, and all metadata',
+    'Retrieve exhaustive, detailed information about a specific issue including complete metadata, full description content with markdown rendering, comprehensive comment threads with author information and timestamps, attachment listings, activity history, and all associated relationships within the Huly ecosystem. This comprehensive inspection tool provides deep visibility into issue lifecycle, stakeholder interactions, and project context through detailed reporting of status transitions, priority changes, component assignments, milestone associations, and time tracking records. The detailed view includes rich formatting support for markdown content, embedded media handling, and cross-reference resolution for linked issues, pull requests, and external system integrations. Advanced features include permission-aware content filtering, comprehensive audit trail presentation, related issue discovery through intelligent linking algorithms, and performance-optimized data retrieval for responsive user interfaces. This tool is indispensable for detailed issue analysis, stakeholder communication, compliance reporting, debugging complex project relationships, and providing comprehensive context for decision-making processes requiring complete understanding of issue history, current state, and organizational impact across multiple project dimensions and team interactions.',
   inputSchema: {
     type: 'object',
     properties: {

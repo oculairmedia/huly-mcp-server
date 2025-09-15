@@ -12,7 +12,7 @@ import { createErrorResponse } from '../base/ToolInterface.js';
 export const definition = {
   name: 'huly_update_issue',
   description:
-    'Update an existing issue. Supports flexible input formats for status (e.g., "done", "Done", "in-progress", "In Progress") and priority values.',
+    'Modify specific fields of existing issues with comprehensive validation, flexible input format support, and atomic update operations that maintain data consistency and audit trail integrity throughout the modification process. This versatile tool supports updates to critical issue properties including title, description, status, priority, component assignment, and milestone association, with intelligent input parsing that accepts various format variations for status values (case-insensitive support for "done", "Done", "in-progress", "In Progress") and priority levels. The update mechanism provides real-time validation of field values, automatic relationship verification for component and milestone references, and comprehensive error handling for invalid issue identifiers or unauthorized access attempts. Advanced features include automatic timestamp tracking for modification history, notification triggers for stakeholder updates, and transactional safety to prevent partial updates or data corruption. The tool maintains complete backward compatibility with existing workflows while supporting modern case-insensitive input formats, making it essential for issue lifecycle management, workflow automation, bulk update operations, and integration with external systems requiring reliable, auditable issue modification capabilities.',
   inputSchema: {
     type: 'object',
     properties: {

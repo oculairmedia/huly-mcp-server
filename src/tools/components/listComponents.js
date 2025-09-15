@@ -11,7 +11,7 @@ import { createErrorResponse } from '../base/ToolInterface.js';
  */
 export const definition = {
   name: 'huly_list_components',
-  description: 'List all components in a project',
+  description: 'Retrieve a comprehensive inventory of all organizational components within a specified project, providing detailed component metadata including names, descriptions, creation timestamps, and usage statistics for effective project structure analysis and team coordination. This essential organizational tool enables project managers and team members to understand the architectural and functional organization of their projects through complete component visibility, supporting informed decision-making for issue categorization, team assignment, and workflow optimization. The component listing includes rich details such as associated issue counts, active milestone relationships, team ownership information, and recent activity summaries that facilitate project planning and resource allocation decisions. Advanced features include automatic permission filtering to ensure secure access to authorized components, intelligent sorting by usage frequency and creation date, and comprehensive error handling for invalid project references. The tool provides essential insights for project structure assessment, component utilization analysis, and organizational planning, making it indispensable for project initialization, team onboarding, architectural reviews, and ongoing project management activities that require clear understanding of project organization and component-based workflow structures across diverse development and operational contexts.',
   inputSchema: {
     type: 'object',
     properties: {

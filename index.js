@@ -17,6 +17,7 @@ import { getConfigManager } from './src/config/index.js';
 import { createLoggerWithConfig } from './src/utils/index.js';
 import { registerResourceHandlers } from './src/handlers/resources.js';
 import { initializeResources } from './src/resources/index.js';
+import { initializePrompts } from './src/prompts/index.js';
 
 // Get configuration manager instance
 const configManager = getConfigManager();
@@ -40,6 +41,7 @@ class HulyMCPServer {
         capabilities: {
           tools: {},
           resources: {},
+          prompts: {},
         },
       }
     );
@@ -67,8 +69,7 @@ class HulyMCPServer {
       hulyClientWrapper: this.hulyClientWrapper,
     });
 
-    // Initialize resource system
-    this.initializeResourceSystem();
+    // Note: Resource and prompt system initialization moved to run() method
 
     this.transport = null;
   }
@@ -95,6 +96,20 @@ class HulyMCPServer {
     }
   }
 
+  async initializePromptSystem() {
+    this.logger.info('Initializing MCP prompt system');
+
+    try {
+      // Initialize the prompt registry and load wizards
+      await initializePrompts();
+
+      this.logger.info('Prompt system initialized successfully');
+    } catch (error) {
+      this.logger.error('Failed to initialize prompt system:', error);
+      throw error;
+    }
+  }
+
   async cleanup() {
     this.logger.info('Shutting down Huly MCP Server');
 
@@ -111,6 +126,10 @@ class HulyMCPServer {
   }
 
   async run(transportType = 'stdio') {
+    // Initialize systems before starting transport
+    await this.initializeResourceSystem();
+    await this.initializePromptSystem();
+
     // Set up cleanup handlers
     process.on('SIGINT', async () => {
       this.logger.info('Received SIGINT signal');

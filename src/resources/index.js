@@ -20,7 +20,7 @@ const logger = createLoggerWithConfig(configManager).child('resource-loader');
 /**
  * Resource categories to load
  */
-const RESOURCE_CATEGORIES = ['workflows', 'projects', 'system'];
+const RESOURCE_CATEGORIES = ['workflows', 'projects', 'system', 'wizards'];
 
 /**
  * Load all resources from a category directory

@@ -48,6 +48,7 @@ const TOOL_CATEGORIES = [
   'templates',
   'validation',
   'preview',
+  'accounts',
 ];
 
 /**

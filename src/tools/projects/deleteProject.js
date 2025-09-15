@@ -14,7 +14,7 @@ import { HulyError } from '../../core/HulyError.js';
 export const definition = {
   name: 'huly_delete_project',
   description:
-    'Delete an entire project including all issues, components, milestones, and templates',
+    'Permanently remove an entire project and all associated data from the Huly workspace, including comprehensive deletion of all nested entities such as issues, sub-issues, components, milestones, templates, comments, and any linked external integrations. This powerful administrative tool provides multiple safety mechanisms including dry-run preview mode to assess deletion impact, force deletion options for projects with active dependencies, and detailed validation checks to prevent accidental data loss. The deletion process is atomic and transactional, ensuring data consistency throughout the operation while providing comprehensive logging and audit trails for compliance and recovery purposes. Before execution, the tool automatically validates project existence, checks for blocking dependencies, and provides detailed impact analysis including counts of all entities that will be affected. This tool is essential for workspace cleanup, project lifecycle management, and organizational restructuring, but requires careful consideration due to its irreversible nature and potential for significant data loss across multiple project dimensions.',
   inputSchema: {
     type: 'object',
     properties: {

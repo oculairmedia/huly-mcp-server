@@ -954,7 +954,7 @@ const mcpResponse = await fetch('http://localhost:3000/mcp', {
 
 ## Version Compatibility
 
-- **MCP Protocol**: 2024-11-05
+- **MCP Protocol**: 2025-06-18
 - **Huly SDK**: 0.6.500
 - **Huly Server**: 0.6.501
 - **Node.js**: 18+

@@ -96,7 +96,7 @@ export const VALID_UPDATE_FIELDS = [
 
 // MCP protocol constants
 export const MCP_PROTOCOL = {
-  VERSION: '2024-11-05',
+  VERSION: '2025-06-18',
   JSON_RPC_VERSION: '2.0',
 };
 

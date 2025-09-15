@@ -11,7 +11,7 @@ import { createErrorResponse } from '../base/ToolInterface.js';
  */
 export const definition = {
   name: 'huly_get_template_details',
-  description: 'Get comprehensive details about a specific template including child templates',
+  description: 'Retrieve exhaustive, detailed information about specific issue templates including complete hierarchical structure, child template relationships, configuration metadata, usage statistics, and all associated workflow patterns for comprehensive template analysis and management. This detailed inspection tool provides deep visibility into template architecture, default value configurations, child template dependencies, and organizational usage patterns through comprehensive reporting of template structure, inheritance relationships, and utilization metrics across projects and teams. The detailed view includes rich formatting support for markdown content, embedded configuration visualization, and cross-reference resolution for related templates, projects, and workflow integrations. Advanced features include permission-aware content filtering, comprehensive audit trail presentation, related template discovery through intelligent linking algorithms, and performance-optimized data retrieval for responsive user interfaces. The tool provides essential insights for template governance, workflow optimization, organizational standardization, and template lifecycle management, making it indispensable for template administration, team onboarding, workflow analysis, and organizational planning activities requiring complete understanding of template structure, usage patterns, and organizational impact across multiple project dimensions and team interactions.',
   inputSchema: {
     type: 'object',
     properties: {

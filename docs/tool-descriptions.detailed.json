@@ -1,0 +1,161 @@
+{
+  "projects": [
+    {
+      "name": "huly_archive_project",
+      "description": "Soft-archive a project so it no longer appears in active views while preserving all data (issues, components, milestones, templates) for audit/history. Non-destructive alternative to deletion. Use to retire or temporarily hide a project while keeping artifacts accessible; useful for reducing dashboard noise and maintaining historical traceability. Provide the project identifier (e.g., \"PROJ\"). Operation is idempotent."
+    },
+    {
+      "name": "huly_create_project",
+      "description": "Create a new project in the Huly workspace to establish a workstream for organizing issues, components, milestones, and templates. Provide a human-readable name (required) and optional description. Optionally specify a short uppercase identifier (max 5 characters like 'PROJ' or 'WEB'); if omitted, one may be auto-generated from the project name. Essential first step before adding any project artifacts or linking GitHub repositories. Returns the created project with its assigned identifier for subsequent operations."
+    },
+    {
+      "name": "huly_delete_project",
+      "description": "Permanently delete a project and everything within it (issues, components, milestones, templates). Supports force (override blockers) and dry_run (preview impact without deletion). Highly destructive—run huly_validate_deletion or huly_deletion_impact_preview first to understand impact. Use for test sandboxes or when absolutely certain the project and all its data should be removed."
+    },
+    {
+      "name": "huly_list_projects",
+      "description": "Read-only listing of all projects in the workspace, including identifier, name, and status. Use to discover available projects, confirm creation, or drive UI pickers/auto-complete. Returns a consistently formatted, idempotent snapshot suitable for indexing or quick lookups."
+    }
+  ],
+  "issues": [
+    {
+      "name": "huly_bulk_create_issues",
+      "description": "Create many issues in one operation. Supply an issues[] array with title and optional fields (description, priority, component, milestone, parent_issue). You can provide defaults{} applied to each item and options{} (batch_size 1–50, default 10; continue_on_error default true; dry_run to validate only). Supports creating sub-issues when parent_issue is provided. Returns a summary with succeeded/failed counts and identifiers for created issues."
+    },
+    {
+      "name": "huly_bulk_delete_issues",
+      "description": "Delete multiple issues in batches with progress tracking. Provide issue_identifiers[] (e.g., \"PROJ-1\") and options{}: cascade (delete sub-issues), force (override blockers), dry_run (preview only), continue_on_error, batch_size (1–50). Validates identifier format and deduplicates inputs. Use when cleaning up test data or decommissioning a feature with many related tickets."
+    },
+    {
+      "name": "huly_bulk_update_issues",
+      "description": "Apply many updates across issues in one request. Provide updates[] with issue_identifier, field (title, description, status, priority, component, milestone), and value. Options support batch_size, continue_on_error, dry_run (validates existence and reports per-item errors without modifying data). Status accepts backlog, todo, in-progress, done, canceled; priority accepts urgent, high, medium, low, none/nopriority (case-insensitive). Returns per-item results and a summary."
+    },
+    {
+      "name": "huly_create_issue",
+      "description": "Create a single issue in a given project with a title, optional description, priority (low/medium/high/urgent; defaults to medium), component, and milestone. Use for routine ticket creation or when scripting integrations that emit individual units of work. Returns the newly created issue with identifier and metadata."
+    },
+    {
+      "name": "huly_create_subissue",
+      "description": "Create a sub-issue under an existing parent issue (e.g., \"PROJ-123\"). Provide the parent_issue_identifier plus title, optional description, priority, component, milestone. Use to break down larger work items into trackable child tasks. Returns the created sub-issue with its identifier and linkage to the parent."
+    },
+    {
+      "name": "huly_delete_issue",
+      "description": "Delete a single issue by identifier. Options: cascade (also delete sub-issues), force (override blockers), dry_run (preview impact). Validate identifiers with huly_validate_deletion or explore consequences with huly_deletion_impact_preview before executing destructive deletions."
+    },
+    {
+      "name": "huly_get_issue_details",
+      "description": "Fetch comprehensive details for a specific issue, including full description, comments, and metadata. Read-only, idempotent, and suitable for syncing issue detail views, exporting content, or powering search indexing. Provide an issue identifier like \"PROJ-123\"."
+    },
+    {
+      "name": "huly_list_issues",
+      "description": "List recent issues for a project with an optional limit (default 50; min 1, max 500). Use for dashboards, paginated lists, or to confirm new issues were created. Returns a stable shape ideal for display or indexing."
+    },
+    {
+      "name": "huly_search_issues",
+      "description": "Flexible search/filter across issues. Supports project scoping, free-text query (title/description), status, priority (low/medium/high/urgent/NoPriority), assignee, component, milestone, date ranges (created/modified, ISO 8601), and limit. Read-only and idempotent—use for building filtered backlogs, reports, or targeted exports."
+    },
+    {
+      "name": "huly_update_issue",
+      "description": "Update a single field on an issue. Fields: title, description, status, priority, component, milestone. Status accepts backlog, todo, in-progress, done, canceled (case-insensitive). Priority accepts urgent, high, medium, low, none/nopriority (case-insensitive). Use to drive workflow transitions, reprioritization, or metadata changes from automations or UI actions."
+    }
+  ],
+  "components": [
+    {
+      "name": "huly_create_component",
+      "description": "Create a new component (label + optional description) within a project to organize issues by submodule or feature area. Use to establish a taxonomy for routing/ownership and enable component-scoped views and metrics."
+    },
+    {
+      "name": "huly_delete_component",
+      "description": "Delete a component from a project. Requires project_identifier and component_label. Supports force and dry_run. Typically preceded by a dry run or validation to confirm no active issues still reference the component. Useful when merging or deprecating components."
+    },
+    {
+      "name": "huly_list_components",
+      "description": "Read-only list of all components within a project. Use to populate selectors, validate inputs, or perform audits of component taxonomy before modifications."
+    }
+  ],
+  "milestones": [
+    {
+      "name": "huly_create_milestone",
+      "description": "Create a milestone with label, optional description, target_date (ISO 8601), and status (planned/in_progress/completed/canceled; defaults to planned). Use to plan releases or time-bound initiatives and then associate issues to the milestone for tracking."
+    },
+    {
+      "name": "huly_delete_milestone",
+      "description": "Delete a milestone from a project. Requires project_identifier and milestone_label. Supports force and dry_run. Best used after validating that no critical issues still depend on the milestone, or when consolidating milestones."
+    },
+    {
+      "name": "huly_list_milestones",
+      "description": "Read-only list of all milestones in a project. Useful for building selection UIs, validating inputs, or auditing milestone coverage and status across a project."
+    }
+  ],
+  "github": [
+    {
+      "name": "huly_assign_repository_to_project",
+      "description": "Associate a GitHub repository (owner/repo) with a Huly project to enable integrations and traceability. Idempotent—reassigning the same repo has the same effect. Use to wire up code links, automation, or syncing PRs/issues."
+    },
+    {
+      "name": "huly_list_github_repositories",
+      "description": "List all GitHub repositories available via current integrations. Read-only; use for building repo pickers, validation, or verifying connectivity to external source control systems."
+    }
+  ],
+  "comments": [
+    {
+      "name": "huly_create_comment",
+      "description": "Add a comment to an issue (markdown supported). Use for updates, status notes, and collaboration logs—either manually or via automation. Returns the created comment so you can display or index it immediately."
+    },
+    {
+      "name": "huly_list_comments",
+      "description": "Read-only list of comments on an issue with optional limit (default 50). Use to render conversation history, perform exports, or detect recent discussion activity for alerts and dashboards."
+    }
+  ],
+  "templates": [
+    {
+      "name": "huly_add_child_template",
+      "description": "Attach a child template to an existing parent template to build hierarchical issue structures (e.g., implementation + QA + docs). Provide child attributes (title, description, priority, estimation, optional assignee/component/milestone). Use to evolve templates as processes mature."
+    },
+    {
+      "name": "huly_create_issue_from_template",
+      "description": "Instantiate issues from a template with optional overrides (title, priority, assignee, component, milestone, estimation) and include_children (default true) to expand any nested child templates. Ideal for repeatable workflows or playbooks where consistent issue structures are desired."
+    },
+    {
+      "name": "huly_create_template",
+      "description": "Create a reusable issue template for a project with defaults (title, description, priority default medium, estimation default 0, optional assignee/component/milestone) and optional children[] to define multi-step workflows. Use to standardize repeated tasks and enable rapid issue generation."
+    },
+    {
+      "name": "huly_delete_template",
+      "description": "Permanently remove a template by ID. Destructive—ensure no critical automations depend on it. Common when deprecating outdated processes or replacing with a new consolidated template."
+    },
+    {
+      "name": "huly_get_template_details",
+      "description": "Fetch detailed information about a template including its child templates. Read-only and idempotent—use to render a template editor/inspector, or to audit template structure before edits or deletions."
+    },
+    {
+      "name": "huly_list_templates",
+      "description": "List templates in a project, with optional limit (default 50). Use for template pickers, validation, and discovery, or to confirm recent creation operations."
+    },
+    {
+      "name": "huly_remove_child_template",
+      "description": "Remove a child template from a parent by its 0-based index. Use to refactor or simplify hierarchical templates without having to recreate the parent template."
+    },
+    {
+      "name": "huly_search_templates",
+      "description": "Search templates by title/description text, optionally scoped to a project, with an optional limit (default 50). Read-only; use to find candidate templates for reuse or update in large catalogs."
+    },
+    {
+      "name": "huly_update_template",
+      "description": "Update a single field on a template (title, description, priority, estimation, assignee, component, milestone). Value is a string; estimation expects a numeric string. Use to adjust defaults or correct metadata without recreating templates."
+    }
+  ],
+  "validation": [
+    {
+      "name": "huly_validate_deletion",
+      "description": "Preflight check to determine if an entity (issue, project, component, milestone) can be safely deleted. Returns blockers, warnings, and an impact summary; for component/milestone validation, project_identifier is required and dry-run techniques are used internally. Use this before destructive operations or to drive UI confirmation dialogs with clear consequences."
+    }
+  ],
+  "preview": [
+    {
+      "name": "huly_deletion_impact_preview",
+      "description": "Simulate a deletion to preview all affected entities and dependencies without performing the delete. Supports entity_type (issue/project/component/milestone), entity_identifier, optional project_identifier, cascade (for issues), and detailed mode (include per-entity details). Returns a formatted impact report (direct/cascade/total) to inform safe decision-making."
+    }
+  ]
+}
+

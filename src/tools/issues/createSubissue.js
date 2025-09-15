@@ -11,7 +11,7 @@ import { createErrorResponse } from '../base/ToolInterface.js';
  */
 export const definition = {
   name: 'huly_create_subissue',
-  description: 'Create a subissue under an existing parent issue',
+  description: 'Establish hierarchical issue relationships by creating detailed sub-issues under existing parent issues, enabling sophisticated task decomposition, work breakdown structures, and nested project organization within the Huly ecosystem. This specialized tool facilitates agile development practices by allowing complex features or epics to be broken down into manageable, trackable sub-tasks while maintaining clear parent-child relationships and inheritance of relevant metadata. The sub-issue creation process automatically establishes bidirectional links between parent and child issues, inherits appropriate project context and permissions, and supports independent lifecycle management including separate status tracking, priority assignment, component association, and milestone planning. Advanced features include automatic parent issue status aggregation based on sub-issue completion, cascading notification systems for stakeholder updates, and comprehensive validation to ensure parent issue existence and user authorization. This tool is essential for complex project management scenarios, feature development workflows, bug triage processes, and any situation requiring detailed task decomposition while maintaining clear organizational hierarchy and traceability throughout the development lifecycle.',
   inputSchema: {
     type: 'object',
     properties: {

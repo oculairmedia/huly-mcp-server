@@ -11,7 +11,7 @@ import { createErrorResponse } from '../base/ToolInterface.js';
  */
 export const definition = {
   name: 'huly_list_projects',
-  description: 'List all projects in Huly workspace',
+  description: 'Retrieve a comprehensive listing of all projects within the current Huly workspace, providing essential project metadata including unique identifiers, display names, descriptions, creation timestamps, and current status information. This tool serves as the primary entry point for project discovery and workspace overview, enabling users to understand the organizational structure of their Huly instance. The response includes detailed project statistics such as issue counts, active milestones, and component breakdowns, making it invaluable for project managers, team leads, and stakeholders who need to assess project portfolios, track overall workspace activity, and identify projects for further investigation. The tool automatically handles workspace-level permissions and filters results based on user access rights, ensuring secure and appropriate data exposure across different organizational roles and responsibilities.',
   inputSchema: {
     type: 'object',
     properties: {},

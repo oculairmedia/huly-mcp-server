@@ -14,7 +14,7 @@ import { HulyError } from '../../core/HulyError.js';
 export const definition = {
   name: 'huly_bulk_delete_issues',
   description:
-    'Delete multiple issues in a single operation. Supports batch processing with progress tracking.',
+    'Execute large-scale deletion operations across multiple issues with advanced batch processing capabilities, comprehensive safety mechanisms, and detailed progress tracking for reliable, auditable bulk data removal scenarios. This powerful administrative tool supports deletion of up to 1000 issues per operation with intelligent batching, configurable cascade deletion for sub-issue hierarchies, and robust error recovery mechanisms that ensure partial completion tracking and detailed failure analysis. The bulk deletion process includes mandatory dry-run preview mode for impact assessment, force deletion options for issues with complex dependencies, and continue-on-error processing for resilient operations that can handle mixed success/failure scenarios. Advanced safety features include comprehensive validation of issue existence and user permissions, detailed dependency analysis with blocking relationship identification, and atomic transaction management that prevents partial deletions and maintains data consistency throughout the operation. The tool provides real-time progress monitoring, detailed success/failure reporting with specific error messages, and comprehensive audit logging for compliance and recovery purposes, making it essential for large-scale project cleanup, data migration scenarios, workspace reorganization, and administrative maintenance tasks requiring reliable, secure, and traceable bulk issue removal capabilities.',
   inputSchema: {
     type: 'object',
     properties: {

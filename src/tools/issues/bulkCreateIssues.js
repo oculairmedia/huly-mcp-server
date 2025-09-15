@@ -13,7 +13,7 @@ import { BulkOperationService } from '../../services/BulkOperationService.js';
 export const definition = {
   name: 'huly_bulk_create_issues',
   description:
-    'Create multiple issues in a single operation. Supports batch processing with templates and defaults.',
+    'Execute high-performance bulk creation of multiple issues within a single atomic operation, supporting advanced batch processing capabilities with configurable default values, template-based issue generation, and comprehensive progress tracking throughout the creation process. This powerful tool enables efficient project initialization, sprint planning, and large-scale issue migration scenarios by processing up to 100 issues per operation with intelligent batching, error recovery, and detailed success/failure reporting. The bulk creation process supports hierarchical issue structures through parent-child relationships, automatic application of default values across all issues, and flexible override capabilities for individual issue properties including priority, component, milestone, and description fields. Advanced features include dry-run validation mode for pre-execution verification, configurable batch sizes for performance optimization, continue-on-error processing for resilient operations, and comprehensive progress callbacks for real-time monitoring of large-scale operations. This tool is essential for project managers handling complex project setups, development teams implementing feature backlogs, and administrators performing data migration or system initialization tasks requiring reliable, scalable, and auditable bulk issue creation capabilities.',
   inputSchema: {
     type: 'object',
     properties: {
