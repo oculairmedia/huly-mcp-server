@@ -57,7 +57,7 @@ export class LRUCache {
     // Add to cache
     this.cache.set(key, {
       value,
-      expiry: ttl ? Date.now() + ttl : null
+      expiry: ttl ? Date.now() + ttl : null,
     });
 
     // Add to access order
@@ -148,9 +148,9 @@ export class LRUCache {
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
-      utilization: (this.cache.size / this.maxSize * 100).toFixed(2) + '%',
+      utilization: `${((this.cache.size / this.maxSize) * 100).toFixed(2)}%`,
       expired,
-      active: this.cache.size - expired
+      active: this.cache.size - expired,
     };
   }
 
@@ -210,16 +210,12 @@ export class LRUCache {
  * @returns {Function} Memoized function
  */
 export function memoize(fn, options = {}) {
-  const {
-    maxSize = 100,
-    ttl = 600000,
-    keyGenerator = (...args) => JSON.stringify(args)
-  } = options;
+  const { maxSize = 100, ttl = 600000, keyGenerator = (...args) => JSON.stringify(args) } = options;
 
   const cache = new LRUCache(maxSize, ttl);
 
   return async function memoizedFn(...args) {
-    const key = keyGenerator(...args);
+    const _key = keyGenerator(...args);
 
     // Check cache
     const cached = cache.get(key);
@@ -314,5 +310,5 @@ export default {
   LRUCache,
   CacheManager,
   cacheManager,
-  memoize
+  memoize,
 };

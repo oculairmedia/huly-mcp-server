@@ -14,7 +14,7 @@ import { getConfigManager } from '../../config/index.js';
  */
 export class WizardSession {
   constructor(wizardName, initialData = {}) {
-    this.sessionId = randomUUID();
+    this._sessionId = randomUUID();
     this.wizardName = wizardName;
     this.currentStep = 0;
     this.steps = [];
@@ -23,7 +23,7 @@ export class WizardSession {
       createdAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
       completedSteps: [],
-      totalSteps: 0
+      totalSteps: 0,
     };
     this.isCompleted = false;
     this.isAborted = false;
@@ -44,7 +44,7 @@ export class WizardSession {
       required: step.required === true,
       validation: step.validation || null,
       handler: step.handler || null,
-      ...step
+      ...step,
     }));
 
     this.metadata.totalSteps = this.steps.length;
@@ -66,7 +66,7 @@ export class WizardSession {
    * Get step by ID
    */
   getStep(stepId) {
-    return this.steps.find(step => step.id === stepId);
+    return this.steps.find((step) => step.id === stepId);
   }
 
   /**
@@ -167,8 +167,9 @@ export class WizardSession {
     // Remove from completed steps
     const currentStep = this.getCurrentStep();
     if (currentStep) {
-      this.metadata.completedSteps = this.metadata.completedSteps
-        .filter(stepId => stepId !== currentStep.id);
+      this.metadata.completedSteps = this.metadata.completedSteps.filter(
+        (stepId) => stepId !== currentStep.id
+      );
     }
 
     this.updateLastModified();
@@ -179,7 +180,7 @@ export class WizardSession {
    * Jump to specific step
    */
   goToStep(stepId) {
-    const stepIndex = this.steps.findIndex(step => step.id === stepId);
+    const stepIndex = this.steps.findIndex((step) => step.id === stepId);
     if (stepIndex === -1) {
       throw new Error(`Step '${stepId}' not found`);
     }
@@ -214,13 +215,14 @@ export class WizardSession {
       currentStep: this.currentStep,
       totalSteps: this.metadata.totalSteps,
       completedSteps: this.metadata.completedSteps.length,
-      percentage: this.metadata.totalSteps > 0
-        ? Math.round((this.metadata.completedSteps.length / this.metadata.totalSteps) * 100)
-        : 0,
+      percentage:
+        this.metadata.totalSteps > 0
+          ? Math.round((this.metadata.completedSteps.length / this.metadata.totalSteps) * 100)
+          : 0,
       isCompleted: this.isCompleted,
       isAborted: this.isAborted,
       currentStepInfo: this.getCurrentStep(),
-      metadata: this.metadata
+      metadata: this.metadata,
     };
   }
 
@@ -236,7 +238,7 @@ export class WizardSession {
       state: this.state,
       metadata: this.metadata,
       isCompleted: this.isCompleted,
-      isAborted: this.isAborted
+      isAborted: this.isAborted,
     };
   }
 
@@ -245,7 +247,7 @@ export class WizardSession {
    */
   static fromJSON(data) {
     const session = new WizardSession(data.wizardName, data.state);
-    session.sessionId = data.sessionId;
+    session._sessionId = data.sessionId;
     session.currentStep = data.currentStep;
     session.steps = data.steps || [];
     session.metadata = data.metadata || {};
@@ -275,13 +277,13 @@ export class WizardStateManager {
     // Initialize logger
     try {
       this.logger = createLoggerWithConfig(getConfigManager()).child('wizard-state');
-    } catch (error) {
+    } catch (_error) {
       // Fallback logger for testing
       this.logger = {
         info: console.log,
         warn: console.warn,
         error: console.error,
-        debug: console.debug
+        debug: console.debug,
       };
     }
 
@@ -354,7 +356,7 @@ export class WizardStateManager {
           wizardName: session.wizardName,
           progress: session.getProgress(),
           createdAt: session.metadata.createdAt,
-          lastUpdated: session.metadata.lastUpdated
+          lastUpdated: session.metadata.lastUpdated,
         });
       }
     }
@@ -384,7 +386,7 @@ export class WizardStateManager {
 
     const now = Date.now();
     const lastUpdated = new Date(session.metadata.lastUpdated).getTime();
-    return (now - lastUpdated) > this.sessionTimeout;
+    return now - lastUpdated > this.sessionTimeout;
   }
 
   /**
@@ -403,11 +405,12 @@ export class WizardStateManager {
       }
 
       // Remove old completed/aborted sessions (24 hours)
-      if ((session.isCompleted || session.isAborted)) {
+      if (session.isCompleted || session.isAborted) {
         const completedAt = session.metadata.completedAt || session.metadata.abortedAt;
         if (completedAt) {
           const age = now - new Date(completedAt).getTime();
-          if (age > 86400000) { // 24 hours
+          if (age > 86400000) {
+            // 24 hours
             this.sessions.delete(sessionId);
             cleanedCount++;
           }
@@ -475,7 +478,7 @@ export class WizardStateManager {
       abortedSessions: abortedCount,
       wizardTypes: Object.fromEntries(wizardTypes),
       maxSessions: this.maxSessions,
-      sessionTimeout: this.sessionTimeout
+      sessionTimeout: this.sessionTimeout,
     };
   }
 

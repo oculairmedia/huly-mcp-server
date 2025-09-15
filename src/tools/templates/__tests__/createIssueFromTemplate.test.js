@@ -35,7 +35,9 @@ describe('createIssueFromTemplate tool', () => {
   describe('definition', () => {
     it('should have correct tool definition', () => {
       expect(definition.name).toBe('huly_create_issue_from_template');
-      expect(definition.description).toContain('Create issues from a template');
+      expect(definition.description).toContain(
+        'Generate comprehensive issue structures from predefined templates'
+      );
       expect(definition.inputSchema.required).toEqual(['template_id']);
       expect(definition.annotations.destructiveHint).toBe(true);
     });

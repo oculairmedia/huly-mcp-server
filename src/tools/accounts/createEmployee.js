@@ -20,18 +20,18 @@ export const definition = {
         type: 'string',
         description: 'Employee first name (required)',
         minLength: 1,
-        maxLength: 50
+        maxLength: 50,
       },
       last_name: {
         type: 'string',
         description: 'Employee last name (required)',
         minLength: 1,
-        maxLength: 50
+        maxLength: 50,
       },
       middle_name: {
         type: 'string',
         description: 'Employee middle name (optional)',
-        maxLength: 50
+        maxLength: 50,
       },
       email: {
         type: 'string',
@@ -41,27 +41,27 @@ export const definition = {
       phone: {
         type: 'string',
         description: 'Phone number (optional)',
-        maxLength: 20
+        maxLength: 20,
       },
       position: {
         type: 'string',
         description: 'Job title or position (optional)',
-        maxLength: 100
+        maxLength: 100,
       },
       department: {
         type: 'string',
         description: 'Department or team name (optional)',
-        maxLength: 100
+        maxLength: 100,
       },
       city: {
         type: 'string',
         description: 'City location (optional)',
-        maxLength: 50
+        maxLength: 50,
       },
       country: {
         type: 'string',
         description: 'Country location (optional)',
-        maxLength: 50
+        maxLength: 50,
       },
       active: {
         type: 'boolean',
@@ -109,7 +109,7 @@ export async function handler(args, context) {
       department: args.department,
       city: args.city,
       country: args.country,
-      active: args.active !== false // Default to true
+      active: args.active !== false, // Default to true
     };
 
     const result = await employeeService.createEmployee(client, employeeData);

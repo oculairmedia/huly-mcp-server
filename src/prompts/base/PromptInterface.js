@@ -90,7 +90,11 @@ export class BasePrompt {
     }
 
     if (!argument.description || typeof argument.description !== 'string') {
-      throw HulyError.invalidValue('argument.description', argument.description, 'non-empty string');
+      throw HulyError.invalidValue(
+        'argument.description',
+        argument.description,
+        'non-empty string'
+      );
     }
 
     if (argument.required !== undefined && typeof argument.required !== 'boolean') {
@@ -104,11 +108,11 @@ export class BasePrompt {
    * @throws {HulyError} If required arguments are missing
    */
   validateExecutionArguments(providedArgs = {}) {
-    const requiredArgs = this.arguments.filter(arg => arg.required);
-    const missingArgs = requiredArgs.filter(arg => !(arg.name in providedArgs));
+    const requiredArgs = this.arguments.filter((arg) => arg.required);
+    const missingArgs = requiredArgs.filter((arg) => !(arg.name in providedArgs));
 
     if (missingArgs.length > 0) {
-      const missing = missingArgs.map(arg => arg.name);
+      const missing = missingArgs.map((arg) => arg.name);
       throw HulyError.invalidValue(
         'arguments',
         providedArgs,
@@ -144,7 +148,7 @@ export class BasePrompt {
 
       throw new HulyError('PROMPT_EXECUTION_FAILED', `Failed to execute prompt ${this.name}`, {
         context: error.message,
-        data: { promptName: this.name, args }
+        data: { promptName: this.name, args },
       });
     }
   }
@@ -157,11 +161,11 @@ export class BasePrompt {
     return {
       name: this.name,
       description: this.description,
-      arguments: this.arguments.map(arg => ({
+      arguments: this.arguments.map((arg) => ({
         name: arg.name,
         description: arg.description,
-        required: arg.required || false
-      }))
+        required: arg.required || false,
+      })),
     };
   }
 
@@ -174,8 +178,8 @@ export class BasePrompt {
       name: this.name,
       description: this.description,
       argumentCount: this.arguments.length,
-      requiredArguments: this.arguments.filter(arg => arg.required).length,
-      annotations: this.annotations
+      requiredArguments: this.arguments.filter((arg) => arg.required).length,
+      annotations: this.annotations,
     };
   }
 }
@@ -193,7 +197,11 @@ export class WizardPrompt extends BasePrompt {
 
     // Validate wizard-specific properties
     if (!this.annotations.wizard) {
-      throw HulyError.invalidValue('annotations.wizard', this.annotations.wizard, 'true for wizard prompts');
+      throw HulyError.invalidValue(
+        'annotations.wizard',
+        this.annotations.wizard,
+        'true for wizard prompts'
+      );
     }
 
     this.maxSteps = this.annotations.maxSteps || 10;
@@ -214,7 +222,10 @@ export class WizardPrompt extends BasePrompt {
 
     // Validate step count
     if (context.wizardState.currentStep >= this.maxSteps) {
-      throw new HulyError('WIZARD_MAX_STEPS_EXCEEDED', `Wizard has exceeded maximum steps (${this.maxSteps})`);
+      throw new HulyError(
+        'WIZARD_MAX_STEPS_EXCEEDED',
+        `Wizard has exceeded maximum steps (${this.maxSteps})`
+      );
     }
 
     return super.execute(args, context);
@@ -229,7 +240,7 @@ export class WizardPrompt extends BasePrompt {
       ...super.getMetadata(),
       type: 'wizard',
       maxSteps: this.maxSteps,
-      sessionTimeout: this.sessionTimeout
+      sessionTimeout: this.sessionTimeout,
     };
   }
 }
@@ -292,13 +303,13 @@ export const PromptUtils = {
       content: [
         {
           type: 'text',
-          text: content
-        }
+          text: content,
+        },
       ],
       data: {
         timestamp: new Date().toISOString(),
-        ...data
-      }
+        ...data,
+      },
     };
   },
 
@@ -313,15 +324,15 @@ export const PromptUtils = {
       content: [
         {
           type: 'text',
-          text: `❌ Error: ${message}`
-        }
+          text: `❌ Error: ${message}`,
+        },
       ],
       data: {
         timestamp: new Date().toISOString(),
         error: true,
         message,
-        ...data
-      }
+        ...data,
+      },
     };
   },
 
@@ -338,14 +349,14 @@ export const PromptUtils = {
         content: [
           {
             type: 'text',
-            text: `✅ ${title}`
-          }
+            text: `✅ ${title}`,
+          },
         ],
         data: {
           timestamp: new Date().toISOString(),
           success: true,
-          ...content
-        }
+          ...content,
+        },
       };
     }
 
@@ -354,13 +365,13 @@ export const PromptUtils = {
       content: [
         {
           type: 'text',
-          text: `✅ ${title}\n\n${content || ''}`
-        }
+          text: `✅ ${title}\n\n${content || ''}`,
+        },
       ],
       data: {
         timestamp: new Date().toISOString(),
-        success: true
-      }
+        success: true,
+      },
     };
-  }
+  },
 };

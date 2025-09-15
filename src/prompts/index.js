@@ -20,13 +20,13 @@ function _initLogger() {
     try {
       const configManager = getConfigManager();
       logger = createLoggerWithConfig(configManager).child('prompts-system');
-    } catch (error) {
+    } catch (_error) {
       // Fallback to console in test environment
       logger = {
         debug: console.debug.bind(console),
         info: console.info.bind(console),
         warn: console.warn.bind(console),
-        error: console.error.bind(console)
+        error: console.error.bind(console),
       };
     }
   }
@@ -46,7 +46,7 @@ export async function initializePrompts() {
 
     const stats = promptRegistry.getStatistics();
     logger.info('Prompt system initialized successfully', stats);
-  } catch (error) {
+  } catch (_error) {
     logger.error('Failed to initialize prompt system:', error);
     throw error;
   }

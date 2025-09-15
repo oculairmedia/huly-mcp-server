@@ -7,7 +7,7 @@ import {
   WizardSession,
   WizardStateManager,
   getWizardStateManager,
-  resetWizardStateManager
+  resetWizardStateManager,
 } from '../WizardState.js';
 
 // Mock the config and utils modules
@@ -44,7 +44,7 @@ describe('WizardSession', () => {
     it('should set steps correctly', () => {
       const steps = [
         { id: 'step1', name: 'First Step', required: true },
-        { id: 'step2', name: 'Second Step', required: false }
+        { id: 'step2', name: 'Second Step', required: false },
       ];
 
       session.setSteps(steps);
@@ -57,10 +57,7 @@ describe('WizardSession', () => {
     });
 
     it('should auto-generate step IDs if not provided', () => {
-      const steps = [
-        { name: 'First Step' },
-        { name: 'Second Step' }
-      ];
+      const steps = [{ name: 'First Step' }, { name: 'Second Step' }];
 
       session.setSteps(steps);
 
@@ -79,7 +76,7 @@ describe('WizardSession', () => {
       session.setSteps([
         { id: 'step1', name: 'Step 1' },
         { id: 'step2', name: 'Step 2' },
-        { id: 'step3', name: 'Step 3' }
+        { id: 'step3', name: 'Step 3' },
       ]);
     });
 
@@ -148,9 +145,15 @@ describe('WizardSession', () => {
       await session.nextStep({});
       await session.nextStep({});
 
-      expect(() => session.nextStep({})).rejects.toThrow('Cannot advance completed or aborted wizard');
-      expect(() => session.previousStep()).toThrow('Cannot navigate in completed or aborted wizard');
-      expect(() => session.goToStep('step1')).toThrow('Cannot navigate in completed or aborted wizard');
+      await expect(session.nextStep({})).rejects.toThrow(
+        'Cannot advance completed or aborted wizard'
+      );
+      expect(() => session.previousStep()).toThrow(
+        'Cannot navigate in completed or aborted wizard'
+      );
+      expect(() => session.goToStep('step1')).toThrow(
+        'Cannot navigate in completed or aborted wizard'
+      );
     });
   });
 
@@ -182,7 +185,7 @@ describe('WizardSession', () => {
         {
           id: 'required-step',
           name: 'Required Step',
-          required: true
+          required: true,
         },
         {
           id: 'validation-step',
@@ -192,8 +195,8 @@ describe('WizardSession', () => {
               return 'Invalid email address';
             }
             return true;
-          }
-        }
+          },
+        },
       ]);
     });
 
@@ -212,32 +215,32 @@ describe('WizardSession', () => {
     it('should run custom validation', async () => {
       session.goToStep('validation-step');
 
-      await expect(session.validateCurrentStep({ email: 'invalid' }))
-        .rejects.toThrow('Invalid email address');
+      await expect(session.validateCurrentStep({ email: 'invalid' })).rejects.toThrow(
+        'Invalid email address'
+      );
 
-      await expect(session.validateCurrentStep({ email: 'test@example.com' }))
-        .resolves.toBe(true);
+      await expect(session.validateCurrentStep({ email: 'test@example.com' })).resolves.toBe(true);
     });
 
     it('should handle async validation', async () => {
       const asyncValidationStep = {
         id: 'async-step',
         validation: async (data) => {
-          return new Promise(resolve => {
+          return new Promise((resolve) => {
             setTimeout(() => {
               resolve(data.value === 'correct' ? true : 'Incorrect value');
             }, 10);
           });
-        }
+        },
       };
 
       session.setSteps([asyncValidationStep]);
 
-      await expect(session.validateCurrentStep({ value: 'wrong' }))
-        .rejects.toThrow('Incorrect value');
+      await expect(session.validateCurrentStep({ value: 'wrong' })).rejects.toThrow(
+        'Incorrect value'
+      );
 
-      await expect(session.validateCurrentStep({ value: 'correct' }))
-        .resolves.toBe(true);
+      await expect(session.validateCurrentStep({ value: 'correct' })).resolves.toBe(true);
     });
   });
 
@@ -248,7 +251,7 @@ describe('WizardSession', () => {
 
       session.setSteps([
         { id: 'step1', handler: handler1 },
-        { id: 'step2', handler: handler2 }
+        { id: 'step2', handler: handler2 },
       ]);
 
       await session.nextStep({ step1Data: 'value1' });
@@ -266,7 +269,7 @@ describe('WizardSession', () => {
         { step2Data: 'value2' },
         expect.objectContaining({
           step1Data: 'value1',
-          step2Data: 'value2'
+          step2Data: 'value2',
         }),
         session
       );
@@ -274,16 +277,14 @@ describe('WizardSession', () => {
 
     it('should handle async step handlers', async () => {
       const asyncHandler = jest.fn(async (_data) => {
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
           setTimeout(() => {
             resolve();
           }, 10);
         });
       });
 
-      session.setSteps([
-        { id: 'async-step', handler: asyncHandler }
-      ]);
+      session.setSteps([{ id: 'async-step', handler: asyncHandler }]);
 
       await session.nextStep({ asyncData: 'test' });
 
@@ -295,7 +296,7 @@ describe('WizardSession', () => {
     beforeEach(() => {
       session.setSteps([
         { id: 'step1', name: 'Step 1' },
-        { id: 'step2', name: 'Step 2' }
+        { id: 'step2', name: 'Step 2' },
       ]);
     });
 
@@ -312,11 +313,15 @@ describe('WizardSession', () => {
       expect(session.metadata.abortReason).toBe('User cancelled');
     });
 
-    it('should prevent navigation after abortion', () => {
+    it('should prevent navigation after abortion', async () => {
       session.abort();
 
-      expect(() => session.nextStep({})).rejects.toThrow('Cannot advance completed or aborted wizard');
-      expect(() => session.previousStep()).toThrow('Cannot navigate in completed or aborted wizard');
+      await expect(session.nextStep({})).rejects.toThrow(
+        'Cannot advance completed or aborted wizard'
+      );
+      expect(() => session.previousStep()).toThrow(
+        'Cannot navigate in completed or aborted wizard'
+      );
     });
   });
 
@@ -325,7 +330,7 @@ describe('WizardSession', () => {
       session.setSteps([
         { id: 'step1', name: 'Step 1' },
         { id: 'step2', name: 'Step 2' },
-        { id: 'step3', name: 'Step 3' }
+        { id: 'step3', name: 'Step 3' },
       ]);
     });
 
@@ -359,7 +364,7 @@ describe('WizardSession', () => {
     beforeEach(() => {
       session.setSteps([
         { id: 'step1', name: 'Step 1' },
-        { id: 'step2', name: 'Step 2' }
+        { id: 'step2', name: 'Step 2' },
       ]);
     });
 
@@ -392,7 +397,7 @@ describe('WizardSession', () => {
     it('should handle incomplete JSON data', () => {
       const minimalJson = {
         wizardName: 'minimal-wizard',
-        state: { test: 'data' }
+        state: { test: 'data' },
       };
 
       const restored = WizardSession.fromJSON(minimalJson);
@@ -413,7 +418,7 @@ describe('WizardStateManager', () => {
     manager = new WizardStateManager({
       maxSessions: 5,
       sessionTimeout: 1000, // 1 second for testing
-      cleanupInterval: 100 // 100ms for testing
+      cleanupInterval: 100, // 100ms for testing
     });
   });
 
@@ -441,8 +446,9 @@ describe('WizardStateManager', () => {
         manager.createSession(`wizard-${i}`);
       }
 
-      expect(() => manager.createSession('wizard-overflow'))
-        .toThrow('Maximum number of wizard sessions reached');
+      expect(() => manager.createSession('wizard-overflow')).toThrow(
+        'Maximum number of wizard sessions reached'
+      );
     });
 
     it('should retrieve sessions by ID', () => {
@@ -475,8 +481,8 @@ describe('WizardStateManager', () => {
       const sessions = manager.listSessions();
 
       expect(sessions).toHaveLength(2);
-      expect(sessions.map(s => s.sessionId)).toContain(session1.sessionId);
-      expect(sessions.map(s => s.sessionId)).toContain(session2.sessionId);
+      expect(sessions.map((s) => s.sessionId)).toContain(session1.sessionId);
+      expect(sessions.map((s) => s.sessionId)).toContain(session2.sessionId);
     });
 
     it('should get sessions by wizard name', () => {

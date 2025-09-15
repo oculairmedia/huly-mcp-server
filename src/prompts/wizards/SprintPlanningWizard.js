@@ -14,199 +14,202 @@ export class SprintPlanningWizard extends WizardPrompt {
   constructor() {
     super({
       name: 'sprint-planning-wizard',
-      description: 'Interactive wizard for planning sprints, setting goals, and prioritizing issues',
+      description:
+        'Interactive wizard for planning sprints, setting goals, and prioritizing issues',
       category: 'project-management',
       annotations: {
         wizard: true,
         maxSteps: 6,
         estimatedTime: '10-15 minutes',
-        tags: ['sprint', 'planning', 'milestone', 'agile']
+        tags: ['sprint', 'planning', 'milestone', 'agile'],
       },
       arguments: [
         {
           name: 'projectId',
           description: 'Project ID to create sprint for (optional)',
-          required: false
+          required: false,
         },
         {
           name: 'sprintName',
           description: 'Suggested sprint name (optional)',
-          required: false
-        }
+          required: false,
+        },
       ],
       // Use arrow function to delegate to execute method
-      handler: async (...args) => this.execute(...args)
+      handler: async (...args) => this.execute(...args),
     });
 
     // Store steps on the instance directly
     this.steps = [
-        {
-          id: 'sprint-details',
-          name: 'Sprint Details',
-          description: 'Define sprint name, duration, and goals',
-          form: {
-            fields: [
-              {
-                name: 'name',
-                type: 'string',
-                required: true,
-                description: 'Sprint name (e.g., Sprint 1, Q1 Sprint)',
-                placeholder: 'Sprint 1'
-              },
-              {
-                name: 'goal',
-                type: 'string',
-                required: true,
-                description: 'Sprint goal - what will be accomplished',
-                placeholder: 'Complete user authentication features'
-              },
-              {
-                name: 'startDate',
-                type: 'date',
-                required: true,
-                description: 'Sprint start date',
-                defaultValue: new Date().toISOString().split('T')[0]
-              },
-              {
-                name: 'endDate',
-                type: 'date',
-                required: true,
-                description: 'Sprint end date (typically 2 weeks)',
-                defaultValue: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-              },
-              {
-                name: 'description',
-                type: 'text',
-                required: false,
-                description: 'Detailed sprint description and objectives',
-                placeholder: 'This sprint focuses on...'
-              }
-            ]
-          }
+      {
+        id: 'sprint-details',
+        name: 'Sprint Details',
+        description: 'Define sprint name, duration, and goals',
+        form: {
+          fields: [
+            {
+              name: 'name',
+              type: 'string',
+              required: true,
+              description: 'Sprint name (e.g., Sprint 1, Q1 Sprint)',
+              placeholder: 'Sprint 1',
+            },
+            {
+              name: 'goal',
+              type: 'string',
+              required: true,
+              description: 'Sprint goal - what will be accomplished',
+              placeholder: 'Complete user authentication features',
+            },
+            {
+              name: 'startDate',
+              type: 'date',
+              required: true,
+              description: 'Sprint start date',
+              defaultValue: new Date().toISOString().split('T')[0],
+            },
+            {
+              name: 'endDate',
+              type: 'date',
+              required: true,
+              description: 'Sprint end date (typically 2 weeks)',
+              defaultValue: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+                .toISOString()
+                .split('T')[0],
+            },
+            {
+              name: 'description',
+              type: 'text',
+              required: false,
+              description: 'Detailed sprint description and objectives',
+              placeholder: 'This sprint focuses on...',
+            },
+          ],
         },
-        {
-          id: 'project-selection',
-          name: 'Project Selection',
-          description: 'Select the project for this sprint',
-          form: {
-            fields: [
-              {
-                name: 'projectId',
-                type: 'select',
-                required: true,
-                description: 'Select project',
-                dynamic: true, // Will be populated with available projects
-                placeholder: 'Choose a project'
-              },
-              {
-                name: 'teamCapacity',
-                type: 'number',
-                required: false,
-                description: 'Team capacity in story points (optional)',
-                placeholder: '40',
-                min: 0
-              }
-            ]
-          }
+      },
+      {
+        id: 'project-selection',
+        name: 'Project Selection',
+        description: 'Select the project for this sprint',
+        form: {
+          fields: [
+            {
+              name: 'projectId',
+              type: 'select',
+              required: true,
+              description: 'Select project',
+              dynamic: true, // Will be populated with available projects
+              placeholder: 'Choose a project',
+            },
+            {
+              name: 'teamCapacity',
+              type: 'number',
+              required: false,
+              description: 'Team capacity in story points (optional)',
+              placeholder: '40',
+              min: 0,
+            },
+          ],
         },
-        {
-          id: 'issue-selection',
-          name: 'Issue Selection',
-          description: 'Select issues to include in the sprint',
-          form: {
-            fields: [
-              {
-                name: 'issueIds',
-                type: 'multiselect',
-                required: false,
-                description: 'Select issues for the sprint backlog',
-                dynamic: true, // Will be populated with available issues
-                placeholder: 'Choose issues'
-              },
-              {
-                name: 'autoInclude',
-                type: 'checkbox',
-                required: false,
-                description: 'Auto-include high priority issues',
-                defaultValue: false
-              },
-              {
-                name: 'maxIssues',
-                type: 'number',
-                required: false,
-                description: 'Maximum number of issues to include',
-                placeholder: '20',
-                min: 1,
-                max: 100
-              }
-            ]
-          }
+      },
+      {
+        id: 'issue-selection',
+        name: 'Issue Selection',
+        description: 'Select issues to include in the sprint',
+        form: {
+          fields: [
+            {
+              name: 'issueIds',
+              type: 'multiselect',
+              required: false,
+              description: 'Select issues for the sprint backlog',
+              dynamic: true, // Will be populated with available issues
+              placeholder: 'Choose issues',
+            },
+            {
+              name: 'autoInclude',
+              type: 'checkbox',
+              required: false,
+              description: 'Auto-include high priority issues',
+              defaultValue: false,
+            },
+            {
+              name: 'maxIssues',
+              type: 'number',
+              required: false,
+              description: 'Maximum number of issues to include',
+              placeholder: '20',
+              min: 1,
+              max: 100,
+            },
+          ],
         },
-        {
-          id: 'priority-ordering',
-          name: 'Priority & Ordering',
-          description: 'Set issue priorities and order for the sprint',
-          form: {
-            fields: [
-              {
-                name: 'prioritizationMethod',
-                type: 'select',
-                required: true,
-                description: 'How to prioritize issues',
-                options: [
-                  { value: 'manual', label: 'Manual ordering' },
-                  { value: 'priority', label: 'By priority level' },
-                  { value: 'effort', label: 'By effort estimate' },
-                  { value: 'value', label: 'By business value' }
-                ],
-                defaultValue: 'priority'
-              },
-              {
-                name: 'includeStretchGoals',
-                type: 'checkbox',
-                required: false,
-                description: 'Include stretch goals',
-                defaultValue: true
-              }
-            ]
-          }
+      },
+      {
+        id: 'priority-ordering',
+        name: 'Priority & Ordering',
+        description: 'Set issue priorities and order for the sprint',
+        form: {
+          fields: [
+            {
+              name: 'prioritizationMethod',
+              type: 'select',
+              required: true,
+              description: 'How to prioritize issues',
+              options: [
+                { value: 'manual', label: 'Manual ordering' },
+                { value: 'priority', label: 'By priority level' },
+                { value: 'effort', label: 'By effort estimate' },
+                { value: 'value', label: 'By business value' },
+              ],
+              defaultValue: 'priority',
+            },
+            {
+              name: 'includeStretchGoals',
+              type: 'checkbox',
+              required: false,
+              description: 'Include stretch goals',
+              defaultValue: true,
+            },
+          ],
         },
-        {
-          id: 'team-assignments',
-          name: 'Team Assignments',
-          description: 'Assign team members to sprint issues',
-          form: {
-            fields: [
-              {
-                name: 'assignmentStrategy',
-                type: 'select',
-                required: true,
-                description: 'Assignment strategy',
-                options: [
-                  { value: 'balanced', label: 'Balance workload' },
-                  { value: 'expertise', label: 'Based on expertise' },
-                  { value: 'availability', label: 'Based on availability' },
-                  { value: 'manual', label: 'Manual assignment' }
-                ],
-                defaultValue: 'balanced'
-              },
-              {
-                name: 'teamMembers',
-                type: 'multiselect',
-                required: false,
-                description: 'Team members for this sprint',
-                dynamic: true, // Will be populated with available team members
-                placeholder: 'Select team members'
-              }
-            ]
-          }
+      },
+      {
+        id: 'team-assignments',
+        name: 'Team Assignments',
+        description: 'Assign team members to sprint issues',
+        form: {
+          fields: [
+            {
+              name: 'assignmentStrategy',
+              type: 'select',
+              required: true,
+              description: 'Assignment strategy',
+              options: [
+                { value: 'balanced', label: 'Balance workload' },
+                { value: 'expertise', label: 'Based on expertise' },
+                { value: 'availability', label: 'Based on availability' },
+                { value: 'manual', label: 'Manual assignment' },
+              ],
+              defaultValue: 'balanced',
+            },
+            {
+              name: 'teamMembers',
+              type: 'multiselect',
+              required: false,
+              description: 'Team members for this sprint',
+              dynamic: true, // Will be populated with available team members
+              placeholder: 'Select team members',
+            },
+          ],
         },
-        {
-          id: 'review-create',
-          name: 'Review & Create',
-          description: 'Review sprint plan and create milestone',
-          review: true // This step shows a summary
-        }
+      },
+      {
+        id: 'review-create',
+        name: 'Review & Create',
+        description: 'Review sprint plan and create milestone',
+        review: true, // This step shows a summary
+      },
     ];
 
     this.logger = null; // Lazy initialization
@@ -229,7 +232,7 @@ export class SprintPlanningWizard extends WizardPrompt {
       if (!session) {
         session = stateManager.createSession(this.name, {
           projectId: args.projectId,
-          sprintName: args.sprintName
+          sprintName: args.sprintName,
         });
         session.setSteps(this.steps);
         context.sessionId = session.id;
@@ -257,14 +260,14 @@ export class SprintPlanningWizard extends WizardPrompt {
         default:
           return {
             success: false,
-            error: `Unknown action: ${action}`
+            error: `Unknown action: ${action}`,
           };
       }
     } catch (error) {
       this.getLogger().error('Sprint planning wizard execution failed', { error });
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -284,8 +287,8 @@ export class SprintPlanningWizard extends WizardPrompt {
         currentStep,
         progress: session.getProgress(),
         canGoBack: session.canGoBack(),
-        canGoForward: false
-      }
+        canGoForward: false,
+      },
     };
   }
 
@@ -318,13 +321,13 @@ export class SprintPlanningWizard extends WizardPrompt {
           currentStep: newStep,
           progress: session.getProgress(),
           canGoBack: session.canGoBack(),
-          canGoForward: session.hasCompletedStep(newStep.id)
-        }
+          canGoForward: session.hasCompletedStep(newStep.id),
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -341,13 +344,13 @@ export class SprintPlanningWizard extends WizardPrompt {
           currentStep,
           progress: session.getProgress(),
           canGoBack: session.canGoBack(),
-          canGoForward: true
-        }
+          canGoForward: true,
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -358,8 +361,8 @@ export class SprintPlanningWizard extends WizardPrompt {
       success: true,
       data: {
         cancelled: true,
-        sessionId: session.id
-      }
+        sessionId: session.id,
+      },
     };
   }
 
@@ -384,15 +387,15 @@ export class SprintPlanningWizard extends WizardPrompt {
             startDate: sprint.startDate,
             endDate: sprint.endDate,
             issueCount: sprintData.issueIds?.length || 0,
-            teamSize: sprintData.teamMembers?.length || 0
-          }
-        }
+            teamSize: sprintData.teamMembers?.length || 0,
+          },
+        },
       };
     } catch (error) {
       this.getLogger().error('Failed to create sprint', { error });
       return {
         success: false,
-        error: `Failed to create sprint: ${error.message}`
+        error: `Failed to create sprint: ${error.message}`,
       };
     }
   }
@@ -460,9 +463,9 @@ export class SprintPlanningWizard extends WizardPrompt {
       const { services, client, logger } = context;
       const projects = await services.projectService.listProjects(client);
 
-      step.form.fields[0].options = projects.map(p => ({
+      step.form.fields[0].options = projects.map((p) => ({
         value: p.identifier,
-        label: `${p.identifier} - ${p.name || 'Unnamed Project'}`
+        label: `${p.identifier} - ${p.name || 'Unnamed Project'}`,
       }));
 
       // If projectId was provided initially, set it as default
@@ -497,18 +500,18 @@ export class SprintPlanningWizard extends WizardPrompt {
       // Load issues from the project
       const issues = await services.issueService.listIssues(client, projectId, 50);
 
-      step.form.fields[0].options = issues.map(issue => ({
+      step.form.fields[0].options = issues.map((issue) => ({
         value: issue.identifier,
         label: `${issue.identifier} - ${issue.title}`,
         metadata: {
           priority: issue.priority || 'medium',
-          status: issue.status || 'backlog'
-        }
+          status: issue.status || 'backlog',
+        },
       }));
 
       logger.debug('Loaded issues for sprint planning', {
         projectId,
-        issueCount: issues.length
+        issueCount: issues.length,
       });
     } catch (error) {
       this.getLogger().error('Failed to load issues', { error });
@@ -535,16 +538,17 @@ export class SprintPlanningWizard extends WizardPrompt {
       // Load employees as potential team members
       const employees = await services.employeeService.listEmployees(client, { active: true }, 20);
 
-      step.form.fields[1].options = employees.map(employee => ({
+      step.form.fields[1].options = employees.map((employee) => ({
         value: employee.id,
-        label: employee.firstName && employee.lastName
-          ? `${employee.firstName} ${employee.lastName}`
-          : employee.email || employee.id
+        label:
+          employee.firstName && employee.lastName
+            ? `${employee.firstName} ${employee.lastName}`
+            : employee.email || employee.id,
       }));
 
       logger.debug('Loaded team members for sprint planning', {
         projectId,
-        memberCount: employees.length
+        memberCount: employees.length,
       });
     } catch (error) {
       this.getLogger().error('Failed to load team members', { error });
@@ -564,7 +568,7 @@ export class SprintPlanningWizard extends WizardPrompt {
       prioritization: state.prioritizationMethod,
       assignmentStrategy: state.assignmentStrategy,
       teamMembers: state.teamMembers?.length || 0,
-      includeStretchGoals: state.includeStretchGoals
+      includeStretchGoals: state.includeStretchGoals,
     };
   }
 
@@ -582,7 +586,7 @@ export class SprintPlanningWizard extends WizardPrompt {
       prioritizationMethod: state.prioritizationMethod,
       includeStretchGoals: state.includeStretchGoals,
       assignmentStrategy: state.assignmentStrategy,
-      teamMembers: state.teamMembers || []
+      teamMembers: state.teamMembers || [],
     };
   }
 
@@ -613,7 +617,12 @@ export class SprintPlanningWizard extends WizardPrompt {
 
         for (const issueId of data.issueIds) {
           try {
-            await services.issueService.updateIssue(client, issueId, 'milestone', milestoneResult.name);
+            await services.issueService.updateIssue(
+              client,
+              issueId,
+              'milestone',
+              milestoneResult.name
+            );
             logger.debug('Assigned issue to sprint', { issueId, milestone: milestoneResult.name });
           } catch (error) {
             logger.warn('Failed to assign issue to sprint', { issueId, error: error.message });
@@ -639,9 +648,8 @@ export class SprintPlanningWizard extends WizardPrompt {
         goal: data.goal,
         startDate: data.startDate,
         endDate: data.endDate,
-        projectId: data.projectId
+        projectId: data.projectId,
       };
-
     } catch (error) {
       logger.error('Failed to create sprint', { error: error.message, data });
       throw new Error(`Failed to create sprint: ${error.message}`);
@@ -663,7 +671,11 @@ export class SprintPlanningWizard extends WizardPrompt {
               await issueService.updateIssue(client, issueIds[i], 'assignee', assignee);
               logger.debug('Auto-assigned issue', { issueId: issueIds[i], assignee });
             } catch (error) {
-              logger.warn('Failed to auto-assign issue', { issueId: issueIds[i], assignee, error: error.message });
+              logger.warn('Failed to auto-assign issue', {
+                issueId: issueIds[i],
+                assignee,
+                error: error.message,
+              });
             }
           }
           break;
@@ -672,7 +684,14 @@ export class SprintPlanningWizard extends WizardPrompt {
         case 'availability':
           // These would require more complex logic based on team member profiles
           // For now, fall back to balanced distribution
-          await this.autoAssignIssues(issueService, client, issueIds, teamMembers, 'balanced', logger);
+          await this.autoAssignIssues(
+            issueService,
+            client,
+            issueIds,
+            teamMembers,
+            'balanced',
+            logger
+          );
           break;
       }
     } catch (error) {

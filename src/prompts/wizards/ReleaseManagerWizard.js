@@ -12,28 +12,29 @@ export class ReleaseManagerWizard extends WizardPrompt {
   constructor() {
     super({
       name: 'release-manager-wizard',
-      description: 'Interactive wizard for comprehensive release management, planning, and coordination',
+      description:
+        'Interactive wizard for comprehensive release management, planning, and coordination',
       category: 'release-management',
       annotations: {
         wizard: true,
         maxSteps: 6,
         estimatedTime: '15-20 minutes',
-        tags: ['release', 'management', 'planning', 'milestone', 'quality']
+        tags: ['release', 'management', 'planning', 'milestone', 'quality'],
       },
       arguments: [
         {
           name: 'releaseVersion',
           description: 'Target release version (e.g., v2.1.0)',
-          required: false
+          required: false,
         },
         {
           name: 'productName',
           description: 'Product name for the release',
-          required: false
-        }
+          required: false,
+        },
       ],
       // Use arrow function to delegate to execute method
-      handler: async (...args) => this.execute(...args)
+      handler: async (...args) => this.execute(...args),
     });
 
     // Store steps on the instance directly
@@ -51,15 +52,15 @@ export class ReleaseManagerWizard extends WizardPrompt {
               description: 'Release version (e.g., v2.1.0)',
               placeholder: 'v2.1.0',
               validation: {
-                pattern: '^v?\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9]+)?$'
-              }
+                pattern: '^v?\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9]+)?$',
+              },
             },
             {
               name: 'name',
               type: 'string',
               required: true,
               description: 'Release name or codename',
-              placeholder: 'Phoenix Release'
+              placeholder: 'Phoenix Release',
             },
             {
               name: 'type',
@@ -70,18 +71,18 @@ export class ReleaseManagerWizard extends WizardPrompt {
                 { value: 'major', label: 'Major Release (v2.0.0)' },
                 { value: 'minor', label: 'Minor Release (v2.1.0)' },
                 { value: 'patch', label: 'Patch Release (v2.1.1)' },
-                { value: 'hotfix', label: 'Hotfix Release' }
-              ]
+                { value: 'hotfix', label: 'Hotfix Release' },
+              ],
             },
             {
               name: 'description',
               type: 'text',
               required: false,
               description: 'Release description and key features',
-              placeholder: 'This release introduces...'
-            }
-          ]
-        }
+              placeholder: 'This release introduces...',
+            },
+          ],
+        },
       },
       {
         id: 'timeline-planning',
@@ -93,41 +94,41 @@ export class ReleaseManagerWizard extends WizardPrompt {
               name: 'startDate',
               type: 'date',
               required: true,
-              description: 'Release development start date'
+              description: 'Release development start date',
             },
             {
               name: 'alphaDate',
               type: 'date',
               required: true,
-              description: 'Alpha release target date'
+              description: 'Alpha release target date',
             },
             {
               name: 'betaDate',
               type: 'date',
               required: true,
-              description: 'Beta release target date'
+              description: 'Beta release target date',
             },
             {
               name: 'rcDate',
               type: 'date',
               required: true,
-              description: 'Release candidate target date'
+              description: 'Release candidate target date',
             },
             {
               name: 'gaDate',
               type: 'date',
               required: true,
-              description: 'General availability (production) date'
+              description: 'General availability (production) date',
             },
             {
               name: 'createMilestones',
               type: 'boolean',
               required: false,
               description: 'Create milestone tracking issues',
-              defaultValue: true
-            }
-          ]
-        }
+              defaultValue: true,
+            },
+          ],
+        },
       },
       {
         id: 'feature-selection',
@@ -140,29 +141,29 @@ export class ReleaseManagerWizard extends WizardPrompt {
               type: 'select',
               required: true,
               description: 'Source project for feature selection',
-              options: [] // Will be populated dynamically
+              options: [], // Will be populated dynamically
             },
             {
               name: 'includeIssues',
               type: 'multiselect',
               required: false,
               description: 'Issues to include in the release',
-              options: [] // Will be populated dynamically
+              options: [], // Will be populated dynamically
             },
             {
               name: 'featureFreeze',
               type: 'date',
               required: false,
-              description: 'Feature freeze date (optional)'
+              description: 'Feature freeze date (optional)',
             },
             {
               name: 'codeFreeze',
               type: 'date',
               required: false,
-              description: 'Code freeze date (optional)'
-            }
-          ]
-        }
+              description: 'Code freeze date (optional)',
+            },
+          ],
+        },
       },
       {
         id: 'quality-gates',
@@ -181,8 +182,8 @@ export class ReleaseManagerWizard extends WizardPrompt {
                 { value: 'performance', label: 'Performance Testing' },
                 { value: 'security', label: 'Security Testing' },
                 { value: 'uat', label: 'User Acceptance Testing' },
-                { value: 'regression', label: 'Regression Testing' }
-              ]
+                { value: 'regression', label: 'Regression Testing' },
+              ],
             },
             {
               name: 'coverage',
@@ -192,8 +193,8 @@ export class ReleaseManagerWizard extends WizardPrompt {
               placeholder: '80',
               validation: {
                 min: 0,
-                max: 100
-              }
+                max: 100,
+              },
             },
             {
               name: 'approvals',
@@ -205,18 +206,18 @@ export class ReleaseManagerWizard extends WizardPrompt {
                 { value: 'legal', label: 'Legal Team Approval' },
                 { value: 'compliance', label: 'Compliance Review' },
                 { value: 'product', label: 'Product Manager Approval' },
-                { value: 'engineering', label: 'Engineering Lead Approval' }
-              ]
+                { value: 'engineering', label: 'Engineering Lead Approval' },
+              ],
             },
             {
               name: 'documentation',
               type: 'boolean',
               required: false,
               description: 'Require documentation updates',
-              defaultValue: true
-            }
-          ]
-        }
+              defaultValue: true,
+            },
+          ],
+        },
       },
       {
         id: 'team-assignments',
@@ -229,45 +230,45 @@ export class ReleaseManagerWizard extends WizardPrompt {
               type: 'select',
               required: true,
               description: 'Release manager',
-              options: [] // Will be populated dynamically
+              options: [], // Will be populated dynamically
             },
             {
               name: 'qaLead',
               type: 'select',
               required: false,
               description: 'QA lead',
-              options: [] // Will be populated dynamically
+              options: [], // Will be populated dynamically
             },
             {
               name: 'devopsLead',
               type: 'select',
               required: false,
               description: 'DevOps lead',
-              options: [] // Will be populated dynamically
+              options: [], // Will be populated dynamically
             },
             {
               name: 'teamMembers',
               type: 'multiselect',
               required: false,
               description: 'Release team members',
-              options: [] // Will be populated dynamically
+              options: [], // Will be populated dynamically
             },
             {
               name: 'stakeholders',
               type: 'multiselect',
               required: false,
               description: 'Key stakeholders to notify',
-              options: [] // Will be populated dynamically
-            }
-          ]
-        }
+              options: [], // Will be populated dynamically
+            },
+          ],
+        },
       },
       {
         id: 'review-create',
         name: 'Review & Create',
         description: 'Review release plan and create release structure',
-        review: true // This step shows a summary
-      }
+        review: true, // This step shows a summary
+      },
     ];
 
     this.logger = null; // Lazy initialization
@@ -290,7 +291,7 @@ export class ReleaseManagerWizard extends WizardPrompt {
       if (!session) {
         session = stateManager.createSession(this.name, {
           releaseVersion: args.releaseVersion,
-          productName: args.productName
+          productName: args.productName,
         });
         session.setSteps(this.steps);
         context.sessionId = session.id;
@@ -322,7 +323,7 @@ export class ReleaseManagerWizard extends WizardPrompt {
       this.getLogger().error('Release Manager Wizard execution failed', { error, args });
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -350,13 +351,13 @@ export class ReleaseManagerWizard extends WizardPrompt {
           currentStep,
           progress: session.getProgress(),
           canGoBack: false,
-          canGoForward: false
-        }
+          canGoForward: false,
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -387,13 +388,13 @@ export class ReleaseManagerWizard extends WizardPrompt {
           currentStep: newStep,
           progress: session.getProgress(),
           canGoBack: session.canGoBack(),
-          canGoForward: session.hasCompletedStep(newStep.id)
-        }
+          canGoForward: session.hasCompletedStep(newStep.id),
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -410,13 +411,13 @@ export class ReleaseManagerWizard extends WizardPrompt {
           currentStep,
           progress: session.getProgress(),
           canGoBack: session.canGoBack(),
-          canGoForward: true
-        }
+          canGoForward: true,
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -427,8 +428,8 @@ export class ReleaseManagerWizard extends WizardPrompt {
       success: true,
       data: {
         cancelled: true,
-        sessionId: session.id
-      }
+        sessionId: session.id,
+      },
     };
   }
 
@@ -454,15 +455,15 @@ export class ReleaseManagerWizard extends WizardPrompt {
             projectId: release.projectId,
             milestoneCount: release.milestones?.length || 0,
             issueCount: release.issues?.length || 0,
-            teamSize: release.teamMembers?.length || 0
-          }
-        }
+            teamSize: release.teamMembers?.length || 0,
+          },
+        },
       };
     } catch (error) {
       this.getLogger().error('Failed to create release', { error });
       return {
         success: false,
-        error: `Failed to create release: ${error.message}`
+        error: `Failed to create release: ${error.message}`,
       };
     }
   }
@@ -478,9 +479,9 @@ export class ReleaseManagerWizard extends WizardPrompt {
       const { services, client, logger } = context;
       const projects = await services.projectService.listProjects(client);
 
-      step.form.fields[0].options = projects.map(p => ({
+      step.form.fields[0].options = projects.map((p) => ({
         value: p.identifier,
-        label: `${p.identifier} - ${p.name || 'Unnamed Project'}`
+        label: `${p.identifier} - ${p.name || 'Unnamed Project'}`,
       }));
 
       // When project is selected, load its issues
@@ -505,13 +506,13 @@ export class ReleaseManagerWizard extends WizardPrompt {
       const { services, client, logger } = context;
       const issues = await services.issueService.listIssues(client, projectId, 100);
 
-      step.form.fields[1].options = issues.map(issue => ({
+      step.form.fields[1].options = issues.map((issue) => ({
         value: issue.identifier,
         label: `${issue.identifier} - ${issue.title}`,
         metadata: {
           priority: issue.priority || 'medium',
-          status: issue.status || 'backlog'
-        }
+          status: issue.status || 'backlog',
+        },
       }));
 
       logger.debug('Loaded issues for release', { projectId, issueCount: issues.length });
@@ -530,23 +531,26 @@ export class ReleaseManagerWizard extends WizardPrompt {
       const { services, client, logger } = context;
       const employees = await services.employeeService.listEmployees(client, { active: true }, 50);
 
-      const memberOptions = employees.map(employee => ({
+      const memberOptions = employees.map((employee) => ({
         value: employee.id,
-        label: employee.firstName && employee.lastName
-          ? `${employee.firstName} ${employee.lastName}`
-          : employee.email || employee.id,
+        label:
+          employee.firstName && employee.lastName
+            ? `${employee.firstName} ${employee.lastName}`
+            : employee.email || employee.id,
         metadata: {
           position: employee.position,
-          department: employee.department
-        }
+          department: employee.department,
+        },
       }));
 
       // Populate all team member fields
-      ['releaseManager', 'qaLead', 'devopsLead', 'teamMembers', 'stakeholders'].forEach((fieldName, index) => {
-        if (step.form.fields[index]) {
-          step.form.fields[index].options = memberOptions;
+      ['releaseManager', 'qaLead', 'devopsLead', 'teamMembers', 'stakeholders'].forEach(
+        (fieldName, index) => {
+          if (step.form.fields[index]) {
+            step.form.fields[index].options = memberOptions;
+          }
         }
-      });
+      );
 
       logger.debug('Loaded team members for release', { memberCount: employees.length });
     } catch (error) {
@@ -566,27 +570,27 @@ export class ReleaseManagerWizard extends WizardPrompt {
         alpha: state.alphaDate,
         beta: state.betaDate,
         rc: state.rcDate,
-        ga: state.gaDate
+        ga: state.gaDate,
       },
       features: {
         sourceProject: state.sourceProject,
         issueCount: state.includeIssues?.length || 0,
         featureFreeze: state.featureFreeze,
-        codeFreeze: state.codeFreeze
+        codeFreeze: state.codeFreeze,
       },
       quality: {
         testingStrategy: state.testingStrategy || [],
         coverage: state.coverage,
         approvals: state.approvals || [],
-        documentation: state.documentation
+        documentation: state.documentation,
       },
       team: {
         releaseManager: state.releaseManager,
         qaLead: state.qaLead,
         devopsLead: state.devopsLead,
         memberCount: state.teamMembers?.length || 0,
-        stakeholderCount: state.stakeholders?.length || 0
-      }
+        stakeholderCount: state.stakeholders?.length || 0,
+      },
     };
   }
 
@@ -615,7 +619,7 @@ export class ReleaseManagerWizard extends WizardPrompt {
       qaLead: state.qaLead,
       devopsLead: state.devopsLead,
       teamMembers: state.teamMembers || [],
-      stakeholders: state.stakeholders || []
+      stakeholders: state.stakeholders || [],
     };
   }
 
@@ -637,7 +641,7 @@ export class ReleaseManagerWizard extends WizardPrompt {
 
       logger.debug('Creating release project', {
         identifier: projectIdentifier,
-        name: projectName
+        name: projectName,
       });
 
       const projectResult = await services.projectService.createProject(
@@ -669,14 +673,14 @@ export class ReleaseManagerWizard extends WizardPrompt {
           createdComponents.push({
             name: componentName,
             id: componentResult.id || componentName,
-            label: componentName
+            label: componentName,
           });
 
           logger.debug('Release component created', { componentName, result: componentResult });
         } catch (componentError) {
           logger.warn('Failed to create release component', {
             componentName,
-            error: componentError.message
+            error: componentError.message,
           });
         }
       }
@@ -687,7 +691,7 @@ export class ReleaseManagerWizard extends WizardPrompt {
           { name: 'Alpha Release', date: data.alphaDate, description: 'Internal testing phase' },
           { name: 'Beta Release', date: data.betaDate, description: 'External beta testing' },
           { name: 'Release Candidate', date: data.rcDate, description: 'Final testing before GA' },
-          { name: 'General Availability', date: data.gaDate, description: 'Production release' }
+          { name: 'General Availability', date: data.gaDate, description: 'Production release' },
         ];
 
         for (const milestone of milestones) {
@@ -705,14 +709,17 @@ export class ReleaseManagerWizard extends WizardPrompt {
                 name: milestone.name,
                 id: milestoneResult.id || milestone.name,
                 date: milestone.date,
-                description: milestone.description
+                description: milestone.description,
               });
 
-              logger.debug('Release milestone created', { milestone: milestone.name, result: milestoneResult });
+              logger.debug('Release milestone created', {
+                milestone: milestone.name,
+                result: milestoneResult,
+              });
             } catch (milestoneError) {
               logger.warn('Failed to create release milestone', {
                 milestone: milestone.name,
-                error: milestoneError.message
+                error: milestoneError.message,
               });
             }
           }
@@ -726,20 +733,20 @@ export class ReleaseManagerWizard extends WizardPrompt {
             title: 'Release Preparation Checklist',
             description: `Preparation checklist for ${data.version} release:\n\n- [ ] Code freeze\n- [ ] Testing complete\n- [ ] Documentation updated\n- [ ] Security review\n- [ ] Performance validation`,
             priority: 'high',
-            component: 'QA'
+            component: 'QA',
           },
           {
             title: 'Release Notes Creation',
             description: `Create comprehensive release notes for ${data.version}`,
             priority: 'medium',
-            component: 'Documentation'
+            component: 'Documentation',
           },
           {
             title: 'Production Deployment Planning',
             description: `Plan and coordinate production deployment for ${data.version}`,
             priority: 'high',
-            component: 'DevOps'
-          }
+            component: 'DevOps',
+          },
         ];
 
         for (const issueData of sampleIssues) {
@@ -757,14 +764,17 @@ export class ReleaseManagerWizard extends WizardPrompt {
             createdIssues.push({
               identifier: issueResult.identifier,
               title: issueData.title,
-              component: issueData.component
+              component: issueData.component,
             });
 
-            logger.debug('Release tracking issue created', { issue: issueData.title, result: issueResult });
+            logger.debug('Release tracking issue created', {
+              issue: issueData.title,
+              result: issueResult,
+            });
           } catch (issueError) {
             logger.warn('Failed to create release tracking issue', {
               issue: issueData.title,
-              error: issueError.message
+              error: issueError.message,
             });
           }
         }
@@ -781,18 +791,17 @@ export class ReleaseManagerWizard extends WizardPrompt {
         milestones: createdMilestones,
         issues: createdIssues,
         teamMembers: data.teamMembers,
-        releaseManager: data.releaseManager
+        releaseManager: data.releaseManager,
       };
 
       logger.info('Release structure created successfully', {
         projectId: projectIdentifier,
         componentCount: createdComponents.length,
         milestoneCount: createdMilestones.length,
-        issueCount: createdIssues.length
+        issueCount: createdIssues.length,
       });
 
       return releaseStructure;
-
     } catch (error) {
       logger.error('Failed to create release structure', { error: error.message, data });
       throw new Error(`Failed to create release structure: ${error.message}`);

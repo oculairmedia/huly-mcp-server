@@ -11,6 +11,8 @@ import { DeletionService } from './DeletionService.js';
 import { SequenceService } from './SequenceService.js';
 import { projectService } from './ProjectService.js';
 import { employeeService } from './EmployeeService.js';
+import { accountService } from './AccountService.js';
+import { personService } from './PersonService.js';
 
 /**
  * Factory class for creating service instances
@@ -69,6 +71,22 @@ export class ServiceFactory {
   }
 
   /**
+   * Get the AccountService singleton
+   * @returns {AccountService} AccountService instance
+   */
+  static getAccountService() {
+    return accountService;
+  }
+
+  /**
+   * Get the PersonService singleton
+   * @returns {PersonService} PersonService instance
+   */
+  static getPersonService() {
+    return personService;
+  }
+
+  /**
    * Create all services with proper dependency injection
    * @param {Object} dependencies - Required dependencies
    * @param {Object} dependencies.statusManager - Status manager instance
@@ -83,6 +101,8 @@ export class ServiceFactory {
     const deletionService = this.createDeletionService();
     const projectServiceInstance = this.getProjectService();
     const employeeServiceInstance = this.getEmployeeService();
+    const accountServiceInstance = this.getAccountService();
+    const personServiceInstance = this.getPersonService();
 
     return {
       sequenceService,
@@ -91,6 +111,8 @@ export class ServiceFactory {
       deletionService,
       projectService: projectServiceInstance,
       employeeService: employeeServiceInstance,
+      accountService: accountServiceInstance,
+      personService: personServiceInstance,
       statusManager,
     };
   }

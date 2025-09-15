@@ -9,7 +9,7 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
   ListPromptsRequestSchema,
-  GetPromptRequestSchema
+  GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { HulyError } from '../core/HulyError.js';
 import {
@@ -23,7 +23,7 @@ import {
   getAllPromptDefinitions,
   executePrompt,
   hasPrompt,
-  getPrompt
+  getPrompt,
 } from '../prompts/index.js';
 import { createLoggerWithConfig } from '../utils/index.js';
 import { getConfigManager } from '../config/index.js';
@@ -140,7 +140,7 @@ export class MCPHandler {
           services: this.services,
           config: getConfigManager().getHulyConfig(),
           logger: this.logger.child(name),
-          registry: null // Will be set during execution
+          registry: null, // Will be set during execution
         };
 
         // Execute with client wrapper for reconnection support

@@ -35,7 +35,7 @@ describe('deleteProject tool', () => {
   describe('definition', () => {
     it('should have correct tool definition', () => {
       expect(definition.name).toBe('huly_delete_project');
-      expect(definition.description).toContain('Delete an entire project');
+      expect(definition.description).toContain('Permanently remove an entire project');
       expect(definition.inputSchema.required).toEqual(['project_identifier']);
       expect(definition.inputSchema.properties.force.default).toBe(false);
       expect(definition.inputSchema.properties.dry_run.default).toBe(false);

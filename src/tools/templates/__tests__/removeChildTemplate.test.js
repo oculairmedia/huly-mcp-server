@@ -35,7 +35,7 @@ describe('removeChildTemplate tool', () => {
   describe('definition', () => {
     it('should have correct tool definition', () => {
       expect(definition.name).toBe('huly_remove_child_template');
-      expect(definition.description).toContain('Remove a child template');
+      expect(definition.description).toContain('remove specific child templates');
       expect(definition.inputSchema.required).toEqual(['template_id', 'child_index']);
       expect(definition.annotations.destructiveHint).toBe(true);
     });

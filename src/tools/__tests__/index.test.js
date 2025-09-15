@@ -103,6 +103,7 @@ describe('Tool Loader', () => {
         'templates',
         'validation',
         'preview',
+        'accounts',
       ];
       expect(mockLogger.warn).toHaveBeenCalledTimes(categories.length);
       categories.forEach((category) => {
@@ -157,6 +158,7 @@ describe('Tool Loader', () => {
         'templates',
         'validation',
         'preview',
+        'accounts',
       ];
       expect(mockLogger.error).toHaveBeenCalledTimes(categories.length);
       categories.forEach((category) => {

@@ -25,7 +25,8 @@ export const definition = {
       },
       active: {
         type: 'boolean',
-        description: 'Filter by active status (true for active only, false for inactive only, omit for all)',
+        description:
+          'Filter by active status (true for active only, false for inactive only, omit for all)',
       },
       department: {
         type: 'string',

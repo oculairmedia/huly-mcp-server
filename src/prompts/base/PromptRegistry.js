@@ -40,13 +40,13 @@ export class PromptRegistry {
       try {
         const configManager = getConfigManager();
         logger = createLoggerWithConfig(configManager).child('prompt-registry');
-      } catch (error) {
+      } catch (_error) {
         // Fallback to console in test environment
         logger = {
           debug: console.debug.bind(console),
           info: console.info.bind(console),
           warn: console.warn.bind(console),
-          error: console.error.bind(console)
+          error: console.error.bind(console),
         };
       }
     }
@@ -71,7 +71,10 @@ export class PromptRegistry {
 
     // Check for name conflicts
     if (this.prompts.has(prompt.name)) {
-      throw new HulyError('PROMPT_NAME_CONFLICT', `Prompt with name '${prompt.name}' already registered`);
+      throw new HulyError(
+        'PROMPT_NAME_CONFLICT',
+        `Prompt with name '${prompt.name}' already registered`
+      );
     }
 
     // Register the prompt
@@ -87,7 +90,7 @@ export class PromptRegistry {
     this.metadata.set(prompt.name, {
       ...prompt.getMetadata(),
       category,
-      registeredAt: new Date().toISOString()
+      registeredAt: new Date().toISOString(),
     });
 
     logger.debug(`Registered prompt: ${prompt.name} in category: ${category}`);
@@ -164,7 +167,7 @@ export class PromptRegistry {
     }
 
     return Array.from(promptNames)
-      .map(name => this.prompts.get(name))
+      .map((name) => this.prompts.get(name))
       .filter(Boolean);
   }
 
@@ -214,7 +217,7 @@ export class PromptRegistry {
     const executionContext = {
       ...context,
       registry: this,
-      promptMetadata: this.getMetadata(name)
+      promptMetadata: this.getMetadata(name),
     };
 
     try {
@@ -223,7 +226,7 @@ export class PromptRegistry {
       logger.debug(`Executed prompt: ${name}`, { args: sanitizedArgs });
 
       return result;
-    } catch (error) {
+    } catch (_error) {
       logger.error(`Failed to execute prompt: ${name}`, error);
       throw error;
     }
@@ -234,7 +237,7 @@ export class PromptRegistry {
    * @returns {Object[]} Array of MCP prompt definitions
    */
   getMCPPromptList() {
-    return Array.from(this.prompts.values()).map(prompt => prompt.toMCPDefinition());
+    return Array.from(this.prompts.values()).map((prompt) => prompt.toMCPDefinition());
   }
 
   /**
@@ -267,18 +270,19 @@ export class PromptRegistry {
   getStatistics() {
     const totalPrompts = this.prompts.size;
     const categories = this.getCategories();
-    const wizardCount = Array.from(this.prompts.values())
-      .filter(prompt => prompt instanceof WizardPrompt).length;
+    const wizardCount = Array.from(this.prompts.values()).filter(
+      (prompt) => prompt instanceof WizardPrompt
+    ).length;
 
     return {
       totalPrompts,
       categories: categories.length,
       categoryBreakdown: Object.fromEntries(
-        categories.map(cat => [cat, this.categories.get(cat).size])
+        categories.map((cat) => [cat, this.categories.get(cat).size])
       ),
       wizardPrompts: wizardCount,
       regularPrompts: totalPrompts - wizardCount,
-      initialized: this.initialized
+      initialized: this.initialized,
     };
   }
 
@@ -321,11 +325,11 @@ export class PromptRegistry {
           } else {
             logger.warn(`Prompt file missing registerPrompts export: ${file}`);
           }
-        } catch (error) {
+        } catch (_error) {
           logger.error(`Failed to load prompt from ${file}:`, error);
         }
       }
-    } catch (error) {
+    } catch (_error) {
       logger.error(`Failed to read prompt directory ${directory}:`, error);
     }
 
@@ -360,7 +364,7 @@ export class PromptRegistry {
     const results = {
       valid: [],
       invalid: [],
-      warnings: []
+      warnings: [],
     };
 
     for (const [name, prompt] of this.prompts.entries()) {
@@ -370,7 +374,7 @@ export class PromptRegistry {
           name: prompt.name,
           description: prompt.description,
           arguments: prompt.arguments,
-          handler: prompt.handler
+          handler: prompt.handler,
         });
 
         results.valid.push(name);
@@ -383,10 +387,10 @@ export class PromptRegistry {
         if (prompt.description.length < 10) {
           results.warnings.push(`Prompt '${name}' has very short description`);
         }
-      } catch (error) {
+      } catch (_error) {
         results.invalid.push({
           name,
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -422,8 +426,8 @@ export function registerWizardPrompt(definition, category = 'wizards') {
     ...definition,
     annotations: {
       wizard: true,
-      ...definition.annotations
-    }
+      ...definition.annotations,
+    },
   };
 
   const prompt = new WizardPrompt(wizardDefinition);

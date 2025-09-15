@@ -16,7 +16,7 @@ describe('Prompt System Integration', () => {
     it('should register and execute a basic prompt', async () => {
       const mockHandler = jest.fn().mockResolvedValue({
         success: true,
-        message: 'Test prompt executed'
+        message: 'Test prompt executed',
       });
 
       // Register a test prompt
@@ -24,9 +24,7 @@ describe('Prompt System Integration', () => {
         name: 'test-integration',
         description: 'Integration test prompt',
         handler: mockHandler,
-        arguments: [
-          { name: 'input', description: 'Test input', required: true }
-        ]
+        arguments: [{ name: 'input', description: 'Test input', required: true }],
       });
 
       // Verify registration
@@ -40,7 +38,7 @@ describe('Prompt System Integration', () => {
       expect(mockHandler).toHaveBeenCalledWith(
         { input: 'test value' },
         expect.objectContaining({
-          registry: promptRegistry
+          registry: promptRegistry,
         })
       );
     });
@@ -49,7 +47,7 @@ describe('Prompt System Integration', () => {
       const mockHandler = jest.fn().mockResolvedValue({
         step: 1,
         completed: false,
-        nextPrompt: 'Please provide more information'
+        nextPrompt: 'Please provide more information',
       });
 
       // Register a wizard prompt
@@ -59,8 +57,8 @@ describe('Prompt System Integration', () => {
         handler: mockHandler,
         annotations: {
           wizard: true,
-          maxSteps: 3
-        }
+          maxSteps: 3,
+        },
       });
 
       // Verify registration
@@ -76,7 +74,7 @@ describe('Prompt System Integration', () => {
         {},
         expect.objectContaining({
           wizardState,
-          registry: promptRegistry
+          registry: promptRegistry,
         })
       );
     });
@@ -86,16 +84,14 @@ describe('Prompt System Integration', () => {
       registerPrompt({
         name: 'prompt-one',
         description: 'First prompt',
-        handler: jest.fn()
+        handler: jest.fn(),
       });
 
       registerPrompt({
         name: 'prompt-two',
         description: 'Second prompt',
         handler: jest.fn(),
-        arguments: [
-          { name: 'arg1', description: 'First argument', required: true }
-        ]
+        arguments: [{ name: 'arg1', description: 'First argument', required: true }],
       });
 
       const definitions = getAllPromptDefinitions();
@@ -104,14 +100,12 @@ describe('Prompt System Integration', () => {
       expect(definitions[0]).toEqual({
         name: 'prompt-one',
         description: 'First prompt',
-        arguments: []
+        arguments: [],
       });
       expect(definitions[1]).toEqual({
         name: 'prompt-two',
         description: 'Second prompt',
-        arguments: [
-          { name: 'arg1', description: 'First argument', required: true }
-        ]
+        arguments: [{ name: 'arg1', description: 'First argument', required: true }],
       });
     });
   });
@@ -123,7 +117,7 @@ describe('Prompt System Integration', () => {
       registerPrompt({
         name: 'error-prompt',
         description: 'Prompt that throws error',
-        handler: errorHandler
+        handler: errorHandler,
       });
 
       await expect(executePrompt('error-prompt', {})).rejects.toThrow();
@@ -136,18 +130,24 @@ describe('Prompt System Integration', () => {
 
   describe('Statistics and Metadata', () => {
     it('should provide accurate statistics', () => {
-      registerPrompt({
-        name: 'regular-prompt',
-        description: 'Regular prompt',
-        handler: jest.fn()
-      }, 'category1');
+      registerPrompt(
+        {
+          name: 'regular-prompt',
+          description: 'Regular prompt',
+          handler: jest.fn(),
+        },
+        'category1'
+      );
 
-      registerWizardPrompt({
-        name: 'wizard-prompt',
-        description: 'Wizard prompt',
-        handler: jest.fn(),
-        annotations: { wizard: true }
-      }, 'category2');
+      registerWizardPrompt(
+        {
+          name: 'wizard-prompt',
+          description: 'Wizard prompt',
+          handler: jest.fn(),
+          annotations: { wizard: true },
+        },
+        'category2'
+      );
 
       const stats = promptRegistry.getStatistics();
 
@@ -164,15 +164,13 @@ describe('Prompt System Integration', () => {
         name: 'valid-prompt',
         description: 'A valid prompt with good description',
         handler: jest.fn(),
-        arguments: [
-          { name: 'arg1', description: 'Test argument', required: true }
-        ]
+        arguments: [{ name: 'arg1', description: 'Test argument', required: true }],
       });
 
       registerPrompt({
         name: 'short-desc',
         description: 'Short',
-        handler: jest.fn()
+        handler: jest.fn(),
       });
 
       const validation = promptRegistry.validate();
@@ -182,7 +180,7 @@ describe('Prompt System Integration', () => {
       expect(validation.warnings).toEqual(
         expect.arrayContaining([
           expect.stringContaining('very short description'),
-          expect.stringContaining('no arguments defined')
+          expect.stringContaining('no arguments defined'),
         ])
       );
     });

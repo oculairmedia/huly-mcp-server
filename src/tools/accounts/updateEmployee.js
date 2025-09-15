@@ -24,38 +24,38 @@ export const definition = {
         type: 'string',
         description: 'Updated first name (optional)',
         minLength: 1,
-        maxLength: 50
+        maxLength: 50,
       },
       last_name: {
         type: 'string',
         description: 'Updated last name (optional)',
         minLength: 1,
-        maxLength: 50
+        maxLength: 50,
       },
       phone: {
         type: 'string',
         description: 'Updated phone number (optional)',
-        maxLength: 20
+        maxLength: 20,
       },
       position: {
         type: 'string',
         description: 'Updated job title or position (optional)',
-        maxLength: 100
+        maxLength: 100,
       },
       department: {
         type: 'string',
         description: 'Updated department or team name (optional)',
-        maxLength: 100
+        maxLength: 100,
       },
       city: {
         type: 'string',
         description: 'Updated city location (optional)',
-        maxLength: 50
+        maxLength: 50,
       },
       country: {
         type: 'string',
         description: 'Updated country location (optional)',
-        maxLength: 50
+        maxLength: 50,
       },
       active: {
         type: 'boolean',

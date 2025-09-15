@@ -14,168 +14,169 @@ export class IssueWorkflowWizard extends WizardPrompt {
   constructor() {
     super({
       name: 'issue-workflow-wizard',
-      description: 'Interactive wizard for guided issue creation, bulk operations, and template management',
+      description:
+        'Interactive wizard for guided issue creation, bulk operations, and template management',
       category: 'issue-management',
       annotations: {
         wizard: true,
         maxSteps: 5,
         estimatedTime: '5-10 minutes',
-        tags: ['issue', 'workflow', 'template', 'bulk']
+        tags: ['issue', 'workflow', 'template', 'bulk'],
       },
       arguments: [
         {
           name: 'mode',
           description: 'Wizard mode: create, bulk, template, or workflow',
           required: false,
-          defaultValue: 'create'
+          defaultValue: 'create',
         },
         {
           name: 'projectId',
           description: 'Project ID for issue creation',
-          required: false
-        }
+          required: false,
+        },
       ],
       // Use arrow function to delegate to execute method
-      handler: async (...args) => this.execute(...args)
+      handler: async (...args) => this.execute(...args),
     });
 
     // Store steps on the instance directly
     this.steps = [
-        {
-          id: 'workflow-type',
-          name: 'Select Workflow Type',
-          description: 'Choose the type of issue operation',
-          form: {
-            fields: [
-              {
-                name: 'workflowType',
-                type: 'select',
-                required: true,
-                description: 'Type of issue workflow',
-                options: [
-                  { value: 'single', label: 'Create single issue' },
-                  { value: 'bulk', label: 'Bulk create issues' },
-                  { value: 'template', label: 'Create from template' },
-                  { value: 'import', label: 'Import from CSV/JSON' },
-                  { value: 'clone', label: 'Clone existing issues' }
-                ],
-                defaultValue: 'single'
-              },
-              {
-                name: 'projectId',
-                type: 'select',
-                required: true,
-                description: 'Target project',
-                dynamic: true,
-                placeholder: 'Select project'
-              }
-            ]
-          }
+      {
+        id: 'workflow-type',
+        name: 'Select Workflow Type',
+        description: 'Choose the type of issue operation',
+        form: {
+          fields: [
+            {
+              name: 'workflowType',
+              type: 'select',
+              required: true,
+              description: 'Type of issue workflow',
+              options: [
+                { value: 'single', label: 'Create single issue' },
+                { value: 'bulk', label: 'Bulk create issues' },
+                { value: 'template', label: 'Create from template' },
+                { value: 'import', label: 'Import from CSV/JSON' },
+                { value: 'clone', label: 'Clone existing issues' },
+              ],
+              defaultValue: 'single',
+            },
+            {
+              name: 'projectId',
+              type: 'select',
+              required: true,
+              description: 'Target project',
+              dynamic: true,
+              placeholder: 'Select project',
+            },
+          ],
         },
-        {
-          id: 'issue-details',
-          name: 'Issue Details',
-          description: 'Define issue properties',
-          conditional: true, // This step changes based on workflow type
-          form: {
-            fields: [] // Will be populated dynamically
-          }
+      },
+      {
+        id: 'issue-details',
+        name: 'Issue Details',
+        description: 'Define issue properties',
+        conditional: true, // This step changes based on workflow type
+        form: {
+          fields: [], // Will be populated dynamically
         },
-        {
-          id: 'advanced-options',
-          name: 'Advanced Options',
-          description: 'Configure advanced issue settings',
-          form: {
-            fields: [
-              {
-                name: 'addToSprint',
-                type: 'checkbox',
-                required: false,
-                description: 'Add to current sprint',
-                defaultValue: false
-              },
-              {
-                name: 'autoAssign',
-                type: 'checkbox',
-                required: false,
-                description: 'Auto-assign to team members',
-                defaultValue: false
-              },
-              {
-                name: 'createSubtasks',
-                type: 'checkbox',
-                required: false,
-                description: 'Generate standard subtasks',
-                defaultValue: false
-              },
-              {
-                name: 'applyLabels',
-                type: 'multiselect',
-                required: false,
-                description: 'Apply labels',
-                dynamic: true,
-                placeholder: 'Select labels'
-              },
-              {
-                name: 'linkToIssues',
-                type: 'multiselect',
-                required: false,
-                description: 'Link to existing issues',
-                dynamic: true,
-                placeholder: 'Select related issues'
-              }
-            ]
-          }
+      },
+      {
+        id: 'advanced-options',
+        name: 'Advanced Options',
+        description: 'Configure advanced issue settings',
+        form: {
+          fields: [
+            {
+              name: 'addToSprint',
+              type: 'checkbox',
+              required: false,
+              description: 'Add to current sprint',
+              defaultValue: false,
+            },
+            {
+              name: 'autoAssign',
+              type: 'checkbox',
+              required: false,
+              description: 'Auto-assign to team members',
+              defaultValue: false,
+            },
+            {
+              name: 'createSubtasks',
+              type: 'checkbox',
+              required: false,
+              description: 'Generate standard subtasks',
+              defaultValue: false,
+            },
+            {
+              name: 'applyLabels',
+              type: 'multiselect',
+              required: false,
+              description: 'Apply labels',
+              dynamic: true,
+              placeholder: 'Select labels',
+            },
+            {
+              name: 'linkToIssues',
+              type: 'multiselect',
+              required: false,
+              description: 'Link to existing issues',
+              dynamic: true,
+              placeholder: 'Select related issues',
+            },
+          ],
         },
-        {
-          id: 'automation-rules',
-          name: 'Automation Rules',
-          description: 'Set up workflow automation',
-          form: {
-            fields: [
-              {
-                name: 'enableAutomation',
-                type: 'checkbox',
-                required: false,
-                description: 'Enable workflow automation',
-                defaultValue: false
-              },
-              {
-                name: 'autoTransition',
-                type: 'select',
-                required: false,
-                description: 'Auto-transition when',
-                options: [
-                  { value: 'none', label: 'No automation' },
-                  { value: 'pr-opened', label: 'PR opened' },
-                  { value: 'pr-merged', label: 'PR merged' },
-                  { value: 'all-subtasks-done', label: 'All subtasks complete' },
-                  { value: 'time-based', label: 'After time period' }
-                ],
-                defaultValue: 'none'
-              },
-              {
-                name: 'notificationRules',
-                type: 'multiselect',
-                required: false,
-                description: 'Send notifications on',
-                options: [
-                  { value: 'created', label: 'Issue created' },
-                  { value: 'assigned', label: 'Issue assigned' },
-                  { value: 'status-change', label: 'Status changed' },
-                  { value: 'comment', label: 'Comment added' },
-                  { value: 'due-soon', label: 'Due date approaching' }
-                ]
-              }
-            ]
-          }
+      },
+      {
+        id: 'automation-rules',
+        name: 'Automation Rules',
+        description: 'Set up workflow automation',
+        form: {
+          fields: [
+            {
+              name: 'enableAutomation',
+              type: 'checkbox',
+              required: false,
+              description: 'Enable workflow automation',
+              defaultValue: false,
+            },
+            {
+              name: 'autoTransition',
+              type: 'select',
+              required: false,
+              description: 'Auto-transition when',
+              options: [
+                { value: 'none', label: 'No automation' },
+                { value: 'pr-opened', label: 'PR opened' },
+                { value: 'pr-merged', label: 'PR merged' },
+                { value: 'all-subtasks-done', label: 'All subtasks complete' },
+                { value: 'time-based', label: 'After time period' },
+              ],
+              defaultValue: 'none',
+            },
+            {
+              name: 'notificationRules',
+              type: 'multiselect',
+              required: false,
+              description: 'Send notifications on',
+              options: [
+                { value: 'created', label: 'Issue created' },
+                { value: 'assigned', label: 'Issue assigned' },
+                { value: 'status-change', label: 'Status changed' },
+                { value: 'comment', label: 'Comment added' },
+                { value: 'due-soon', label: 'Due date approaching' },
+              ],
+            },
+          ],
         },
-        {
-          id: 'review-create',
-          name: 'Review & Create',
-          description: 'Review and create issues',
-          review: true
-        }
+      },
+      {
+        id: 'review-create',
+        name: 'Review & Create',
+        description: 'Review and create issues',
+        review: true,
+      },
     ];
 
     this.logger = null;
@@ -197,7 +198,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
       if (!session) {
         session = stateManager.createSession(this.name, {
           mode: args.mode || 'create',
-          projectId: args.projectId
+          projectId: args.projectId,
         });
         session.setSteps(this.steps);
         context.sessionId = session.id;
@@ -239,8 +240,8 @@ export class IssueWorkflowWizard extends WizardPrompt {
         currentStep,
         progress: session.getProgress(),
         canGoBack: session.canGoBack(),
-        canGoForward: false
-      }
+        canGoForward: false,
+      },
     };
   }
 
@@ -268,8 +269,8 @@ export class IssueWorkflowWizard extends WizardPrompt {
           currentStep: newStep,
           progress: session.getProgress(),
           canGoBack: session.canGoBack(),
-          canGoForward: session.hasCompletedStep(newStep.id)
-        }
+          canGoForward: session.hasCompletedStep(newStep.id),
+        },
       };
     } catch (error) {
       return { success: false, error: error.message };
@@ -286,8 +287,8 @@ export class IssueWorkflowWizard extends WizardPrompt {
           currentStep: session.getCurrentStep(),
           progress: session.getProgress(),
           canGoBack: session.canGoBack(),
-          canGoForward: true
-        }
+          canGoForward: true,
+        },
       };
     } catch (error) {
       return { success: false, error: error.message };
@@ -298,7 +299,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
     session.abort();
     return {
       success: true,
-      data: { cancelled: true, sessionId: session.id }
+      data: { cancelled: true, sessionId: session.id },
     };
   }
 
@@ -316,9 +317,9 @@ export class IssueWorkflowWizard extends WizardPrompt {
           summary: {
             created: issues.length,
             type: session.getState('workflowType'),
-            project: session.getState('projectId')
-          }
-        }
+            project: session.getState('projectId'),
+          },
+        },
       };
     } catch (error) {
       this.getLogger().error('Failed to create issues', { error });
@@ -368,9 +369,9 @@ export class IssueWorkflowWizard extends WizardPrompt {
       const { services, client, logger } = context;
       const projects = await services.projectService.listProjects(client);
 
-      step.form.fields[1].options = projects.map(p => ({
+      step.form.fields[1].options = projects.map((p) => ({
         value: p.identifier,
-        label: `${p.identifier} - ${p.name || 'Unnamed Project'}`
+        label: `${p.identifier} - ${p.name || 'Unnamed Project'}`,
       }));
 
       if (session.getState('projectId')) {
@@ -395,14 +396,14 @@ export class IssueWorkflowWizard extends WizardPrompt {
             type: 'string',
             required: true,
             description: 'Issue title',
-            placeholder: 'Enter issue title'
+            placeholder: 'Enter issue title',
           },
           {
             name: 'description',
             type: 'text',
             required: false,
             description: 'Issue description',
-            placeholder: 'Describe the issue...'
+            placeholder: 'Describe the issue...',
           },
           {
             name: 'priority',
@@ -413,9 +414,9 @@ export class IssueWorkflowWizard extends WizardPrompt {
               { value: 'Low', label: 'Low' },
               { value: 'Medium', label: 'Medium' },
               { value: 'High', label: 'High' },
-              { value: 'Urgent', label: 'Urgent' }
+              { value: 'Urgent', label: 'Urgent' },
             ],
-            defaultValue: 'Medium'
+            defaultValue: 'Medium',
           },
           {
             name: 'assignee',
@@ -423,14 +424,14 @@ export class IssueWorkflowWizard extends WizardPrompt {
             required: false,
             description: 'Assignee',
             dynamic: true,
-            placeholder: 'Select assignee'
+            placeholder: 'Select assignee',
           },
           {
             name: 'dueDate',
             type: 'date',
             required: false,
-            description: 'Due date'
-          }
+            description: 'Due date',
+          },
         ];
         break;
 
@@ -444,16 +445,16 @@ export class IssueWorkflowWizard extends WizardPrompt {
             options: [
               { value: 'list', label: 'Enter as list' },
               { value: 'paste', label: 'Paste from spreadsheet' },
-              { value: 'generate', label: 'Generate from pattern' }
+              { value: 'generate', label: 'Generate from pattern' },
             ],
-            defaultValue: 'list'
+            defaultValue: 'list',
           },
           {
             name: 'issues',
             type: 'array',
             required: true,
             description: 'Issue list (one per line)',
-            placeholder: 'Issue 1\nIssue 2\nIssue 3'
+            placeholder: 'Issue 1\nIssue 2\nIssue 3',
           },
           {
             name: 'commonPriority',
@@ -463,10 +464,10 @@ export class IssueWorkflowWizard extends WizardPrompt {
             options: [
               { value: 'Low', label: 'Low' },
               { value: 'Medium', label: 'Medium' },
-              { value: 'High', label: 'High' }
+              { value: 'High', label: 'High' },
             ],
-            defaultValue: 'Medium'
-          }
+            defaultValue: 'Medium',
+          },
         ];
         break;
 
@@ -484,23 +485,23 @@ export class IssueWorkflowWizard extends WizardPrompt {
             options: [
               { value: 'csv', label: 'CSV' },
               { value: 'json', label: 'JSON' },
-              { value: 'markdown', label: 'Markdown' }
+              { value: 'markdown', label: 'Markdown' },
             ],
-            defaultValue: 'csv'
+            defaultValue: 'csv',
           },
           {
             name: 'importData',
             type: 'text',
             required: true,
             description: 'Paste import data',
-            placeholder: 'Paste CSV/JSON data here...'
+            placeholder: 'Paste CSV/JSON data here...',
           },
           {
             name: 'mappingRules',
             type: 'object',
             required: false,
-            description: 'Field mapping rules'
-          }
+            description: 'Field mapping rules',
+          },
         ];
         break;
 
@@ -512,7 +513,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
             required: true,
             description: 'Issues to clone',
             dynamic: true,
-            placeholder: 'Select issues'
+            placeholder: 'Select issues',
           },
           {
             name: 'cloneOptions',
@@ -524,10 +525,10 @@ export class IssueWorkflowWizard extends WizardPrompt {
               { value: 'attachments', label: 'Attachments' },
               { value: 'subtasks', label: 'Subtasks' },
               { value: 'comments', label: 'Comments' },
-              { value: 'labels', label: 'Labels' }
+              { value: 'labels', label: 'Labels' },
             ],
-            defaultValue: ['description', 'labels']
-          }
+            defaultValue: ['description', 'labels'],
+          },
         ];
         await this.loadIssuesForCloning(step, session);
         break;
@@ -556,25 +557,25 @@ export class IssueWorkflowWizard extends WizardPrompt {
           type: 'select',
           required: true,
           description: 'Select template',
-          options: templates.map(t => ({
+          options: templates.map((t) => ({
             value: t.id,
-            label: t.title || t.name || 'Unnamed Template'
+            label: t.title || t.name || 'Unnamed Template',
           })),
-          placeholder: 'Choose a template'
+          placeholder: 'Choose a template',
         },
         {
           name: 'title',
           type: 'string',
           required: true,
           description: 'Issue title',
-          placeholder: 'Enter issue title'
+          placeholder: 'Enter issue title',
         },
         {
           name: 'templateVariables',
           type: 'object',
           required: false,
-          description: 'Template variables'
-        }
+          description: 'Template variables',
+        },
       ];
 
       logger.debug('Loaded templates for issue workflow', { templateCount: templates.length });
@@ -586,8 +587,8 @@ export class IssueWorkflowWizard extends WizardPrompt {
           name: 'title',
           type: 'string',
           required: true,
-          description: 'Issue title'
-        }
+          description: 'Issue title',
+        },
       ];
     }
   }
@@ -610,9 +611,9 @@ export class IssueWorkflowWizard extends WizardPrompt {
 
       const issues = await services.issueService.listIssues(client, projectId, 100);
 
-      step.form.fields[0].options = issues.map(issue => ({
+      step.form.fields[0].options = issues.map((issue) => ({
         value: issue.identifier,
-        label: `${issue.identifier} - ${issue.title}`
+        label: `${issue.identifier} - ${issue.title}`,
       }));
 
       logger.debug('Loaded issues for cloning', { projectId, issueCount: issues.length });
@@ -647,9 +648,9 @@ export class IssueWorkflowWizard extends WizardPrompt {
       const components = await services.projectService.listComponents(client, projectId);
 
       if (step.form.fields[3]) {
-        step.form.fields[3].options = components.map(component => ({
+        step.form.fields[3].options = components.map((component) => ({
           value: component.label,
-          label: component.label
+          label: component.label,
         }));
       }
 
@@ -657,9 +658,9 @@ export class IssueWorkflowWizard extends WizardPrompt {
       const issues = await services.issueService.listIssues(client, projectId, 50);
 
       if (step.form.fields[4]) {
-        step.form.fields[4].options = issues.map(issue => ({
+        step.form.fields[4].options = issues.map((issue) => ({
           value: issue.identifier,
-          label: `${issue.identifier} - ${issue.title}`
+          label: `${issue.identifier} - ${issue.title}`,
         }));
       }
 
@@ -667,7 +668,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
         projectId,
         milestoneCount: milestones.length,
         componentCount: components.length,
-        issueCount: issues.length
+        issueCount: issues.length,
       });
     } catch (error) {
       this.getLogger().error('Failed to load advanced options', { error });
@@ -681,7 +682,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
     const review = {
       workflowType,
       project: state.projectId,
-      automation: state.enableAutomation ? 'Enabled' : 'Disabled'
+      automation: state.enableAutomation ? 'Enabled' : 'Disabled',
     };
 
     switch (workflowType) {
@@ -704,7 +705,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
 
       case 'import':
         review.format = state.importFormat;
-        review.dataPreview = state.importData?.substring(0, 100) + '...';
+        review.dataPreview = `${state.importData?.substring(0, 100)}...`;
         break;
 
       case 'clone':
@@ -746,10 +747,10 @@ export class IssueWorkflowWizard extends WizardPrompt {
         }
 
         case 'bulk': {
-          const bulkData = state.issues.map(title => ({
+          const bulkData = state.issues.map((title) => ({
             title,
             description: '',
-            priority: state.commonPriority || 'medium'
+            priority: state.commonPriority || 'medium',
           }));
 
           const created = await services.issueService.bulkCreateIssues(
@@ -781,11 +782,10 @@ export class IssueWorkflowWizard extends WizardPrompt {
       logger.info('Issues created successfully', {
         workflowType: state.workflowType,
         issueCount: issues.length,
-        projectId: state.projectId
+        projectId: state.projectId,
       });
 
       return issues;
-
     } catch (error) {
       logger.error('Failed to create issues', { error: error.message, state });
       throw new Error(`Failed to create issues: ${error.message}`);
@@ -797,9 +797,9 @@ export class IssueWorkflowWizard extends WizardPrompt {
       case 'csv':
         return this.parseCSV(data, projectId);
       case 'json':
-        return JSON.parse(data).map(item => ({
+        return JSON.parse(data).map((item) => ({
           ...item,
-          projectId
+          projectId,
         }));
       case 'markdown':
         return this.parseMarkdown(data, projectId);
@@ -810,10 +810,10 @@ export class IssueWorkflowWizard extends WizardPrompt {
 
   parseCSV(csvData, projectId) {
     const lines = csvData.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = lines[0].split(',').map((h) => h.trim());
 
-    return lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim());
+    return lines.slice(1).map((line) => {
+      const values = line.split(',').map((v) => v.trim());
       const issue = { projectId };
 
       headers.forEach((header, index) => {
@@ -835,7 +835,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
         issues.push({
           title: line.substring(2).trim(),
           projectId,
-          priority: 'Medium'
+          priority: 'Medium',
         });
       }
     }
@@ -849,7 +849,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
     const clonedData = {
       title: `[Clone] ${source.title}`,
       projectId,
-      priority: source.priority
+      priority: source.priority,
     };
 
     if (options.includes('description')) {
@@ -866,7 +866,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
       for (const subtask of source.subtasks) {
         await issueService.createSubissue(cloned._id, {
           title: subtask.title,
-          description: subtask.description
+          description: subtask.description,
         });
       }
     }
@@ -879,7 +879,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
       { title: 'Design review', description: 'Review design and requirements' },
       { title: 'Implementation', description: 'Implement the feature' },
       { title: 'Testing', description: 'Test the implementation' },
-      { title: 'Documentation', description: 'Update documentation' }
+      { title: 'Documentation', description: 'Update documentation' },
     ];
 
     for (const parent of parentIssues) {
@@ -894,7 +894,7 @@ export class IssueWorkflowWizard extends WizardPrompt {
     // This is a placeholder for the actual linking logic
     this.getLogger().info('Linking issues', {
       newCount: newIssues.length,
-      targetCount: targetIssueIds.length
+      targetCount: targetIssueIds.length,
     });
   }
 
@@ -905,8 +905,8 @@ export class IssueWorkflowWizard extends WizardPrompt {
       issueCount: issues.length,
       rules: {
         autoTransition: state.autoTransition,
-        notifications: state.notificationRules
-      }
+        notifications: state.notificationRules,
+      },
     });
   }
 }

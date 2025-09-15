@@ -56,7 +56,9 @@ export async function handler(args, context) {
 
     // Validate confirmation
     if (!args.confirm) {
-      throw new Error('Confirmation required: set confirm parameter to true to proceed with employee deletion');
+      throw new Error(
+        'Confirmation required: set confirm parameter to true to proceed with employee deletion'
+      );
     }
 
     const result = await employeeService.deleteEmployee(client, args.employee_id);

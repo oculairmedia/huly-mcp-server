@@ -13,8 +13,8 @@ describe('BasePrompt', () => {
     handler: jest.fn(),
     arguments: [
       { name: 'arg1', description: 'First argument', required: true },
-      { name: 'arg2', description: 'Second argument', required: false }
-    ]
+      { name: 'arg2', description: 'Second argument', required: false },
+    ],
   };
 
   beforeEach(() => {
@@ -51,7 +51,7 @@ describe('BasePrompt', () => {
       const minimalDef = {
         name: 'simple',
         description: 'Simple prompt',
-        handler: jest.fn()
+        handler: jest.fn(),
       };
 
       const prompt = new BasePrompt(minimalDef);
@@ -90,7 +90,7 @@ describe('BasePrompt', () => {
         name: 'test',
         description: 'Test',
         handler: jest.fn(),
-        arguments: [{ name: 'optional', description: 'Optional arg', required: false }]
+        arguments: [{ name: 'optional', description: 'Optional arg', required: false }],
       };
 
       const noRequiredPrompt = new BasePrompt(noRequiredDef);
@@ -107,7 +107,7 @@ describe('BasePrompt', () => {
     beforeEach(() => {
       const definition = {
         ...validDefinition,
-        handler: mockHandler
+        handler: mockHandler,
       };
       prompt = new BasePrompt(definition);
     });
@@ -168,8 +168,8 @@ describe('BasePrompt', () => {
         description: 'A test prompt',
         arguments: [
           { name: 'arg1', description: 'First argument', required: true },
-          { name: 'arg2', description: 'Second argument', required: false }
-        ]
+          { name: 'arg2', description: 'Second argument', required: false },
+        ],
       });
     });
   });
@@ -198,7 +198,7 @@ describe('WizardPrompt', () => {
       description: 'A test wizard',
       handler: jest.fn(),
       annotations: { wizard: true, maxSteps: 5 },
-      ...overrides
+      ...overrides,
     };
   }
 
@@ -213,7 +213,7 @@ describe('WizardPrompt', () => {
 
   it('should throw if wizard annotation missing', () => {
     const invalidDef = createWizardDefinition({
-      annotations: { maxSteps: 5 } // missing wizard: true
+      annotations: { maxSteps: 5 }, // missing wizard: true
     });
 
     expect(() => new WizardPrompt(invalidDef)).toThrow(HulyError);
@@ -223,7 +223,7 @@ describe('WizardPrompt', () => {
     const minimalWizard = createWizardDefinition({
       name: 'minimal-wizard',
       description: 'Minimal wizard',
-      annotations: { wizard: true } // no maxSteps specified
+      annotations: { wizard: true }, // no maxSteps specified
     });
 
     const wizard = new WizardPrompt(minimalWizard);
@@ -238,7 +238,7 @@ describe('WizardPrompt', () => {
     beforeEach(() => {
       mockHandler = jest.fn();
       const definition = createWizardDefinition({
-        handler: mockHandler
+        handler: mockHandler,
       });
       wizard = new WizardPrompt(definition);
     });
@@ -253,7 +253,7 @@ describe('WizardPrompt', () => {
     it('should execute with valid wizard state', async () => {
       const args = {};
       const context = {
-        wizardState: { currentStep: 1 }
+        wizardState: { currentStep: 1 },
       };
       const expectedResult = { success: true };
 
@@ -266,7 +266,7 @@ describe('WizardPrompt', () => {
     it('should throw if max steps exceeded', async () => {
       const args = {};
       const context = {
-        wizardState: { currentStep: 10 } // exceeds maxSteps of 5
+        wizardState: { currentStep: 10 }, // exceeds maxSteps of 5
       };
 
       await expect(wizard.execute(args, context)).rejects.toThrow(HulyError);
@@ -314,7 +314,7 @@ describe('PromptUtils', () => {
         bool: true,
         null: null,
         undefined: undefined,
-        empty: '   '
+        empty: '   ',
       };
 
       const result = PromptUtils.sanitizeArguments(input);
@@ -322,7 +322,7 @@ describe('PromptUtils', () => {
       expect(result).toEqual({
         str: 'test',
         num: 42,
-        bool: true
+        bool: true,
       });
     });
 
@@ -339,9 +339,7 @@ describe('PromptUtils', () => {
 
       const response = PromptUtils.createResponse(content, data);
 
-      expect(response.content).toEqual([
-        { type: 'text', text: 'Test response' }
-      ]);
+      expect(response.content).toEqual([{ type: 'text', text: 'Test response' }]);
       expect(response.data.key).toBe('value');
       expect(response.data.timestamp).toBeDefined();
     });

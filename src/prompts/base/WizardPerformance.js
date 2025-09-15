@@ -21,7 +21,7 @@ const PERFORMANCE_CONFIG = {
   cacheTTLMs: 10 * 60 * 1000, // 10 minutes
   maxStateSize: 1024 * 1024, // 1MB per session state
   enableCompression: true,
-  enableMetrics: true
+  enableMetrics: true,
 };
 
 /**
@@ -38,7 +38,7 @@ class PerformanceMetrics {
       cacheMisses: 0,
       averageStepTime: [],
       memoryUsage: [],
-      errors: 0
+      errors: 0,
     };
     this.startTime = Date.now();
   }
@@ -82,7 +82,7 @@ class PerformanceMetrics {
         timestamp: Date.now(),
         heapUsed: usage.heapUsed,
         heapTotal: usage.heapTotal,
-        rss: usage.rss
+        rss: usage.rss,
       });
       // Keep only last 50 measurements
       if (this.metrics.memoryUsage.length > 50) {
@@ -97,9 +97,11 @@ class PerformanceMetrics {
 
   getMetrics() {
     const uptime = Date.now() - this.startTime;
-    const avgStepTime = this.metrics.averageStepTime.length > 0
-      ? this.metrics.averageStepTime.reduce((a, b) => a + b, 0) / this.metrics.averageStepTime.length
-      : 0;
+    const avgStepTime =
+      this.metrics.averageStepTime.length > 0
+        ? this.metrics.averageStepTime.reduce((a, b) => a + b, 0) /
+          this.metrics.averageStepTime.length
+        : 0;
 
     const latestMemory = this.metrics.memoryUsage[this.metrics.memoryUsage.length - 1] || {};
 
@@ -110,26 +112,31 @@ class PerformanceMetrics {
         completed: this.metrics.sessionCompleted,
         aborted: this.metrics.sessionAborted,
         timedOut: this.metrics.sessionTimeout,
-        completionRate: this.metrics.sessionCreated > 0
-          ? (this.metrics.sessionCompleted / this.metrics.sessionCreated * 100).toFixed(2) + '%'
-          : '0%'
+        completionRate:
+          this.metrics.sessionCreated > 0
+            ? `${((this.metrics.sessionCompleted / this.metrics.sessionCreated) * 100).toFixed(2)}%`
+            : '0%',
       },
       cache: {
         hits: this.metrics.cacheHits,
         misses: this.metrics.cacheMisses,
-        hitRate: (this.metrics.cacheHits + this.metrics.cacheMisses) > 0
-          ? (this.metrics.cacheHits / (this.metrics.cacheHits + this.metrics.cacheMisses) * 100).toFixed(2) + '%'
-          : '0%'
+        hitRate:
+          this.metrics.cacheHits + this.metrics.cacheMisses > 0
+            ? `${(
+                (this.metrics.cacheHits / (this.metrics.cacheHits + this.metrics.cacheMisses)) *
+                100
+              ).toFixed(2)}%`
+            : '0%',
       },
       performance: {
         averageStepTimeMs: Math.round(avgStepTime),
         memoryUsageMB: {
           heapUsed: Math.round((latestMemory.heapUsed || 0) / 1024 / 1024),
           heapTotal: Math.round((latestMemory.heapTotal || 0) / 1024 / 1024),
-          rss: Math.round((latestMemory.rss || 0) / 1024 / 1024)
-        }
+          rss: Math.round((latestMemory.rss || 0) / 1024 / 1024),
+        },
       },
-      errors: this.metrics.errors
+      errors: this.metrics.errors,
     };
   }
 
@@ -143,7 +150,7 @@ class PerformanceMetrics {
       cacheMisses: 0,
       averageStepTime: [],
       memoryUsage: [],
-      errors: 0
+      errors: 0,
     };
     this.startTime = Date.now();
   }
@@ -224,7 +231,7 @@ export class OptimizedWizardStateManager {
       // Cache session metadata
       this.cache.set(`session:${session.id}:meta`, {
         wizardName: wizardDefinition.name,
-        startTime: session.metadata.startTime
+        startTime: session.metadata.startTime,
       });
 
       this.metrics.recordSessionCreated();
@@ -301,7 +308,7 @@ export class OptimizedWizardStateManager {
       }
     });
 
-    expiredSessions.forEach(id => {
+    expiredSessions.forEach((id) => {
       logger.info(`Removing expired session: ${id}`);
       this.removeSession(id);
       this.metrics.recordSessionTimeout();
@@ -363,7 +370,7 @@ export class OptimizedWizardStateManager {
         // In production, use proper compression like zlib
         return {
           compressed: true,
-          data: Buffer.from(stateStr).toString('base64')
+          data: Buffer.from(stateStr).toString('base64'),
         };
       }
       return state;
@@ -399,14 +406,14 @@ export class OptimizedWizardStateManager {
       cache: {
         ...this.metrics.getMetrics().cache,
         size: this.cache.size,
-        maxSize: this.cache.maxSize
+        maxSize: this.cache.maxSize,
       },
       sessionPool: {
         available: this.sessionPool.getSize(),
-        maxSize: this.sessionPool.maxSize
+        maxSize: this.sessionPool.maxSize,
       },
       activeSessions: this.baseManager.sessions.size,
-      maxConcurrentSessions: PERFORMANCE_CONFIG.maxConcurrentSessions
+      maxConcurrentSessions: PERFORMANCE_CONFIG.maxConcurrentSessions,
     };
   }
 
@@ -422,7 +429,7 @@ export class OptimizedWizardStateManager {
    */
   optimizeMemory() {
     // Force garbage collection if available
-    if (global.gc) {
+    if (typeof global !== 'undefined' && global.gc) {
       global.gc();
     }
 
@@ -497,7 +504,7 @@ export const PerformanceUtils = {
       if (!inThrottle) {
         fn(...args);
         inThrottle = true;
-        setTimeout(() => inThrottle = false, limit);
+        setTimeout(() => (inThrottle = false), limit);
       }
     };
   },
@@ -511,7 +518,7 @@ export const PerformanceUtils = {
       batches.push(operations.slice(i, i + batchSize));
     }
     return batches;
-  }
+  },
 };
 
 export default {
@@ -519,5 +526,5 @@ export default {
   createOptimizedStateManager,
   PerformanceUtils,
   PerformanceMetrics,
-  PERFORMANCE_CONFIG
+  PERFORMANCE_CONFIG,
 };

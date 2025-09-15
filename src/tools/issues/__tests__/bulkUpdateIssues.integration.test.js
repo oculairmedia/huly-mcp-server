@@ -63,7 +63,7 @@ describe('bulkUpdateIssues integration', () => {
   describe('definition', () => {
     it('should have correct tool definition', () => {
       expect(definition.name).toBe('huly_bulk_update_issues');
-      expect(definition.description).toContain('Update multiple issues');
+      expect(definition.description).toContain('Perform high-efficiency bulk modifications');
       expect(definition.inputSchema.properties.updates).toBeDefined();
       expect(definition.inputSchema.required).toEqual(['updates']);
     });

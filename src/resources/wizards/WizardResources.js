@@ -24,7 +24,7 @@ export function registerWizardResources(resourceRegistry) {
     name: 'Active Wizard Sessions',
     description: 'List of all active wizard sessions with their current states',
     mimeType: 'application/json',
-    handler: getActiveSessionsResource
+    handler: getActiveSessionsResource,
   });
 
   // Register resource for wizard catalog
@@ -33,7 +33,7 @@ export function registerWizardResources(resourceRegistry) {
     name: 'Wizard Catalog',
     description: 'Available wizards and their capabilities',
     mimeType: 'application/json',
-    handler: getWizardCatalogResource
+    handler: getWizardCatalogResource,
   });
 
   // Register dynamic resource template for individual sessions
@@ -42,7 +42,7 @@ export function registerWizardResources(resourceRegistry) {
     uriTemplate: 'huly://wizards/session/{sessionId}',
     description: 'Individual wizard session state and progress',
     mimeType: 'application/json',
-    handler: getSessionResource
+    handler: getSessionResource,
   });
 
   // Register resource for wizard statistics
@@ -51,7 +51,7 @@ export function registerWizardResources(resourceRegistry) {
     name: 'Wizard Statistics',
     description: 'Usage statistics and performance metrics for wizards',
     mimeType: 'application/json',
-    handler: getWizardStatisticsResource
+    handler: getWizardStatisticsResource,
   });
 
   // Register resource for wizard help
@@ -60,7 +60,7 @@ export function registerWizardResources(resourceRegistry) {
     name: 'Wizard Help Guide',
     description: 'Interactive help and documentation for using wizards',
     mimeType: 'text/markdown',
-    handler: getWizardHelpResource
+    handler: getWizardHelpResource,
   });
 
   logger.info('Wizard resources registered successfully');
@@ -75,14 +75,14 @@ async function getActiveSessionsResource() {
     const stateManager = getWizardStateManager();
     const sessions = stateManager.getAllSessions();
 
-    const sessionData = sessions.map(session => ({
+    const sessionData = sessions.map((session) => ({
       id: session.id,
       wizardName: session.wizardDefinition.name,
       currentStep: session.getCurrentStep().name,
       progress: session.getProgress(),
       startTime: session.metadata.startTime,
       lastActivity: session.metadata.lastActivity,
-      status: session.isCompleted ? 'completed' : session.isAborted ? 'aborted' : 'active'
+      status: session.isCompleted ? 'completed' : session.isAborted ? 'aborted' : 'active',
     }));
 
     return {
@@ -90,13 +90,17 @@ async function getActiveSessionsResource() {
         {
           uri: 'huly://wizards/sessions',
           mimeType: 'application/json',
-          text: JSON.stringify({
-            totalSessions: sessionData.length,
-            activeSessions: sessionData.filter(s => s.status === 'active').length,
-            sessions: sessionData
-          }, null, 2)
-        }
-      ]
+          text: JSON.stringify(
+            {
+              totalSessions: sessionData.length,
+              activeSessions: sessionData.filter((s) => s.status === 'active').length,
+              sessions: sessionData,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   } catch (error) {
     logger.error('Failed to get active sessions', { error });
@@ -105,9 +109,9 @@ async function getActiveSessionsResource() {
         {
           uri: 'huly://wizards/sessions',
           mimeType: 'application/json',
-          text: JSON.stringify({ error: error.message }, null, 2)
-        }
-      ]
+          text: JSON.stringify({ error: error.message }, null, 2),
+        },
+      ],
     };
   }
 }
@@ -120,7 +124,7 @@ async function getWizardCatalogResource() {
   try {
     const wizards = promptRegistry.getByCategory('wizards');
 
-    const catalog = wizards.map(wizard => {
+    const catalog = wizards.map((wizard) => {
       const definition = wizard.definition || wizard;
       return {
         name: definition.name,
@@ -129,11 +133,12 @@ async function getWizardCatalogResource() {
         steps: definition.steps?.length || 0,
         estimatedTime: definition.annotations?.estimatedTime || 'Unknown',
         tags: definition.annotations?.tags || [],
-        arguments: definition.arguments?.map(arg => ({
-          name: arg.name,
-          description: arg.description,
-          required: arg.required || false
-        })) || []
+        arguments:
+          definition.arguments?.map((arg) => ({
+            name: arg.name,
+            description: arg.description,
+            required: arg.required || false,
+          })) || [],
       };
     });
 
@@ -142,13 +147,17 @@ async function getWizardCatalogResource() {
         {
           uri: 'huly://wizards/catalog',
           mimeType: 'application/json',
-          text: JSON.stringify({
-            totalWizards: catalog.length,
-            categories: [...new Set(catalog.map(w => w.category))],
-            wizards: catalog
-          }, null, 2)
-        }
-      ]
+          text: JSON.stringify(
+            {
+              totalWizards: catalog.length,
+              categories: [...new Set(catalog.map((w) => w.category))],
+              wizards: catalog,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   } catch (error) {
     logger.error('Failed to get wizard catalog', { error });
@@ -157,9 +166,9 @@ async function getWizardCatalogResource() {
         {
           uri: 'huly://wizards/catalog',
           mimeType: 'application/json',
-          text: JSON.stringify({ error: error.message }, null, 2)
-        }
-      ]
+          text: JSON.stringify({ error: error.message }, null, 2),
+        },
+      ],
     };
   }
 }
@@ -181,9 +190,9 @@ async function getSessionResource(params) {
           {
             uri: `huly://wizards/session/${sessionId}`,
             mimeType: 'application/json',
-            text: JSON.stringify({ error: 'Session not found' }, null, 2)
-          }
-        ]
+            text: JSON.stringify({ error: 'Session not found' }, null, 2),
+          },
+        ],
       };
     }
 
@@ -194,32 +203,32 @@ async function getSessionResource(params) {
       id: session.id,
       wizard: {
         name: session.wizardDefinition.name,
-        description: session.wizardDefinition.description
+        description: session.wizardDefinition.description,
       },
       currentStep: {
         id: currentStep.id,
         name: currentStep.name,
         description: currentStep.description,
         form: currentStep.form,
-        review: currentStep.review
+        review: currentStep.review,
       },
       progress: {
         currentStepIndex: progress.currentStep,
         totalSteps: progress.totalSteps,
         completedSteps: session.metadata.completedSteps,
-        percentage: Math.round(progress.percentage)
+        percentage: Math.round(progress.percentage),
       },
       state: session.getAllState(),
       navigation: {
         canGoBack: session.canGoBack(),
-        canGoForward: session.hasCompletedStep(currentStep.id)
+        canGoForward: session.hasCompletedStep(currentStep.id),
       },
       metadata: {
         startTime: session.metadata.startTime,
         lastActivity: session.metadata.lastActivity,
         isCompleted: session.isCompleted,
-        isAborted: session.isAborted
-      }
+        isAborted: session.isAborted,
+      },
     };
 
     return {
@@ -227,9 +236,9 @@ async function getSessionResource(params) {
         {
           uri: `huly://wizards/session/${sessionId}`,
           mimeType: 'application/json',
-          text: JSON.stringify(sessionDetails, null, 2)
-        }
-      ]
+          text: JSON.stringify(sessionDetails, null, 2),
+        },
+      ],
     };
   } catch (error) {
     logger.error('Failed to get session resource', { error });
@@ -238,9 +247,9 @@ async function getSessionResource(params) {
         {
           uri: `huly://wizards/session/${params.sessionId}`,
           mimeType: 'application/json',
-          text: JSON.stringify({ error: error.message }, null, 2)
-        }
-      ]
+          text: JSON.stringify({ error: error.message }, null, 2),
+        },
+      ],
     };
   }
 }
@@ -257,13 +266,13 @@ async function getWizardStatisticsResource() {
     // Calculate statistics
     const stats = {
       totalSessions: sessions.length,
-      activeSessions: sessions.filter(s => !s.isCompleted && !s.isAborted).length,
-      completedSessions: sessions.filter(s => s.isCompleted).length,
-      abortedSessions: sessions.filter(s => s.isAborted).length,
+      activeSessions: sessions.filter((s) => !s.isCompleted && !s.isAborted).length,
+      completedSessions: sessions.filter((s) => s.isCompleted).length,
+      abortedSessions: sessions.filter((s) => s.isAborted).length,
       averageCompletionTime: calculateAverageCompletionTime(sessions),
       mostUsedWizards: getMostUsedWizards(sessions),
       completionRates: calculateCompletionRates(sessions),
-      recentActivity: getRecentActivity(sessions)
+      recentActivity: getRecentActivity(sessions),
     };
 
     return {
@@ -271,9 +280,9 @@ async function getWizardStatisticsResource() {
         {
           uri: 'huly://wizards/statistics',
           mimeType: 'application/json',
-          text: JSON.stringify(stats, null, 2)
-        }
-      ]
+          text: JSON.stringify(stats, null, 2),
+        },
+      ],
     };
   } catch (error) {
     logger.error('Failed to get wizard statistics', { error });
@@ -282,9 +291,9 @@ async function getWizardStatisticsResource() {
         {
           uri: 'huly://wizards/statistics',
           mimeType: 'application/json',
-          text: JSON.stringify({ error: error.message }, null, 2)
-        }
-      ]
+          text: JSON.stringify({ error: error.message }, null, 2),
+        },
+      ],
     };
   }
 }
@@ -389,16 +398,16 @@ For additional help, check the project documentation or submit an issue.
       {
         uri: 'huly://wizards/help',
         mimeType: 'text/markdown',
-        text: helpContent
-      }
-    ]
+        text: helpContent,
+      },
+    ],
   };
 }
 
 // Helper functions
 
 function calculateAverageCompletionTime(sessions) {
-  const completedSessions = sessions.filter(s => s.isCompleted);
+  const completedSessions = sessions.filter((s) => s.isCompleted);
   if (completedSessions.length === 0) return 0;
 
   const totalTime = completedSessions.reduce((sum, session) => {
@@ -413,7 +422,7 @@ function calculateAverageCompletionTime(sessions) {
 function getMostUsedWizards(sessions) {
   const wizardCounts = {};
 
-  sessions.forEach(session => {
+  sessions.forEach((session) => {
     const wizardName = session.wizardDefinition.name;
     wizardCounts[wizardName] = (wizardCounts[wizardName] || 0) + 1;
   });
@@ -427,7 +436,7 @@ function getMostUsedWizards(sessions) {
 function calculateCompletionRates(sessions) {
   const wizardStats = {};
 
-  sessions.forEach(session => {
+  sessions.forEach((session) => {
     const wizardName = session.wizardDefinition.name;
     if (!wizardStats[wizardName]) {
       wizardStats[wizardName] = { total: 0, completed: 0 };
@@ -440,9 +449,7 @@ function calculateCompletionRates(sessions) {
 
   const rates = {};
   Object.entries(wizardStats).forEach(([wizard, stats]) => {
-    rates[wizard] = stats.total > 0
-      ? Math.round((stats.completed / stats.total) * 100)
-      : 0;
+    rates[wizard] = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
   });
 
   return rates;
@@ -450,16 +457,14 @@ function calculateCompletionRates(sessions) {
 
 function getRecentActivity(sessions) {
   return sessions
-    .sort((a, b) =>
-      new Date(b.metadata.lastActivity) - new Date(a.metadata.lastActivity)
-    )
+    .sort((a, b) => new Date(b.metadata.lastActivity) - new Date(a.metadata.lastActivity))
     .slice(0, 10)
-    .map(session => ({
+    .map((session) => ({
       sessionId: session.id,
       wizard: session.wizardDefinition.name,
       step: session.getCurrentStep().name,
       lastActivity: session.metadata.lastActivity,
-      status: session.isCompleted ? 'completed' : session.isAborted ? 'aborted' : 'active'
+      status: session.isCompleted ? 'completed' : session.isAborted ? 'aborted' : 'active',
     }));
 }
 
@@ -478,8 +483,8 @@ export async function registerResources() {
     mimeType: 'application/json',
     handler: getActiveSessionsResource,
     annotations: {
-      category: 'wizards'
-    }
+      category: 'wizards',
+    },
   });
 
   registerResource({
@@ -490,8 +495,8 @@ export async function registerResources() {
     mimeType: 'application/json',
     handler: getWizardCatalogResource,
     annotations: {
-      category: 'wizards'
-    }
+      category: 'wizards',
+    },
   });
 
   registerResource({
@@ -502,8 +507,8 @@ export async function registerResources() {
     mimeType: 'application/json',
     handler: getWizardStatisticsResource,
     annotations: {
-      category: 'wizards'
-    }
+      category: 'wizards',
+    },
   });
 
   registerResource({
@@ -514,8 +519,8 @@ export async function registerResources() {
     mimeType: 'text/markdown',
     handler: getWizardHelpResource,
     annotations: {
-      category: 'wizards'
-    }
+      category: 'wizards',
+    },
   });
 
   // Register dynamic resource template for individual sessions
@@ -526,7 +531,7 @@ export async function registerResources() {
     title: 'Wizard Session State',
     description: 'Individual wizard session state and progress',
     mimeType: 'application/json',
-    handler: getSessionResource
+    handler: getSessionResource,
   });
 
   logger.info('Wizard resources registered successfully');

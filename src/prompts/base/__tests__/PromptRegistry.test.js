@@ -20,14 +20,14 @@ describe('PromptRegistry', () => {
       name: 'test-prompt',
       description: 'Test prompt',
       handler: jest.fn(),
-      arguments: [{ name: 'arg1', description: 'Test arg', required: true }]
+      arguments: [{ name: 'arg1', description: 'Test arg', required: true }],
     });
 
     mockWizard = new WizardPrompt({
       name: 'test-wizard',
       description: 'Test wizard',
       handler: jest.fn(),
-      annotations: { wizard: true }
+      annotations: { wizard: true },
     });
   });
 
@@ -61,7 +61,7 @@ describe('PromptRegistry', () => {
       const duplicate = new BasePrompt({
         name: 'test-prompt',
         description: 'Duplicate',
-        handler: jest.fn()
+        handler: jest.fn(),
       });
 
       expect(() => {
@@ -73,7 +73,7 @@ describe('PromptRegistry', () => {
       const invalidPrompt = new BasePrompt({
         name: 'Invalid_Name',
         description: 'Invalid name',
-        handler: jest.fn()
+        handler: jest.fn(),
       });
 
       // Mock the validation to force the error
@@ -191,9 +191,7 @@ describe('PromptRegistry', () => {
     });
 
     it('should throw for non-existent prompt', async () => {
-      await expect(
-        registry.execute('non-existent', {}, {})
-      ).rejects.toThrow(HulyError);
+      await expect(registry.execute('non-existent', {}, {})).rejects.toThrow(HulyError);
     });
 
     it('should sanitize arguments', async () => {
@@ -292,7 +290,7 @@ describe('PromptRegistry', () => {
       const noArgsPrompt = new BasePrompt({
         name: 'no-args',
         description: 'Short',
-        handler: jest.fn()
+        handler: jest.fn(),
       });
 
       registry.register(noArgsPrompt);
@@ -302,7 +300,7 @@ describe('PromptRegistry', () => {
       expect(results.warnings).toEqual(
         expect.arrayContaining([
           expect.stringContaining('no arguments defined'),
-          expect.stringContaining('very short description')
+          expect.stringContaining('very short description'),
         ])
       );
     });
@@ -318,8 +316,8 @@ describe('PromptRegistry', () => {
       const allMetadata = registry.getAllMetadata();
 
       expect(allMetadata).toHaveLength(2);
-      expect(allMetadata.find(m => m.name === 'test-prompt')).toBeDefined();
-      expect(allMetadata.find(m => m.name === 'test-wizard')).toBeDefined();
+      expect(allMetadata.find((m) => m.name === 'test-prompt')).toBeDefined();
+      expect(allMetadata.find((m) => m.name === 'test-wizard')).toBeDefined();
     });
   });
 });

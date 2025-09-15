@@ -35,7 +35,9 @@ describe('assignRepository tool', () => {
   describe('definition', () => {
     it('should have correct tool definition', () => {
       expect(definition.name).toBe('huly_assign_repository_to_project');
-      expect(definition.description).toContain('Assign a GitHub repository');
+      expect(definition.description).toContain(
+        'Establish bidirectional integration between GitHub repositories'
+      );
       expect(definition.inputSchema.required).toEqual(['project_identifier', 'repository_name']);
       expect(definition.annotations.destructiveHint).toBe(false);
     });

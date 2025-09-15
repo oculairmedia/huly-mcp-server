@@ -35,7 +35,9 @@ describe('listIssues tool', () => {
   describe('definition', () => {
     it('should have correct tool definition', () => {
       expect(definition.name).toBe('huly_list_issues');
-      expect(definition.description).toBe('List issues in a specific project');
+      expect(definition.description).toContain(
+        'Retrieve a comprehensive, chronologically-ordered listing of issues'
+      );
       expect(definition.inputSchema.required).toContain('project_identifier');
       expect(definition.annotations.readOnlyHint).toBe(true);
     });
