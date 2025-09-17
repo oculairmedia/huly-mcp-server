@@ -69,7 +69,7 @@ class InMemoryEventStore {
 export class HttpTransport extends BaseTransport {
   constructor(server, options = {}) {
     super(server);
-    this.port = options.port || process.env.PORT || 5439;
+    this.port = options.port || process.env.PORT || 3457;
     this.app = null;
     this.httpServer = null;
     this.running = false;

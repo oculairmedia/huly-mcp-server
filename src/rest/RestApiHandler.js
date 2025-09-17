@@ -16,6 +16,13 @@ export class RestApiHandler {
     // Use the global tool registry
     this.toolRegistry = registry;
     this.toolDefinitions = [];
+
+    // Debug logging to track service availability
+    this.logger.debug('RestApiHandler initialized with services:', {
+      serviceKeys: Object.keys(this.services),
+      hasHulyClient: !!this.hulyClientWrapper,
+      registrySize: this.toolRegistry.size
+    });
   }
 
   /**
@@ -138,6 +145,15 @@ export class RestApiHandler {
         logger: this.logger.child(`tool-${toolName}`),
       };
 
+      // Debug context creation
+      this.logger.debug(`Execution context for ${toolName}:`, {
+        serviceKeys: Object.keys(this.services),
+        contextKeys: Object.keys(context),
+        hasHulyClient: !!context.hulyClientWrapper,
+        hasStatusManager: !!context.statusManager,
+        hasIssueService: !!context.issueService
+      });
+
       // Execute the tool
       this.logger.info(`Executing tool: ${toolName}`, { args: toolArgs });
       const result = await this.toolRegistry.execute(toolName, toolArgs, context);
@@ -146,18 +162,45 @@ export class RestApiHandler {
       return this.formatToolResult(result);
 
     } catch (error) {
-      this.logger.error(`Error executing tool ${toolName}:`, error);
+      this.logger.error(`Error executing tool ${toolName}:`, {
+        error: error.message,
+        stack: error.stack,
+        toolName,
+        args: toolArgs,
+        hasServices: !!this.services,
+        serviceKeys: Object.keys(this.services),
+        hasHulyClient: !!this.hulyClientWrapper,
+        registrySize: this.toolRegistry.size,
+        initialized: this.initialized
+      });
 
       // Re-throw known errors
       if (error.code) {
         throw error;
       }
 
+      // Handle service initialization errors
+      if (error.message?.includes('not initialized') || error.message?.includes('undefined')) {
+        const initError = new Error('Service initialization error: ' + error.message);
+        initError.code = 'SERVICE_INITIALIZATION_ERROR';
+        initError.statusCode = 503;
+        initError.details = {
+          suggestion: 'The server may still be starting up. Please try again in a moment.',
+          hasServices: !!this.services,
+          serviceKeys: Object.keys(this.services),
+          toolInitialized: this.initialized
+        };
+        throw initError;
+      }
+
       // Handle Huly API errors
-      if (error.message?.includes('Huly API')) {
+      if (error.message?.includes('Huly API') || error.message?.includes('client')) {
         const hulyError = new Error('Huly API error: ' + error.message);
         hulyError.code = 'HULY_API_ERROR';
         hulyError.statusCode = 502;
+        hulyError.details = {
+          suggestion: 'Check Huly server connectivity and authentication credentials.'
+        };
         throw hulyError;
       }
 
@@ -170,9 +213,13 @@ export class RestApiHandler {
       }
 
       // Generic server error
-      const serverError = new Error('Tool execution failed');
+      const serverError = new Error('Tool execution failed: ' + error.message);
       serverError.code = 'INTERNAL_ERROR';
       serverError.statusCode = 500;
+      serverError.details = {
+        originalError: error.message,
+        suggestion: 'Please check server logs for more details.'
+      };
       throw serverError;
     }
   }
