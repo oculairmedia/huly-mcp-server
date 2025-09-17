@@ -1,26 +1,42 @@
 # Huly MCP Server
 
-A Model Context Protocol (MCP) server for interacting with Huly project management platform. This server provides tools for managing projects, issues, and other Huly resources through Claude Code and other MCP clients.
+A comprehensive Model Context Protocol (MCP) server and REST API for interacting with Huly project management platform. This server provides both MCP protocol support for AI assistants like Claude Code and a full REST API for web applications and automation scripts.
 
 ## 🚀 Recent Updates
+
+### New: Complete REST API Implementation
+- **Full REST API**: Access all Huly tools via HTTP endpoints (`/api/tools`)
+- **Dual Protocol Support**: Both MCP protocol and REST API on same port
+- **GET & POST Support**: Direct tool execution with query parameters or JSON body
+- **Comprehensive Error Handling**: Standardized error responses with detailed codes
+- **Performance Optimized**: Stateless REST vs session-based MCP
 
 ### Enhanced Features
 - Component and milestone support in all issue operations
 - Improved bulk operations with progress tracking
 - Atomic operations for reliable concurrent usage
-- Standardized MCP response format across all tools
-- Better error handling and validation
+- Standardized response format across both protocols
+- Advanced filtering and search capabilities
 
-[API Documentation](docs/API-UPDATES.md)
+[Complete API Documentation](API.md)
 
 ## Features
 
+### Protocol Support
+- **REST API**: Full HTTP REST API for web applications and automation
+- **MCP Protocol**: JSON-RPC 2.0 support for AI assistants (Claude Code, etc.)
+- **Dual Endpoints**: Both protocols available on same port (3457)
+- **Session Management**: Stateless REST vs session-based MCP
+
+### Core Functionality
 - **Project Management**: List, create, and manage Huly projects
 - **Issue Tracking**: Create, list, and update issues across projects with full metadata
 - **Atomic Operations**: Guaranteed unique issue numbers even under high concurrency
 - **Bulk Operations**: Efficiently handle multiple issues at once with atomic guarantees
+- **Advanced Search**: Filter issues by status, priority, component, assignee, and dates
+
+### Integration & Workflow
 - **Git Worktree Integration**: Parallel development workflow with automatic issue tracking
-- **Dual Transport Support**: Both HTTP and stdio transports
 - **Docker Integration**: Fully containerized with Docker Compose
 - **Authentication**: Secure connection to Huly instances
 - **Git Hooks**: Automatic Huly issue status updates
@@ -102,12 +118,15 @@ export GITHUB_TOKEN=your-github-token  # Required for @hcengineering packages
 npm run start:stdio
 ```
 
-#### HTTP Transport (Web/API)
+#### HTTP Transport (Web/API + MCP)
 ```bash
 npm run start:http
 ```
 
-Server will be available at `http://localhost:3000`
+Server will be available at `http://localhost:3457` with both protocols:
+- **REST API**: `http://localhost:3457/api/tools`
+- **MCP Protocol**: `http://localhost:3457/mcp`
+- **Health Check**: `http://localhost:3457/health`
 
 ## Configuration
 
@@ -119,7 +138,7 @@ Server will be available at `http://localhost:3000`
 | `HULY_EMAIL` | User email for authentication | Required |
 | `HULY_PASSWORD` | User password for authentication | Required |
 | `HULY_WORKSPACE` | Workspace name | `agentspace` |
-| `PORT` | HTTP server port | `3000` |
+| `PORT` | HTTP server port | `3457` |
 | `NODE_ENV` | Environment mode | `development` |
 | `GITHUB_TOKEN` | GitHub token for @hcengineering packages | Required for npm install |
 
@@ -127,6 +146,12 @@ Server will be available at `http://localhost:3000`
 
 Add to your Claude Code MCP configuration:
 
+**HTTP Transport (Recommended)**:
+```bash
+claude mcp add --transport http huly-mcp "http://localhost:3457/mcp" -s user
+```
+
+**Stdio Transport (Alternative)**:
 ```bash
 claude mcp add --transport stdio huly-mcp "/path/to/huly-mcp-server/start-mcp.sh" -s user
 ```
@@ -146,7 +171,7 @@ docker run -d \
   -e HULY_PASSWORD=your-password \
   -e HULY_WORKSPACE=your-workspace \
   -e GITHUB_TOKEN=your-github-token \
-  -p 3000:3000 \
+  -p 3457:3457 \
   huly-mcp-server
 ```
 
@@ -165,7 +190,7 @@ services:
       - HULY_WORKSPACE=${HULY_MCP_WORKSPACE}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
     ports:
-      - "3457:3000"
+      - "3457:3457"
     depends_on:
       - nginx
       - account
@@ -179,49 +204,99 @@ For complete API documentation including all tools, parameters, examples, and er
 
 ### Quick Reference
 
-The server provides 13 MCP tools for comprehensive Huly integration:
+The server provides 42+ tools via both REST API and MCP protocol:
 
 #### Core Endpoints
+
+**REST API** (Stateless HTTP):
+- **Health Check**: `GET /api/health`
+- **List Tools**: `GET /api/tools`
+- **Execute Tool (POST)**: `POST /api/tools/{tool_name}`
+- **Execute Tool (GET)**: `GET /api/tools/{tool_name}?param=value`
+
+**MCP Protocol** (Session-based):
 - **Health Check**: `GET /health`
-- **List Tools**: `GET /tools`  
-- **MCP Protocol**: `POST /mcp`
-- **Direct Tool Calls**: `POST /tools/{tool_name}`
+- **MCP Initialization**: `POST /mcp` (with initialize method)
+- **Tool Execution**: `POST /mcp` (with tools/call method)
+- **Session Management**: `DELETE /mcp` (terminate session)
 
-#### Essential Examples
+#### REST API Examples
 
-**List Projects**:
+**List Projects (GET)**:
 ```bash
-POST /tools/huly_list_projects
-Content-Type: application/json
-{}
+GET /api/tools/huly_list_projects
 ```
 
-**Create Issue**:
+**Create Issue (POST)**:
 ```bash
-POST /tools/huly_create_issue
+POST /api/tools/huly_create_issue
 Content-Type: application/json
 {
-  "project_identifier": "PROJ",
-  "title": "New Issue",
-  "description": "Issue description",
-  "priority": "high",
-  "component": "Frontend",
-  "milestone": "v2.0"
+  "arguments": {
+    "project_identifier": "PROJ",
+    "title": "New Issue",
+    "description": "Issue description",
+    "priority": "high",
+    "component": "Frontend",
+    "milestone": "v2.0"
+  }
 }
 ```
 
-**Update Issue**:
+**List Issues with Filters (GET)**:
 ```bash
-POST /tools/huly_update_issue
+GET /api/tools/huly_list_issues?project_identifier=PROJ&limit=10
+```
+
+#### MCP Protocol Examples
+
+**Initialize Session**:
+```bash
+POST /mcp
 Content-Type: application/json
 {
-  "issue_identifier": "PROJ-123",
-  "field": "status",
-  "value": "In Progress"
+  "jsonrpc": "2.0",
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {},
+    "clientInfo": {"name": "my-client", "version": "1.0"}
+  },
+  "id": 1
 }
 ```
 
-For complete documentation with all 13 tools, parameters, error handling, and integration examples, see **[API.md](API.md)**.
+**Execute Tool**:
+```bash
+POST /mcp
+Content-Type: application/json
+MCP-Session-ID: {session_id}
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "huly_create_issue",
+    "arguments": {
+      "project_identifier": "PROJ",
+      "title": "New Issue"
+    }
+  },
+  "id": 2
+}
+```
+
+### Protocol Comparison
+
+| Feature | REST API | MCP Protocol |
+|---------|----------|--------------|
+| **Use Case** | Web apps, automation | AI assistants |
+| **Setup** | No session required | Session initialization |
+| **Request Format** | HTTP + JSON | JSON-RPC 2.0 |
+| **Performance** | Lower latency | Session overhead |
+| **Error Handling** | HTTP status codes | JSON-RPC error codes |
+| **Batch Operations** | Excellent (parallel) | Good (sequential) |
+
+For complete documentation with all 42+ tools, parameters, error handling, and integration examples, see **[API.md](API.md)**.
 
 ## Git Worktree Workflow
 
@@ -430,9 +505,20 @@ npm test
 # Test stdio transport
 timeout 5 npm run start:stdio
 
-# Test HTTP transport
+# Test HTTP transport (both REST and MCP)
 npm run start:http &
-curl http://localhost:3000/health
+
+# Test REST API health
+curl http://localhost:3457/api/health
+
+# Test MCP protocol health
+curl http://localhost:3457/health
+
+# Test REST API tool execution
+curl http://localhost:3457/api/tools/huly_list_projects
+
+# Test REST API with parameters
+curl "http://localhost:3457/api/tools/huly_list_issues?project_identifier=PROJ&limit=5"
 ```
 
 ### SDK Compatibility
@@ -455,12 +541,23 @@ The codebase now includes:
    - Check credentials are valid
    - Ensure network connectivity to Huly instance
 
-2. **Module Import Errors**
+2. **REST API Issues**
+   - **Tool Not Found (404)**: Check tool name spelling in `/api/tools/{tool_name}`
+   - **Validation Errors (400)**: Include required parameters in request body `{"arguments": {...}}`
+   - **Rate Limiting (429)**: Reduce request frequency (default: 100 req/15min)
+   - **Service Errors (502)**: Check Huly credentials and connectivity
+
+3. **MCP Protocol Issues**
+   - **Session Required**: Initialize session with `POST /mcp` using `initialize` method
+   - **Protocol Version**: Use `MCP-Protocol-Version: 2025-06-18` header
+   - **Missing Session ID**: Include `MCP-Session-ID` header in subsequent requests
+
+4. **Module Import Errors**
    - Verify Node.js version (18+)
    - Check package.json type is set to "module"
    - Ensure all dependencies are installed
 
-3. **Docker Issues**
+5. **Docker Issues**
    - Use internal Docker network URLs (e.g., `http://nginx:80`)
    - Check container logs: `docker-compose logs huly-mcp`
    - Verify environment variables are set
@@ -470,6 +567,24 @@ The codebase now includes:
 Enable debug logging:
 ```bash
 DEBUG=huly-mcp* npm run start:stdio
+```
+
+### Testing Connectivity
+
+```bash
+# Test server health
+curl http://localhost:3457/health
+
+# Test REST API
+curl http://localhost:3457/api/health
+
+# List available tools
+curl http://localhost:3457/api/tools
+
+# Test MCP session initialization
+curl -X POST http://localhost:3457/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}'
 ```
 
 ## Contributing

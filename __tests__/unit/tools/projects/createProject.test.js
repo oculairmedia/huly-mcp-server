@@ -41,7 +41,7 @@ describe('CreateProject Tool Tests', () => {
   describe('Definition', () => {
     test('should have correct tool definition', () => {
       expect(definition.name).toBe('huly_create_project');
-      expect(definition.description).toContain('Create a new project');
+      expect(definition.description).toContain('project within the Huly workspace');
       expect(definition.inputSchema.type).toBe('object');
       expect(definition.inputSchema.required).toEqual(['name']);
     });

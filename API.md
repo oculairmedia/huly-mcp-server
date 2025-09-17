@@ -17,13 +17,21 @@ All API calls require authentication through environment variables or connection
 
 ### HTTP Transport
 
-The server runs on port 3000 by default and provides standard HTTP endpoints:
+The server runs on port 3457 by default and provides both MCP protocol and REST API endpoints:
 
-- **Base URL**: `http://localhost:3000`
+- **Base URL**: `http://localhost:3457`
 - **Health Check**: `GET /health`
-- **List Tools**: `GET /tools`
-- **MCP Protocol**: `POST /mcp`
-- **Direct Tool Calls**: `POST /tools/{tool_name}`
+- **MCP Protocol**: `POST /mcp` (JSON-RPC 2.0)
+- **MCP Sessions**: `GET /mcp` (SSE streaming), `DELETE /mcp` (session termination)
+
+### REST API Endpoints
+
+The server provides a comprehensive REST API for direct tool access without MCP protocol overhead:
+
+- **List Tools**: `GET /api/tools`
+- **Execute Tool (POST)**: `POST /api/tools/{tool_name}`
+- **Execute Tool (GET)**: `GET /api/tools/{tool_name}?param=value`
+- **API Health**: `GET /api/health`
 
 ### Stdio Transport
 
@@ -45,54 +53,235 @@ Check server health and status.
 ```json
 {
   "status": "healthy",
-  "server": "huly-mcp-server"
+  "service": "huly-mcp-server",
+  "transport": "streamable_http",
+  "protocol_version": "2025-06-18",
+  "sessions": 0,
+  "uptime": 123.45,
+  "timestamp": "2024-12-17T10:30:00.000Z",
+  "security": {
+    "origin_validation": true,
+    "localhost_binding": true
+  }
 }
 ```
 
-### List Available Tools
+### REST API Health
 
-Get a list of all available MCP tools.
+Check REST API specific health and configuration.
 
-**Endpoint**: `GET /tools`
+**Endpoint**: `GET /api/health`
 
 **Response**:
 ```json
 {
-  "tools": [
-    {
-      "name": "huly_list_projects",
-      "description": "List all projects in Huly workspace",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "required": []
-      }
-    }
-    // ... other tools
-  ]
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "service": "huly-rest-api",
+    "transport": "http",
+    "uptime": 123.45,
+    "toolCount": 42
+  },
+  "metadata": {
+    "timestamp": "2024-12-17T10:30:00.000Z",
+    "version": "1.0"
+  }
 }
 ```
 
-### MCP Protocol Endpoint
+### List Available Tools (REST API)
 
-Standard JSON-RPC 2.0 endpoint for MCP communication.
+Get a list of all available tools with filtering capabilities.
+
+**Endpoint**: `GET /api/tools`
+
+**Query Parameters**:
+- `category` (optional): Filter by category (e.g., "projects", "issues", "components")
+- `search` (optional): Search in tool names and descriptions
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "tools": [
+      {
+        "name": "huly_list_projects",
+        "description": "List all projects in Huly workspace",
+        "category": "projects",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        },
+        "outputFormat": "object"
+      }
+    ],
+    "count": 42,
+    "categories": ["projects", "issues", "components", "milestones", "templates", "accounts"],
+    "filters": {
+      "category": null,
+      "search": null
+    }
+  },
+  "metadata": {
+    "timestamp": "2024-12-17T10:30:00.000Z",
+    "version": "1.0"
+  }
+}
+```
+
+### Execute Tool (REST API - POST)
+
+Execute a tool with JSON body parameters.
+
+**Endpoint**: `POST /api/tools/{tool_name}`
+
+**Request Body**:
+```json
+{
+  "arguments": {
+    "project_identifier": "PROJ",
+    "title": "New Issue"
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "toolName": "huly_create_issue",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "✅ Created issue PROJ-123: New Issue"
+        }
+      ]
+    },
+    "executionTime": 245
+  },
+  "metadata": {
+    "timestamp": "2024-12-17T10:30:00.000Z",
+    "version": "1.0"
+  }
+}
+```
+
+### Execute Tool (REST API - GET)
+
+Execute a tool with query parameters (convenient for simple tools).
+
+**Endpoint**: `GET /api/tools/{tool_name}?param1=value1&param2=value2`
+
+**Example**: `GET /api/tools/huly_list_projects`
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "toolName": "huly_list_projects",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Found 3 projects:\n\n📁 **Marketing Campaign** (MKT)..."
+        }
+      ]
+    },
+    "executionTime": 156
+  },
+  "metadata": {
+    "timestamp": "2024-12-17T10:30:00.000Z",
+    "version": "1.0"
+  }
+}
+```
+
+### MCP Protocol Endpoints
+
+Standard JSON-RPC 2.0 endpoints for MCP communication with session management.
+
+#### Initialize MCP Session
 
 **Endpoint**: `POST /mcp`
 
-**Request Format**:
+**Headers**:
+- `Content-Type: application/json`
+- `MCP-Protocol-Version: 2025-06-18` (optional, validated)
+
+**Initial Request (Session Initialization)**:
 ```json
 {
   "jsonrpc": "2.0",
-  "method": "tools/call",
+  "method": "initialize",
   "params": {
-    "name": "tool_name",
-    "arguments": {}
+    "protocolVersion": "2025-06-18",
+    "capabilities": {
+      "roots": {
+        "listChanged": true
+      },
+      "sampling": {}
+    },
+    "clientInfo": {
+      "name": "your-client",
+      "version": "1.0.0"
+    }
   },
   "id": 1
 }
 ```
 
-**Response Format**:
+**Initialization Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {
+      "logging": {},
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "serverInfo": {
+      "name": "huly-mcp-server",
+      "version": "1.0.0"
+    },
+    "instructions": "Huly MCP Server - AI integration for project management"
+  },
+  "id": 1
+}
+```
+
+**Important**: The response will include an `MCP-Session-ID` header that must be included in all subsequent requests.
+
+#### Subsequent MCP Requests
+
+**Endpoint**: `POST /mcp`
+
+**Headers**:
+- `Content-Type: application/json`
+- `MCP-Session-ID: {session_id}` (required after initialization)
+
+**Tool Execution Request**:
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "huly_list_projects",
+    "arguments": {}
+  },
+  "id": 2
+}
+```
+
+**Tool Execution Response**:
 ```json
 {
   "jsonrpc": "2.0",
@@ -100,11 +289,71 @@ Standard JSON-RPC 2.0 endpoint for MCP communication.
     "content": [
       {
         "type": "text",
-        "text": "Response content"
+        "text": "Found 3 projects:\n\n📁 **Marketing Campaign** (MKT)..."
       }
     ]
   },
-  "id": 1
+  "id": 2
+}
+```
+
+#### List Tools (MCP)
+
+**Request**:
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/list",
+  "params": {},
+  "id": 3
+}
+```
+
+**Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "tools": [
+      {
+        "name": "huly_list_projects",
+        "description": "List all projects in Huly workspace",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      }
+    ]
+  },
+  "id": 3
+}
+```
+
+#### SSE Streaming (GET)
+
+For real-time updates and server-sent events.
+
+**Endpoint**: `GET /mcp`
+
+**Headers**:
+- `MCP-Session-ID: {session_id}` (required)
+- `Accept: text/event-stream`
+
+#### Session Termination
+
+**Endpoint**: `DELETE /mcp`
+
+**Headers**:
+- `MCP-Session-ID: {session_id}` (required)
+
+**Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "terminated": true
+  }
 }
 ```
 
@@ -738,26 +987,67 @@ Content-Type: application/json
 
 ## Error Handling
 
-### HTTP Error Codes
+### REST API Error Handling
 
-- **400 Bad Request**: Invalid JSON-RPC request format
-- **404 Not Found**: Tool not found
+The REST API provides standardized error responses with detailed error information.
+
+#### HTTP Status Codes
+
+- **400 Bad Request**: Invalid request parameters or validation errors
+- **404 Not Found**: Tool not found or resource not found
+- **413 Request Too Large**: Request size exceeds limits
+- **429 Too Many Requests**: Rate limit exceeded
 - **500 Internal Server Error**: Server error or tool execution failure
+- **502 Bad Gateway**: Huly API error or upstream service failure
 
-### JSON-RPC Error Codes
+#### REST Error Response Format
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Required field 'project_identifier' is missing",
+    "details": {
+      "field": "project_identifier",
+      "required": ["project_identifier", "title"],
+      "provided": ["title"]
+    }
+  },
+  "metadata": {
+    "timestamp": "2024-12-17T10:30:00.000Z",
+    "requestId": "uuid-request-id"
+  }
+}
+```
+
+#### REST Error Codes
+
+- **TOOL_NOT_FOUND**: Requested tool does not exist
+- **VALIDATION_ERROR**: Invalid input parameters or missing required fields
+- **HULY_API_ERROR**: Error from Huly backend service
+- **INTERNAL_ERROR**: Generic server error
+- **REQUEST_TOO_LARGE**: Request size exceeds configured limits
+- **RATE_LIMIT_EXCEEDED**: Too many requests from client
+
+### MCP Protocol Error Handling
+
+#### JSON-RPC Error Codes
 
 - **-32600**: Invalid Request
 - **-32601**: Method not found
 - **-32000**: Internal error (includes custom error messages)
+- **-32001**: Server error (e.g., forbidden access, session not found)
+- **-32603**: Internal server error
 
-### Error Response Format
+#### MCP Error Response Format
 
 ```json
 {
   "jsonrpc": "2.0",
   "error": {
     "code": -32000,
-    "message": "Error message describing the issue"
+    "message": "Project INVALID not found"
   },
   "id": 1
 }
@@ -813,73 +1103,305 @@ Content-Type: application/json
 
 ```bash
 # Add to MCP configuration
-claude mcp add --transport stdio huly-mcp "/path/to/start-mcp.sh" -s user
+claude mcp add --transport http huly-mcp "http://localhost:3457/mcp" -s user
 
 # Use in Claude Code
 Ask Claude to "List all projects in Huly" and it will call huly_list_projects
 ```
 
-### HTTP API Integration
+### REST API Integration
+
+#### Simple GET Requests
 
 ```javascript
-// List projects
-const response = await fetch('http://localhost:3000/tools/huly_list_projects', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({})
-});
+// List all tools
+const toolsResponse = await fetch('http://localhost:3457/api/tools');
+const tools = await toolsResponse.json();
 
+// List projects (GET with no parameters)
+const projectsResponse = await fetch('http://localhost:3457/api/tools/huly_list_projects');
+const projects = await projectsResponse.json();
+
+// List issues with parameters
+const issuesResponse = await fetch('http://localhost:3457/api/tools/huly_list_issues?project_identifier=PROJ&limit=10');
+const issues = await issuesResponse.json();
+```
+
+#### POST Requests with JSON Body
+
+```javascript
 // Create issue
-const createResponse = await fetch('http://localhost:3000/tools/huly_create_issue', {
+const createIssueResponse = await fetch('http://localhost:3457/api/tools/huly_create_issue', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    project_identifier: 'PROJ',
-    title: 'New Issue',
-    description: 'Issue description',
-    priority: 'high'
+    arguments: {
+      project_identifier: 'PROJ',
+      title: 'New Issue',
+      description: 'Issue description',
+      priority: 'high'
+    }
+  })
+});
+
+// Update issue
+const updateResponse = await fetch('http://localhost:3457/api/tools/huly_update_issue', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    arguments: {
+      issue_identifier: 'PROJ-123',
+      field: 'status',
+      value: 'In Progress'
+    }
   })
 });
 ```
 
-### JSON-RPC 2.0 Integration
+#### Error Handling
 
 ```javascript
-// Standard MCP protocol call
-const mcpResponse = await fetch('http://localhost:3000/mcp', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    jsonrpc: '2.0',
-    method: 'tools/call',
-    params: {
-      name: 'huly_list_projects',
-      arguments: {}
-    },
-    id: 1
-  })
-});
+async function callHulyTool(toolName, args = {}) {
+  try {
+    const response = await fetch(`http://localhost:3457/api/tools/${toolName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arguments: args })
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(`${result.error.code}: ${result.error.message}`);
+    }
+
+    return result.data.result;
+  } catch (error) {
+    console.error('Huly API Error:', error.message);
+    throw error;
+  }
+}
+
+// Usage
+try {
+  const projects = await callHulyTool('huly_list_projects');
+  console.log('Projects:', projects);
+} catch (error) {
+  console.error('Failed to fetch projects:', error.message);
+}
 ```
+
+### MCP Protocol Integration
+
+#### Session Management
+
+```javascript
+class HulyMCPClient {
+  constructor(baseUrl = 'http://localhost:3457') {
+    this.baseUrl = baseUrl;
+    this.sessionId = null;
+  }
+
+  async initialize() {
+    const response = await fetch(`${this.baseUrl}/mcp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-06-18',
+          capabilities: { roots: { listChanged: true }, sampling: {} },
+          clientInfo: { name: 'my-client', version: '1.0.0' }
+        },
+        id: 1
+      })
+    });
+
+    const result = await response.json();
+    this.sessionId = response.headers.get('MCP-Session-ID');
+    return result;
+  }
+
+  async callTool(toolName, arguments = {}) {
+    if (!this.sessionId) {
+      throw new Error('Session not initialized. Call initialize() first.');
+    }
+
+    const response = await fetch(`${this.baseUrl}/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'MCP-Session-ID': this.sessionId
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { name: toolName, arguments },
+        id: Date.now()
+      })
+    });
+
+    return await response.json();
+  }
+
+  async terminate() {
+    if (this.sessionId) {
+      await fetch(`${this.baseUrl}/mcp`, {
+        method: 'DELETE',
+        headers: { 'MCP-Session-ID': this.sessionId }
+      });
+      this.sessionId = null;
+    }
+  }
+}
+
+// Usage
+const client = new HulyMCPClient();
+await client.initialize();
+
+const projects = await client.callTool('huly_list_projects');
+console.log(projects);
+
+await client.terminate();
+```
+
+### Batch Operations
+
+```javascript
+// Create multiple issues in parallel using REST API
+async function createMultipleIssues(projectId, issues) {
+  const promises = issues.map(issue =>
+    fetch(`http://localhost:3457/api/tools/huly_create_issue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        arguments: {
+          project_identifier: projectId,
+          ...issue
+        }
+      })
+    }).then(r => r.json())
+  );
+
+  const results = await Promise.all(promises);
+  return results.filter(r => r.success);
+}
+
+// Usage
+const newIssues = [
+  { title: 'Setup authentication', priority: 'high' },
+  { title: 'Create user dashboard', priority: 'medium' },
+  { title: 'Add search functionality', priority: 'low' }
+];
+
+const created = await createMultipleIssues('PROJ', newIssues);
+console.log(`Created ${created.length} issues`);
+```
+
+## Choosing Between REST and MCP
+
+### When to Use REST API
+
+**Best for:**
+- Simple HTTP integrations
+- Web applications and dashboards
+- Batch operations and automation scripts
+- Direct tool execution without session management
+- GET requests for quick data retrieval
+
+**Advantages:**
+- No session management required
+- Standard HTTP status codes and error handling
+- Easy to test with curl or browser
+- Direct tool execution with query parameters
+- Detailed error responses with request IDs
+
+**Example Use Cases:**
+- Building a web dashboard that lists projects and issues
+- Creating automation scripts for bulk issue creation
+- Integrating with existing HTTP-based systems
+- Quick data queries without complex protocol handling
+
+### When to Use MCP Protocol
+
+**Best for:**
+- AI assistant integrations (Claude Code, etc.)
+- Long-running sessions with state management
+- Real-time communication needs
+- Full MCP feature compatibility
+- Claude Code or other MCP clients
+
+**Advantages:**
+- Session persistence and state management
+- Real-time updates via SSE streaming
+- Full MCP protocol compliance
+- Optimized for AI assistant workflows
+- Standardized JSON-RPC 2.0 interface
+
+**Example Use Cases:**
+- Claude Code integration for AI-powered project management
+- Building custom MCP clients
+- Applications requiring session state
+- Real-time collaboration tools
+
+### Performance Comparison
+
+| Feature | REST API | MCP Protocol |
+|---------|----------|--------------|
+| Session Overhead | None | Initial handshake required |
+| Request Latency | Low (direct HTTP) | Low (after session setup) |
+| Batch Operations | Excellent (parallel HTTP) | Good (sequential JSON-RPC) |
+| Memory Usage | Minimal | Session state maintained |
+| Scalability | High (stateless) | Moderate (session-based) |
+| Error Handling | Rich HTTP codes | JSON-RPC error codes |
 
 ## Performance Considerations
 
 ### Connection Management
 
-- Connections to Huly are cached and reused
-- WebSocket connections are maintained for real-time updates
+**REST API:**
+- Stateless connections (no session overhead)
+- HTTP connection pooling for performance
+- Automatic connection cleanup
+
+**MCP Protocol:**
+- Session-based connections with automatic cleanup
+- WebSocket connections for real-time updates
 - Connection failures trigger automatic reconnection
 
 ### Rate Limiting
 
+**REST API:**
+- Built-in rate limiting middleware (configurable)
+- Default: 100 requests per 15-minute window per client
+- Request size limits (10MB default)
+- Custom rate limiting headers in responses
+
+**MCP Protocol:**
 - No explicit rate limiting implemented
 - Huly server may have its own rate limits
 - Use reasonable delays between bulk operations
 
 ### Memory Usage
 
-- Server maintains minimal state
-- Client connections are cleaned up automatically
+**REST API:**
+- Minimal memory footprint (stateless)
+- Request-scoped resource allocation
+- Automatic garbage collection
+
+**MCP Protocol:**
+- Session state maintained in memory
+- Client connections tracked and cleaned up automatically
 - Large result sets are handled efficiently
+
+### Optimization Tips
+
+1. **Use GET endpoints for simple queries** (REST API)
+2. **Batch operations using Promise.all()** for parallel execution
+3. **Implement proper error handling** with retry logic
+4. **Use appropriate request timeouts** for your use case
+5. **Monitor memory usage** for long-running sessions (MCP)
 
 ## Security Considerations
 
@@ -915,12 +1437,89 @@ const mcpResponse = await fetch('http://localhost:3000/mcp', {
 
 2. **Test Network Connectivity**:
    ```bash
+   # Test main health endpoint
+   curl -I http://localhost:3457/health
+
+   # Test REST API health
+   curl http://localhost:3457/api/health
+
+   # Test upstream Huly service
    curl -I $HULY_URL
    ```
 
 3. **Check Server Logs**:
    ```bash
    docker-compose logs huly-mcp
+   ```
+
+### REST API Troubleshooting
+
+1. **Tool Not Found (404)**:
+   ```bash
+   # List available tools first
+   curl http://localhost:3457/api/tools
+
+   # Check tool name spelling
+   curl http://localhost:3457/api/tools/huly_list_projects  # ✓ Correct
+   curl http://localhost:3457/api/tools/list_projects       # ✗ Wrong
+   ```
+
+2. **Validation Errors (400)**:
+   ```bash
+   # Missing required fields
+   curl -X POST http://localhost:3457/api/tools/huly_create_issue \
+     -H "Content-Type: application/json" \
+     -d '{"arguments": {"title": "Test"}}'  # Missing project_identifier
+
+   # Check error response for required fields
+   ```
+
+3. **Rate Limiting (429)**:
+   ```bash
+   # Check rate limit headers in response
+   curl -I http://localhost:3457/api/tools/huly_list_projects
+
+   # X-RateLimit-Remaining: 99
+   # X-RateLimit-Reset: 1703680800
+   ```
+
+4. **Service Errors (500/502)**:
+   ```bash
+   # Check if Huly credentials work
+   curl -X POST http://localhost:3457/api/tools/huly_list_projects \
+     -H "Content-Type: application/json" \
+     -d '{"arguments": {}}'
+
+   # Look for "services" undefined errors - indicates missing Huly auth
+   ```
+
+### MCP Protocol Troubleshooting
+
+1. **Session Issues**:
+   ```bash
+   # Test session initialization
+   curl -X POST http://localhost:3457/mcp \
+     -H "Content-Type: application/json" \
+     -d '{
+       "jsonrpc": "2.0",
+       "method": "initialize",
+       "params": {
+         "protocolVersion": "2025-06-18",
+         "capabilities": {},
+         "clientInfo": {"name": "test", "version": "1.0"}
+       },
+       "id": 1
+     }'
+
+   # Check for MCP-Session-ID header in response
+   ```
+
+2. **Protocol Version Errors**:
+   ```bash
+   # Use correct protocol version
+   curl -X POST http://localhost:3457/mcp \
+     -H "MCP-Protocol-Version: 2025-06-18" \
+     -H "Content-Type: application/json"
    ```
 
 ### Tool Execution Errors

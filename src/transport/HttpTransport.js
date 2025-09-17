@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { BaseTransport } from './BaseTransport.js';
+import { createRestApiRouter } from '../rest/RestApiRouter.js';
 
 /**
  * Simple in-memory event store for SSE recovery
@@ -74,6 +75,9 @@ export class HttpTransport extends BaseTransport {
     this.running = false;
     this.transports = {}; // Session ID -> Transport mapping
     this.logger = options.logger || console;
+
+    // Store options for REST API setup
+    this.options = options;
   }
 
   /**
@@ -117,6 +121,7 @@ export class HttpTransport extends BaseTransport {
     this.app.use(express.urlencoded({ extended: true }));
 
     this.setupRoutes();
+    this.setupRestApi();
 
     return new Promise((resolve, reject) => {
       this.httpServer = this.app.listen(this.port, '0.0.0.0', () => {
@@ -124,6 +129,7 @@ export class HttpTransport extends BaseTransport {
         this.logger.info(`HTTP transport started on port ${this.port}`);
         this.logger.info(`Health check: http://localhost:${this.port}/health`);
         this.logger.info(`MCP endpoint: http://localhost:${this.port}/mcp`);
+        this.logger.info(`REST API: http://localhost:${this.port}/api/tools`);
         this.logger.info('Protocol version: 2025-06-18');
         this.logger.info('Security: Origin validation enabled, DNS rebinding protection active');
         resolve();
@@ -364,5 +370,27 @@ export class HttpTransport extends BaseTransport {
         });
       }
     });
+  }
+
+  /**
+   * Set up REST API routes
+   */
+  setupRestApi() {
+    try {
+      // Create REST API router with the same options used for MCP
+      const restApiRouter = createRestApiRouter({
+        services: this.options.services,
+        hulyClientWrapper: this.options.hulyClientWrapper,
+        logger: this.logger.child('rest-api'),
+      });
+
+      // Mount REST API at /api
+      this.app.use('/api', restApiRouter);
+
+      this.logger.info('REST API routes mounted at /api');
+    } catch (error) {
+      this.logger.error('Failed to setup REST API:', error);
+      throw error;
+    }
   }
 }
