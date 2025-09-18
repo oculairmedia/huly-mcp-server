@@ -39,6 +39,7 @@ class ServiceRegistry {
     this._services = ServiceFactory.createAllServices({
       statusManager,
       logger: this._logger,
+      hulyClientWrapper,
     });
 
     // Validate dependencies are properly wired

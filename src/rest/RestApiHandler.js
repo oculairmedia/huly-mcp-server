@@ -140,7 +140,8 @@ export class RestApiHandler {
 
       // Create execution context
       const context = {
-        ...this.services,
+        client: this.hulyClientWrapper?.getClient?.(),
+        services: this.services,
         hulyClientWrapper: this.hulyClientWrapper,
         logger: this.logger.child(`tool-${toolName}`),
       };

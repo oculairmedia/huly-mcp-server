@@ -93,7 +93,7 @@ export class ServiceFactory {
    * @param {Object} dependencies.logger - Logger instance
    * @returns {Object} Object containing all service instances
    */
-  static createAllServices({ statusManager, logger }) {
+  static createAllServices({ statusManager, logger, hulyClientWrapper }) {
     // Create services in dependency order
     const sequenceService = this.createSequenceService(logger.child('SequenceService'));
     const issueService = this.createIssueService(statusManager, sequenceService);
