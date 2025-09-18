@@ -139,8 +139,9 @@ export class RestApiHandler {
       this.validateToolArguments(toolName, toolArgs);
 
       // Create execution context
+      const client = this.hulyClientWrapper ? await this.hulyClientWrapper.getClient() : null;
       const context = {
-        client: this.hulyClientWrapper?.getClient?.(),
+        client,
         services: this.services,
         hulyClientWrapper: this.hulyClientWrapper,
         logger: this.logger.child(`tool-${toolName}`),
