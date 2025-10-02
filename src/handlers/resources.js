@@ -236,3 +236,17 @@ export function getResourceStats() {
     totalSubscriptions: subscriptions.size,
   };
 }
+
+/**
+ * Get all resource definitions
+ */
+export function getAllResourceDefinitions() {
+  return Array.from(resourceRegistry.values());
+}
+
+/**
+ * Get all resource template definitions
+ */
+export function getAllResourceTemplateDefinitions() {
+  return Array.from(resourceTemplates.values());
+}
