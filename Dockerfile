@@ -1,47 +1,39 @@
-# Use the existing working MCP image as base
-FROM huly-huly-mcp:latest AS working-deps
-
-# Final image
+# Optimized multi-stage build for Huly MCP Server
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json ./
+# Create non-root user FIRST (rarely changes, good for caching)
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
 
-# Copy working node_modules from the existing image
-COPY --from=working-deps /app/node_modules ./node_modules
+# Copy package files with correct ownership (changes infrequently)
+COPY --chown=nodejs:nodejs package.json package-lock.json ./
 
-# Update just the MCP SDK package
-RUN npm install @modelcontextprotocol/sdk@latest --no-save
-
-# Copy source code
-COPY index.js ./
-COPY StatusManager.js ./
-COPY src ./src
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
-
-# Change ownership of app directory
-RUN chown -R nodejs:nodejs /app
+# Switch to non-root user and install dependencies
+# This layer will be cached unless package files change
 USER nodejs
+RUN npm ci --only=production
+
+# Copy source code LAST (changes frequently, won't bust dependency cache)
+COPY --chown=nodejs:nodejs index.js ./
+COPY --chown=nodejs:nodejs StatusManager.js ./
+COPY --chown=nodejs:nodejs src ./src
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3457
 
-# Set default environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV HULY_URL=http://huly-front:8080
-ENV HULY_EMAIL=emanuvaderland@gmail.com
-ENV HULY_PASSWORD=k2a8yy7sFWVZ6eL
-ENV HULY_WORKSPACE=agentspace
+# Set environment variables
+ENV NODE_ENV=production \
+    PORT=3457 \
+    HULY_URL=http://huly-front:8080 \
+    HULY_EMAIL=emanuvaderland@gmail.com \
+    HULY_PASSWORD=k2a8yy7sFWVZ6eL \
+    HULY_WORKSPACE=agentspace
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "const http = require('http'); const options = { hostname: 'localhost', port: process.env.PORT || 3000, path: '/health', method: 'GET' }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => { process.exit(1); }); req.end();"
+  CMD node -e "const http = require('http'); const options = { hostname: 'localhost', port: process.env.PORT || 3457, path: '/health', method: 'GET' }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => { process.exit(1); }); req.end();"
 
 # Default command (HTTP transport)
 CMD ["node", "index.js", "--transport=http"]

@@ -11,13 +11,18 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { BaseTransport } from './BaseTransport.js';
 import { createRestApiRouter } from '../rest/RestApiRouter.js';
+import { RestApiHandler } from '../rest/RestApiHandler.js';
+import { HulyError } from '../core/index.js';
+import { withTimeout } from '../utils/timeoutPromise.js';
 
 /**
- * Simple in-memory event store for SSE recovery
+ * Simple in-memory event store for SSE recovery with bounded memory usage
  */
 class InMemoryEventStore {
-  constructor() {
+  constructor(maxEventsPerStream = 100, maxTotalEvents = 1000) {
     this.events = new Map();
+    this.maxEventsPerStream = maxEventsPerStream;
+    this.maxTotalEvents = maxTotalEvents;
   }
 
   generateEventId(streamId) {
@@ -31,8 +36,41 @@ class InMemoryEventStore {
 
   async storeEvent(streamId, message) {
     const eventId = this.generateEventId(streamId);
-    this.events.set(eventId, { streamId, message });
+    this.events.set(eventId, { streamId, message, timestamp: Date.now() });
+
+    // Enforce per-stream limit
+    this._enforceStreamLimit(streamId);
+
+    // Enforce total event limit
+    this._enforceTotalLimit();
+
     return eventId;
+  }
+
+  _enforceStreamLimit(streamId) {
+    const streamEvents = [...this.events.entries()]
+      .filter(([_, data]) => data.streamId === streamId)
+      .sort((a, b) => b[1].timestamp - a[1].timestamp);
+
+    if (streamEvents.length > this.maxEventsPerStream) {
+      const toDelete = streamEvents.slice(this.maxEventsPerStream);
+      for (const [eventId] of toDelete) {
+        this.events.delete(eventId);
+      }
+    }
+  }
+
+  _enforceTotalLimit() {
+    if (this.events.size <= this.maxTotalEvents) {
+      return;
+    }
+
+    const sortedEvents = [...this.events.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toDelete = sortedEvents.slice(0, sortedEvents.length - this.maxTotalEvents);
+
+    for (const [eventId] of toDelete) {
+      this.events.delete(eventId);
+    }
   }
 
   async replayEventsAfter(lastEventId, { send }) {
@@ -64,6 +102,16 @@ class InMemoryEventStore {
     }
     return streamId;
   }
+
+  clearStream(streamId) {
+    const toDelete = [...this.events.entries()]
+      .filter(([_, data]) => data.streamId === streamId)
+      .map(([eventId]) => eventId);
+
+    for (const eventId of toDelete) {
+      this.events.delete(eventId);
+    }
+  }
 }
 
 export class HttpTransport extends BaseTransport {
@@ -74,10 +122,60 @@ export class HttpTransport extends BaseTransport {
     this.httpServer = null;
     this.running = false;
     this.transports = {}; // Session ID -> Transport mapping
+    this.sessionQueues = new Map(); // Session ID -> queue for serializing POST requests
     this.logger = options.logger || console;
+    if (typeof this.logger.child !== 'function') {
+      this.logger.child = () => this.logger;
+    }
 
     // Store options for REST API setup
     this.options = options;
+    this.toolDefinitions = options.toolDefinitions || [];
+    this.services = options.services || {};
+    this.hulyClientWrapper = options.hulyClientWrapper;
+    this.restApiHandler = new RestApiHandler({
+      services: this.services,
+      hulyClientWrapper: this.hulyClientWrapper,
+      logger: this.logger.child('rest-handler'),
+    });
+
+    // Note: services and hulyClientWrapper are placeholders at startup.
+    // They are updated after background initialization via updateContext().
+  }
+
+  /**
+   * Run a function serialized per-session to avoid concurrent handleRequest calls on the same transport
+   * @param {string} sessionId
+   * @param {() => Promise<any>} fn
+   */
+  async runInSessionQueue(sessionId, fn) {
+    if (!sessionId) {
+      return fn();
+    }
+    let queue = this.sessionQueues.get(sessionId);
+    if (!queue) {
+      // Simple promise chain queue
+      queue = { tail: Promise.resolve() };
+      this.sessionQueues.set(sessionId, queue);
+    }
+    const prev = queue.tail;
+    let resolveNext;
+    const next = new Promise((r) => (resolveNext = r));
+    queue.tail = next;
+    try {
+      await prev; // wait previous task
+      return await fn();
+    } finally {
+      resolveNext();
+      // Cleanup if no further tasks enqueued soon
+      // Defer cleanup slightly to avoid churn
+      setTimeout(() => {
+        const q = this.sessionQueues.get(sessionId);
+        if (q && q.tail === next) {
+          this.sessionQueues.delete(sessionId);
+        }
+      }, 30000).unref?.();
+    }
   }
 
   /**
@@ -91,12 +189,26 @@ export class HttpTransport extends BaseTransport {
 
     this.app = express();
 
+    // Configure allowed origins (env var comma-separated, '*' to allow all)
+    const envAllowed = (process.env.HULY_ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const defaultAllowed = ['http://localhost', 'http://127.0.0.1', 'http://192.168.50.90'];
+    const allowedOrigins = envAllowed.length > 0 ? envAllowed : defaultAllowed;
+    const allowAll = allowedOrigins.includes('*');
+
+    const isOriginAllowed = (origin) => {
+      if (!origin) return true; // allow curl/CLI with no Origin
+      if (origin === 'null') return true; // allow file:// or app-webviews
+      if (allowAll) return true;
+      return allowedOrigins.some((allowed) => origin.startsWith(allowed));
+    };
+
     // Security: Validate Origin header to prevent DNS rebinding attacks
     this.app.use((req, res, next) => {
       const origin = req.headers.origin;
-      const allowedOrigins = ['http://localhost', 'http://127.0.0.1', 'http://192.168.50.90'];
-
-      if (origin && !allowedOrigins.some((allowed) => origin.startsWith(allowed))) {
+      if (!isOriginAllowed(origin)) {
         this.logger.warn(`Blocked request from unauthorized origin: ${origin}`);
         return res.status(403).json({
           jsonrpc: '2.0',
@@ -110,13 +222,24 @@ export class HttpTransport extends BaseTransport {
       next();
     });
 
-    // Middleware
+    // Middleware - CORS configuration for MCP session management
     this.app.use(
       cors({
-        origin: ['http://localhost', 'http://127.0.0.1', 'http://192.168.50.90'],
+        origin: (origin, callback) => {
+          if (isOriginAllowed(origin)) return callback(null, true);
+          return callback(new Error('Not allowed by CORS'));
+        },
         credentials: true,
+        exposedHeaders: ['Mcp-Session-Id'],
+        allowedHeaders: ['Content-Type', 'mcp-session-id', 'mcp-protocol-version'],
+        methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
       })
     );
+
+    // Handle CORS preflight for MCP
+    this.app.options('/mcp', (req, res) => {
+      res.sendStatus(204);
+    });
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true }));
 
@@ -125,6 +248,28 @@ export class HttpTransport extends BaseTransport {
 
     return new Promise((resolve, reject) => {
       this.httpServer = this.app.listen(this.port, '0.0.0.0', () => {
+        // Tune server timeouts for long-lived SSE connections
+        try {
+          const keepAliveMs = parseInt(process.env.HULY_HTTP_KEEPALIVE_MS || '120000', 10);
+          const headersTimeoutMs = parseInt(
+            process.env.HULY_HTTP_HEADERS_TIMEOUT_MS || '130000',
+            10
+          );
+          const requestTimeoutMs =
+            process.env.HULY_HTTP_REQUEST_TIMEOUT_MS !== undefined
+              ? parseInt(process.env.HULY_HTTP_REQUEST_TIMEOUT_MS, 10)
+              : 0; // 0 disables in Node 18+
+
+          if (typeof this.httpServer.setTimeout === 'function') {
+            this.httpServer.setTimeout(0); // Disable legacy inactivity timeout
+          }
+          this.httpServer.requestTimeout = requestTimeoutMs;
+          this.httpServer.keepAliveTimeout = keepAliveMs;
+          this.httpServer.headersTimeout = headersTimeoutMs;
+        } catch (e) {
+          this.logger.warn('Failed to apply HTTP server timeout tuning:', e);
+        }
+
         this.running = true;
         this.logger.info(`HTTP transport started on port ${this.port}`);
         this.logger.info(`Health check: http://localhost:${this.port}/health`);
@@ -244,67 +389,186 @@ export class HttpTransport extends BaseTransport {
 
     // Main MCP endpoint - POST
     this.app.post('/mcp', async (req, res) => {
-      this.logger.info('Received MCP request:', req.body);
+      const method = req.body?.method || 'unknown';
+      const requestId = req.body?.id;
+      this.logger.info(
+        `[MCP-POST] Received request: method=${method}, id=${requestId}, session=${req.headers['mcp-session-id']}`
+      );
+
       try {
         // Check for session ID
         const sessionId = req.headers['mcp-session-id'];
         let transport;
 
+        this.logger.debug(
+          `[MCP-POST] Session check: sessionId=${sessionId}, hasTransport=${!!this.transports[sessionId]}, totalTransports=${Object.keys(this.transports).length}`
+        );
+
         if (sessionId && this.transports[sessionId]) {
           // Reuse existing transport
+          this.logger.debug(`[MCP-POST] Reusing transport for session: ${sessionId}`);
           transport = this.transports[sessionId];
         } else if (!sessionId && isInitializeRequest(req.body)) {
           // New initialization request
+          this.logger.debug('[MCP-POST] Creating new transport for initialization');
           const eventStore = new InMemoryEventStore();
+
+          let sessionResolve;
+          const _sessionInitialized = new Promise((resolve) => {
+            sessionResolve = resolve;
+          });
+
           transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
-            eventStore, // Enable recoverability
+            eventStore,
             onsessioninitialized: (sessionId) => {
-              // Store transport by session ID when initialized
-              this.logger.info(`Session initialized with ID: ${sessionId}`);
+              this.logger.info(`[MCP-POST] Session initialized with ID: ${sessionId}`);
               this.transports[sessionId] = transport;
+              sessionResolve(sessionId);
             },
           });
 
-          // Set onclose handler to clean up transport on closure
           transport.onclose = () => {
             const sid = transport.sessionId;
             if (sid && this.transports[sid]) {
-              this.logger.info(`Transport closed for session ${sid}, removing from transports map`);
+              this.logger.info(
+                `[MCP-POST] Transport closed for session ${sid}, removing from transports map`
+              );
+              eventStore.clearStream(sid);
               delete this.transports[sid];
             }
           };
 
-          // Connect transport to MCP server before handling the request
+          this.logger.debug('[MCP-POST] Connecting transport to MCP server');
           await this.server.connect(transport);
 
-          await transport.handleRequest(req, res, req.body);
-          return; // Already handled
+          this.logger.debug('[MCP-POST] Handling initialization request');
+          const requestTimeout = parseInt(process.env.HULY_MCP_REQUEST_TIMEOUT_MS || '30000', 10);
+          await withTimeout(
+            transport.handleRequest(req, res, req.body),
+            requestTimeout,
+            `MCP initialize request`
+          );
+
+          // Session registration happens in callback, don't wait
+          this.logger.debug(
+            `[MCP-POST] Init request completed, session will register via callback`
+          );
+          return;
+        } else if (sessionId && !this.transports[sessionId]) {
+          // Session ID provided but transport not found - might be expired
+          this.logger.warn(`[MCP-POST] Session not found: ${sessionId}, method=${method}`);
+          res.status(404).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32000,
+              message: 'Session not found. Please re-initialize.',
+            },
+            id: requestId,
+          });
+          return;
         } else {
-          // Invalid request - no session ID or not an initialization request
+          // No session ID and not an initialization request
+          this.logger.warn(
+            `[MCP-POST] Invalid request: method=${method}, hasSessionId=${!!sessionId}, isInit=${isInitializeRequest(req.body)}`
+          );
           res.status(400).json({
             jsonrpc: '2.0',
             error: {
               code: -32000,
-              message: 'Bad Request: No valid session ID provided',
+              message: 'Bad Request: No valid session ID provided or session expired',
             },
-            id: null,
+            id: requestId,
           });
           return;
         }
 
-        // Handle request with existing transport
-        await transport.handleRequest(req, res, req.body);
+        // Handle request with existing transport, serialized per-session to avoid concurrent hangs
+        this.logger.debug(
+          `[MCP-POST] Handling request with existing transport for session: ${sessionId}`
+        );
+        const computeTimeout = (body) => {
+          const base = parseInt(process.env.HULY_MCP_REQUEST_TIMEOUT_MS || '30000', 10);
+          try {
+            const m = body?.method;
+            if (m === 'tools/call') {
+              const toolName = body?.params?.name;
+              if (toolName === 'huly_entity') {
+                const entityType = body?.params?.arguments?.entity_type;
+                const operation = body?.params?.arguments?.operation;
+                if (entityType === 'comment' && operation === 'create') {
+                  return parseInt(process.env.HULY_MCP_TIMEOUT_COMMENT_MS || '120000', 10);
+                }
+              }
+              if (toolName === 'huly_issue_ops') {
+                const operation = body?.params?.arguments?.operation;
+                if (operation === 'update') {
+                  return parseInt(process.env.HULY_MCP_TIMEOUT_ISSUE_UPDATE_MS || '120000', 10);
+                }
+              }
+              if (toolName === 'huly_query') {
+                return parseInt(process.env.HULY_MCP_TIMEOUT_QUERY_MS || base.toString(), 10);
+              }
+            }
+          } catch {
+            // Ignore parsing errors, use base timeout
+          }
+          return base;
+        };
+
+        const requestTimeout = computeTimeout(req.body);
+        this.logger.info(
+          `[MCP-POST] About to queue request: method=${method}, id=${requestId}, timeout=${requestTimeout}ms`
+        );
+
+        // Track timing for queue wait analysis
+        const queueStartTime = Date.now();
+
+        await this.runInSessionQueue(sessionId, async () => {
+          const queueWaitTime = Date.now() - queueStartTime;
+          this.logger.info(
+            `[MCP-POST] Executing queued request: method=${method}, id=${requestId}, queueWaitTime=${queueWaitTime}ms`
+          );
+
+          // Adjust timeout to account for queue wait time
+          // Add buffer (50%) to prevent timeout during normal operation
+          const adjustedTimeout = requestTimeout + queueWaitTime + requestTimeout * 0.5;
+          this.logger.debug(
+            `[MCP-POST] Adjusted timeout: ${adjustedTimeout}ms (original: ${requestTimeout}ms, queueWait: ${queueWaitTime}ms)`
+          );
+
+          await withTimeout(
+            transport.handleRequest(req, res, req.body),
+            adjustedTimeout,
+            `MCP ${method} request`
+          );
+          this.logger.info(
+            `[MCP-POST] Request completed from transport: method=${method}, id=${requestId}`
+          );
+        });
+        this.logger.debug(
+          `[MCP-POST] Request handled successfully: method=${method}, id=${requestId}`
+        );
       } catch (error) {
-        this.logger.error('Error handling MCP request:', error);
+        this.logger.error(
+          `[MCP-POST] ❌ Error handling MCP request: method=${method}, id=${requestId}`,
+          {
+            error: error.message,
+            stack: error.stack,
+            name: error.name,
+            headers: req.headers,
+            body: req.body,
+          }
+        );
         if (!res.headersSent) {
           res.status(500).json({
             jsonrpc: '2.0',
             error: {
               code: -32603,
-              message: 'Internal server error',
+              message: `Internal server error: ${error.message}`,
+              data: { errorType: error.name },
             },
-            id: null,
+            id: requestId || null,
           });
         }
       }
@@ -319,6 +583,7 @@ export class HttpTransport extends BaseTransport {
       }
 
       const transport = this.transports[sessionId];
+      // Do NOT apply a timeout to the SSE stream; it should remain open
       await transport.handleRequest(req, res);
     });
 
@@ -377,11 +642,13 @@ export class HttpTransport extends BaseTransport {
    */
   setupRestApi() {
     try {
-      // Create REST API router with the same options used for MCP
+      // Create REST API router, sharing the same handler instance with HttpTransport
+      // This ensures that when we update the handler context, both use the same instance
       const restApiRouter = createRestApiRouter({
-        services: this.options.services,
-        hulyClientWrapper: this.options.hulyClientWrapper,
+        services: this.services,
+        hulyClientWrapper: this.hulyClientWrapper,
         logger: this.logger.child('rest-api'),
+        handler: this.restApiHandler, // Pass the shared handler instance
       });
 
       // Mount REST API at /api
@@ -392,5 +659,48 @@ export class HttpTransport extends BaseTransport {
       this.logger.error('Failed to setup REST API:', error);
       throw error;
     }
+  }
+
+  /**
+   * Execute a tool via the REST API handler
+   * @param {string} toolName
+   * @param {Object} toolArgs
+   * @returns {Promise<Object>}
+   */
+  async executeTool(toolName, toolArgs = {}) {
+    return this.restApiHandler.executeTool(toolName, toolArgs);
+  }
+
+  /**
+   * Handle errors and format MCP-style responses
+   * @param {Object} res - Express response
+   * @param {Error} error - Error to handle
+   * @param {string|null} id - JSON-RPC id
+   */
+  handleError(res, error, id = null) {
+    if (error instanceof HulyError) {
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message: error.message,
+          data: {
+            errorCode: error.code,
+            details: error.details,
+          },
+        },
+        id,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: error.message || 'Unknown error',
+      },
+      id,
+    });
   }
 }

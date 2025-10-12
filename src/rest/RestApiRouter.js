@@ -17,12 +17,15 @@ export class RestApiRouter {
     // Create router instance
     this.router = express.Router();
 
-    // Initialize handler and middleware
-    this.handler = new RestApiHandler({
-      services: this.services,
-      hulyClientWrapper: this.hulyClientWrapper,
-      logger: this.logger.child('rest-handler'),
-    });
+    // Use provided handler or create a new one
+    // This allows HttpTransport to share its handler instance with the router
+    this.handler =
+      options.handler ||
+      new RestApiHandler({
+        services: this.services,
+        hulyClientWrapper: this.hulyClientWrapper,
+        logger: this.logger.child('rest-handler'),
+      });
 
     this.middleware = new RestApiMiddleware({
       logger: this.logger.child('rest-middleware'),
@@ -43,6 +46,7 @@ export class RestApiRouter {
     // API routes
     this.setupToolRoutes();
     this.setupHealthRoute();
+    this.setupStatusRoute();
 
     // Apply error handling middleware last
     this.router.use(this.middleware.errorHandler());
@@ -145,6 +149,38 @@ export class RestApiRouter {
           version: '1.0',
         },
       });
+    });
+  }
+
+  setupStatusRoute() {
+    this.router.get('/status', async (req, res) => {
+      try {
+        const ready = this.handler.isReady();
+        // Try to probe get_current when ready
+        let probe = null;
+        if (ready) {
+          try {
+            probe = await this.handler.executeTool('huly_account_ops', {
+              operation: 'get_current',
+            });
+          } catch (e) {
+            probe = { error: e.message || String(e) };
+          }
+        }
+        res.json({
+          success: true,
+          data: {
+            ready,
+            toolCount: this.handler.getToolCount(),
+            probe,
+          },
+          metadata: {
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (error) {
+        res.status(200).json({ success: true, data: { ready: false, error: error.message } });
+      }
     });
   }
 
