@@ -1,0 +1,84 @@
+# Multi-stage Dockerfile for Huly MCP Server v0.7
+# Builds SDK packages from Huly platform source and creates MCP server image
+
+# ============================================================================
+# Stage 1: Build Huly SDK packages from source
+# ============================================================================
+FROM node:18-alpine AS huly-sdk-builder
+
+WORKDIR /huly
+
+# Install build dependencies for Huly platform
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git \
+    bash
+
+# Copy Huly platform source
+COPY hully\ source/ ./
+
+# Install rush (Huly uses rushjs for monorepo management)
+RUN npm install -g @microsoft/rush
+
+# Install dependencies and build SDK packages
+RUN rush install && rush build --to @hcengineering/api-client
+
+# ============================================================================
+# Stage 2: Build MCP Server
+# ============================================================================
+FROM node:18-alpine AS mcp-builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Copy built SDK packages from Huly build stage
+COPY --from=huly-sdk-builder /huly/common/temp/node_modules/@hcengineering ./node_modules/@hcengineering
+COPY --from=huly-sdk-builder /huly/packages/*/node_modules/@hcengineering/* ./node_modules/@hcengineering/
+
+# Install remaining dependencies (non-@hcengineering packages)
+RUN npm install --production --legacy-peer-deps
+
+# ============================================================================
+# Stage 3: Final runtime image
+# ============================================================================
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy node_modules with all dependencies
+COPY --from=mcp-builder /app/node_modules ./node_modules
+COPY --from=mcp-builder /app/package.json ./
+
+# Copy application source
+COPY index.js ./
+COPY StatusManager.js ./
+COPY src ./src
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
+# Expose port
+EXPOSE 3000
+
+# Set default environment variables
+ENV NODE_ENV=production \
+    PORT=3000 \
+    HULY_URL=http://nginx \
+    HULY_EMAIL=emanuvaderland@gmail.com \
+    HULY_PASSWORD=k2a8yy7sFWVZ6eL \
+    HULY_WORKSPACE=agentspace
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "const http = require('http'); const options = { hostname: 'localhost', port: process.env.PORT || 3000, path: '/health', method: 'GET' }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => { process.exit(1); }); req.end();"
+
+# Start server
+CMD ["node", "index.js", "--transport=http"]
