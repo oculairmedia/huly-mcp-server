@@ -4,7 +4,7 @@
 # ============================================================================
 # Stage 1: Build Huly SDK packages from source
 # ============================================================================
-FROM node:18-alpine AS huly-sdk-builder
+FROM node:20-alpine AS huly-sdk-builder
 
 WORKDIR /huly
 
@@ -17,12 +17,14 @@ RUN apk add --no-cache \
     bash
 
 # Copy Huly platform source
-COPY hully\ source/ ./
+COPY ["hully source/", "./"]
 
 # Install rush (Huly uses rushjs for monorepo management)
 RUN npm install -g @microsoft/rush
 
 # Install dependencies and build SDK packages
+# Initialize git repo to satisfy Rush's requirement
+RUN git init && git config user.email "build@localhost" && git config user.name "Build" && git add -A && git commit -m "Initial"
 RUN rush install && rush build --to @hcengineering/api-client
 
 # ============================================================================
@@ -35,12 +37,47 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Copy built SDK packages from Huly build stage
-COPY --from=huly-sdk-builder /huly/common/temp/node_modules/@hcengineering ./node_modules/@hcengineering
-COPY --from=huly-sdk-builder /huly/packages/*/node_modules/@hcengineering/* ./node_modules/@hcengineering/
+# Install only non-@hcengineering dependencies first
+# Remove @hcengineering dependencies from package.json before npm install
+RUN node -e "const pkg=require('./package.json'); \
+    const deps=pkg.dependencies||{}; \
+    const newDeps={}; \
+    for(const k in deps){ \
+        if(!k.startsWith('@hcengineering/'))newDeps[k]=deps[k]; \
+    } \
+    pkg.dependencies=newDeps; \
+    require('fs').writeFileSync('./package.json.temp', JSON.stringify(pkg,null,2));" && \
+    mv package.json package.json.orig && \
+    mv package.json.temp package.json && \
+    npm install --production --legacy-peer-deps --ignore-scripts && \
+    mv package.json.orig package.json
 
-# Install remaining dependencies (non-@hcengineering packages)
-RUN npm install --production --legacy-peer-deps
+# Now copy all built SDK packages from Huly build stage
+# Copy packages, plugins, models, and communication packages
+COPY --from=huly-sdk-builder /huly/packages/ ./temp-packages/
+COPY --from=huly-sdk-builder /huly/plugins/ ./temp-plugins/
+COPY --from=huly-sdk-builder /huly/models/ ./temp-models/
+COPY --from=huly-sdk-builder /huly/communication/packages/ ./temp-communication/
+
+# Move packages to node_modules with correct naming
+RUN mkdir -p ./node_modules/@hcengineering && \
+    for dir in ./temp-packages/*/; do \
+        pkg_name=$(basename "$dir"); \
+        mv "$dir" "./node_modules/@hcengineering/$pkg_name"; \
+    done && \
+    for dir in ./temp-plugins/*/; do \
+        pkg_name=$(basename "$dir"); \
+        mv "$dir" "./node_modules/@hcengineering/$pkg_name"; \
+    done && \
+    for dir in ./temp-models/*/; do \
+        pkg_name=$(basename "$dir"); \
+        mv "$dir" "./node_modules/@hcengineering/$pkg_name"; \
+    done && \
+    for dir in ./temp-communication/*/; do \
+        pkg_name=$(basename "$dir"); \
+        mv "$dir" "./node_modules/@hcengineering/communication-$pkg_name"; \
+    done && \
+    rm -rf ./temp-*
 
 # ============================================================================
 # Stage 3: Final runtime image

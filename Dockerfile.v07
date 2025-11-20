@@ -1,0 +1,102 @@
+# Single-stage Dockerfile for Huly MCP Server v0.7
+# Builds SDK from source and runs MCP server in same image
+# This approach preserves Rush/pnpm symlinks for proper dependency resolution
+
+FROM node:20-alpine
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git \
+    bash
+
+# Build Huly SDK from source
+WORKDIR /huly
+
+# Copy Huly platform source
+COPY ["hully source/", "./"]
+
+# Install Rush (Huly's monorepo build tool)
+RUN npm install -g @microsoft/rush
+
+# Initialize git repo (required by Rush for build cache)
+RUN git init && \
+    git config user.email "build@localhost" && \
+    git config user.name "Build" && \
+    git add -A && \
+    git commit -m "Initial commit"
+
+# Build ALL SDK packages (simplest and most reliable approach)
+RUN rush install && rush build
+
+# Install MCP Server application
+WORKDIR /app
+
+# Copy MCP server files
+COPY package.json package-lock.json ./
+COPY index.js ./
+COPY StatusManager.js ./
+COPY src ./src
+
+# Install only non-@hcengineering dependencies
+# Remove @hcengineering packages from package.json before npm install
+RUN node -e "const pkg=require('./package.json'); \
+    const deps=pkg.dependencies||{}; \
+    const newDeps={}; \
+    for(const k in deps){ \
+        if(!k.startsWith('@hcengineering/'))newDeps[k]=deps[k]; \
+    } \
+    pkg.dependencies=newDeps; \
+    require('fs').writeFileSync('./package.json', JSON.stringify(pkg,null,2));" && \
+    npm install --production --legacy-peer-deps --ignore-scripts
+
+# Create symlinks from /app/node_modules/@hcengineering to /huly packages
+# This allows the app to require('@hcengineering/package') normally
+RUN mkdir -p /app/node_modules/@hcengineering && \
+    cd /huly/packages && \
+    for dir in */; do \
+        pkg=$(basename "$dir"); \
+        ln -sf "/huly/packages/$pkg" "/app/node_modules/@hcengineering/$pkg"; \
+    done && \
+    cd /huly/plugins && \
+    for dir in */; do \
+        pkg=$(basename "$dir"); \
+        ln -sf "/huly/plugins/$pkg" "/app/node_modules/@hcengineering/$pkg"; \
+    done && \
+    cd /huly/models && \
+    for dir in */; do \
+        pkg=$(basename "$dir"); \
+        ln -sf "/huly/models/$pkg" "/app/node_modules/@hcengineering/$pkg"; \
+    done && \
+    cd /huly/communication/packages && \
+    for dir in */; do \
+        pkg=$(basename "$dir"); \
+        ln -sf "/huly/communication/packages/$pkg" "/app/node_modules/@hcengineering/communication-$pkg"; \
+    done
+
+# Create non-root user (chown only /app, /huly stays as root since it's read-only)
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
+# Environment variables
+ENV NODE_ENV=production \
+    PORT=3000 \
+    HULY_URL=http://nginx \
+    HULY_EMAIL=emanuvaderland@gmail.com \
+    HULY_PASSWORD=k2a8yy7sFWVZ6eL \
+    HULY_WORKSPACE=agentspace
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "const http = require('http'); const options = { hostname: 'localhost', port: process.env.PORT || 3000, path: '/health', method: 'GET' }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => { process.exit(1); }); req.end();"
+
+# Start MCP server
+CMD ["node", "index.js", "--transport=http"]
