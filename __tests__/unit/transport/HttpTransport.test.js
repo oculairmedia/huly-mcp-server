@@ -644,5 +644,4 @@ describe('HttpTransport Tests', () => {
       await expect(transport.executeTool('unknown_tool', {})).rejects.toThrow('Invalid value');
     });
   });
-
 });
