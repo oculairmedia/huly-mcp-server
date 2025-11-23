@@ -37,19 +37,16 @@ async function getLogger() {
 
 /**
  * Tool categories to load
- *
- * Using consolidated multifunction tools to reduce context burden and improve
- * agent response quality. This reduces from 42 individual tools to ~8 consolidated tools.
  */
 const TOOL_CATEGORIES = [
-  'query', // Universal query engine (list/search/get for all entities)
-  'issue_ops', // Issue operations hub (create/update/delete + bulk operations)
-  'template_ops', // Template operations
-  'workflow', // Workflow orchestrator
-  'entity', // Universal entity manager
-  'account_ops', // Account operations
-  'validate', // Validation engine
-  'integration', // Integration hub
+  'query',
+  'issue_ops',
+  'template_ops',
+  'workflow',
+  'entity',
+  'account_ops',
+  'validate',
+  'integration',
 ];
 
 /**
