@@ -121,12 +121,18 @@ export class HttpTransport extends BaseTransport {
     this.app = null;
     this.httpServer = null;
     this.running = false;
-    this.transports = {}; // Session ID -> Transport mapping
+    this.transports = {}; // Session ID -> { transport, lastActivity, createdAt } mapping
     this.sessionQueues = new Map(); // Session ID -> queue for serializing POST requests
+    this.cleanupInterval = null; // Interval for cleaning up stale sessions
     this.logger = options.logger || console;
     if (typeof this.logger.child !== 'function') {
       this.logger.child = () => this.logger;
     }
+
+    // Session TTL configuration (default 2 hours)
+    this.sessionTTLMs = parseInt(process.env.HULY_SESSION_TTL_MS || '7200000', 10);
+    // Cleanup interval (default 5 minutes)
+    this.cleanupIntervalMs = parseInt(process.env.HULY_SESSION_CLEANUP_INTERVAL_MS || '300000', 10);
 
     // Store options for REST API setup
     this.options = options;
@@ -141,6 +147,136 @@ export class HttpTransport extends BaseTransport {
 
     // Note: services and hulyClientWrapper are placeholders at startup.
     // They are updated after background initialization via updateContext().
+  }
+
+  /**
+   * Get transport data for a session, updating lastActivity
+   * @param {string} sessionId
+   * @returns {Object|null} transport object or null if not found
+   */
+  getTransport(sessionId) {
+    const data = this.transports[sessionId];
+    if (data) {
+      data.lastActivity = Date.now();
+      return data.transport;
+    }
+    return null;
+  }
+
+  /**
+   * Store a transport with metadata
+   * @param {string} sessionId
+   * @param {Object} transport
+   */
+  setTransport(sessionId, transport) {
+    const now = Date.now();
+    this.transports[sessionId] = {
+      transport,
+      createdAt: now,
+      lastActivity: now,
+    };
+  }
+
+  /**
+   * Remove a transport
+   * @param {string} sessionId
+   */
+  removeTransport(sessionId) {
+    delete this.transports[sessionId];
+  }
+
+  /**
+   * Check if a transport exists
+   * @param {string} sessionId
+   * @returns {boolean}
+   */
+  hasTransport(sessionId) {
+    return !!this.transports[sessionId];
+  }
+
+  /**
+   * Get count of active transports
+   * @returns {number}
+   */
+  getTransportCount() {
+    return Object.keys(this.transports).length;
+  }
+
+  /**
+   * Clean up stale sessions that have been idle longer than TTL
+   */
+  cleanupStaleSessions() {
+    const now = Date.now();
+    const staleSessionIds = [];
+
+    for (const [sessionId, data] of Object.entries(this.transports)) {
+      const idleTime = now - data.lastActivity;
+      if (idleTime > this.sessionTTLMs) {
+        staleSessionIds.push({ sessionId, idleTime, createdAt: data.createdAt });
+      }
+    }
+
+    if (staleSessionIds.length > 0) {
+      this.logger.info(
+        `[Session Cleanup] Found ${staleSessionIds.length} stale sessions to clean up`
+      );
+
+      for (const { sessionId, idleTime } of staleSessionIds) {
+        try {
+          const data = this.transports[sessionId];
+          if (data && data.transport && data.transport.onclose) {
+            data.transport.onclose();
+          }
+          this.removeTransport(sessionId);
+          this.logger.info(
+            `[Session Cleanup] Removed stale session ${sessionId} (idle for ${Math.round(idleTime / 1000 / 60)} minutes)`
+          );
+        } catch (error) {
+          this.logger.error(`[Session Cleanup] Error cleaning up session ${sessionId}:`, error);
+          // Still remove it to prevent memory leak
+          this.removeTransport(sessionId);
+        }
+      }
+    }
+
+    // Log current transport count periodically
+    const currentCount = this.getTransportCount();
+    if (currentCount > 0) {
+      this.logger.debug(`[Session Cleanup] Active sessions: ${currentCount}`);
+    }
+  }
+
+  /**
+   * Start the session cleanup interval
+   */
+  startCleanupInterval() {
+    if (this.cleanupInterval) {
+      return;
+    }
+
+    this.logger.info(
+      `[Session Cleanup] Starting cleanup interval (TTL: ${this.sessionTTLMs / 1000 / 60} min, interval: ${this.cleanupIntervalMs / 1000 / 60} min)`
+    );
+
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupStaleSessions();
+    }, this.cleanupIntervalMs);
+
+    // Don't prevent Node from exiting
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
+  }
+
+  /**
+   * Stop the session cleanup interval
+   */
+  stopCleanupInterval() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      this.logger.info('[Session Cleanup] Stopped cleanup interval');
+    }
   }
 
   /**
@@ -271,10 +407,12 @@ export class HttpTransport extends BaseTransport {
         }
 
         this.running = true;
+        this.startCleanupInterval();
         this.logger.info(`HTTP transport started on port ${this.port}`);
         this.logger.info(`Health check: http://localhost:${this.port}/health`);
         this.logger.info(`MCP endpoint: http://localhost:${this.port}/mcp`);
         this.logger.info(`REST API: http://localhost:${this.port}/api/tools`);
+        this.logger.info(`Metrics: http://localhost:${this.port}/metrics`);
         this.logger.info('Protocol version: 2025-06-18');
         this.logger.info('Security: Origin validation enabled, DNS rebinding protection active');
         resolve();
@@ -296,12 +434,15 @@ export class HttpTransport extends BaseTransport {
       return;
     }
 
+    // Stop cleanup interval
+    this.stopCleanupInterval();
+
     // Clean up all transports
-    for (const [sessionId, transport] of Object.entries(this.transports)) {
+    for (const [sessionId, data] of Object.entries(this.transports)) {
       try {
         this.logger.info(`Cleaning up session: ${sessionId}`);
-        if (transport.onclose) {
-          transport.onclose();
+        if (data.transport && data.transport.onclose) {
+          data.transport.onclose();
         }
       } catch (error) {
         this.logger.error(`Error cleaning up session ${sessionId}:`, error);
@@ -356,12 +497,49 @@ export class HttpTransport extends BaseTransport {
         service: 'huly-mcp-server',
         transport: 'streamable_http',
         protocol_version: '2025-06-18',
-        sessions: Object.keys(this.transports).length,
+        sessions: this.getTransportCount(),
         uptime: process.uptime(),
         timestamp: new Date().toISOString(),
         security: {
           origin_validation: true,
           localhost_binding: true,
+        },
+      });
+    });
+
+    // Metrics endpoint for monitoring
+    this.app.get('/metrics', (req, res) => {
+      const now = Date.now();
+      const sessions = [];
+
+      for (const [sessionId, data] of Object.entries(this.transports)) {
+        sessions.push({
+          sessionId: `${sessionId.substring(0, 8)}...`, // Truncate for privacy
+          idleSeconds: Math.round((now - data.lastActivity) / 1000),
+          ageSeconds: Math.round((now - data.createdAt) / 1000),
+        });
+      }
+
+      // Sort by idle time descending
+      sessions.sort((a, b) => b.idleSeconds - a.idleSeconds);
+
+      res.json({
+        service: 'huly-mcp-server',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: {
+          heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+          rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
+        },
+        sessions: {
+          count: this.getTransportCount(),
+          ttlMinutes: Math.round(this.sessionTTLMs / 1000 / 60),
+          cleanupIntervalMinutes: Math.round(this.cleanupIntervalMs / 1000 / 60),
+          details: sessions,
+        },
+        queues: {
+          count: this.sessionQueues.size,
         },
       });
     });
@@ -401,13 +579,13 @@ export class HttpTransport extends BaseTransport {
         let transport;
 
         this.logger.debug(
-          `[MCP-POST] Session check: sessionId=${sessionId}, hasTransport=${!!this.transports[sessionId]}, totalTransports=${Object.keys(this.transports).length}`
+          `[MCP-POST] Session check: sessionId=${sessionId}, hasTransport=${this.hasTransport(sessionId)}, totalTransports=${this.getTransportCount()}`
         );
 
-        if (sessionId && this.transports[sessionId]) {
-          // Reuse existing transport
+        if (sessionId && this.hasTransport(sessionId)) {
+          // Reuse existing transport (also updates lastActivity)
           this.logger.debug(`[MCP-POST] Reusing transport for session: ${sessionId}`);
-          transport = this.transports[sessionId];
+          transport = this.getTransport(sessionId);
         } else if (!sessionId && isInitializeRequest(req.body)) {
           // New initialization request
           this.logger.debug('[MCP-POST] Creating new transport for initialization');
@@ -423,19 +601,19 @@ export class HttpTransport extends BaseTransport {
             eventStore,
             onsessioninitialized: (sessionId) => {
               this.logger.info(`[MCP-POST] Session initialized with ID: ${sessionId}`);
-              this.transports[sessionId] = transport;
+              this.setTransport(sessionId, transport);
               sessionResolve(sessionId);
             },
           });
 
           transport.onclose = () => {
             const sid = transport.sessionId;
-            if (sid && this.transports[sid]) {
+            if (sid && this.hasTransport(sid)) {
               this.logger.info(
                 `[MCP-POST] Transport closed for session ${sid}, removing from transports map`
               );
               eventStore.clearStream(sid);
-              delete this.transports[sid];
+              this.removeTransport(sid);
             }
           };
 
@@ -455,7 +633,7 @@ export class HttpTransport extends BaseTransport {
             `[MCP-POST] Init request completed, session will register via callback`
           );
           return;
-        } else if (sessionId && !this.transports[sessionId]) {
+        } else if (sessionId && !this.hasTransport(sessionId)) {
           // Session ID provided but transport not found - might be expired
           this.logger.warn(`[MCP-POST] Session not found: ${sessionId}, method=${method}`);
           res.status(404).json({
@@ -578,11 +756,11 @@ export class HttpTransport extends BaseTransport {
     this.app.get('/mcp', async (req, res) => {
       const sessionId = req.headers['mcp-session-id'];
 
-      if (!sessionId || !this.transports[sessionId]) {
+      if (!sessionId || !this.hasTransport(sessionId)) {
         return res.status(400).send('Session ID required');
       }
 
-      const transport = this.transports[sessionId];
+      const transport = this.getTransport(sessionId);
       // Do NOT apply a timeout to the SSE stream; it should remain open
       await transport.handleRequest(req, res);
     });
@@ -601,7 +779,7 @@ export class HttpTransport extends BaseTransport {
         });
       }
 
-      if (!this.transports[sessionId]) {
+      if (!this.hasTransport(sessionId)) {
         return res.status(404).json({
           jsonrpc: '2.0',
           error: {
@@ -613,11 +791,11 @@ export class HttpTransport extends BaseTransport {
 
       try {
         // Clean up the session
-        const transport = this.transports[sessionId];
-        if (transport.onclose) {
-          transport.onclose();
+        const data = this.transports[sessionId];
+        if (data && data.transport && data.transport.onclose) {
+          data.transport.onclose();
         }
-        delete this.transports[sessionId];
+        this.removeTransport(sessionId);
 
         this.logger.info(`Session ${sessionId} terminated by client`);
         res.status(200).json({
