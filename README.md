@@ -18,6 +18,13 @@ A comprehensive Model Context Protocol (MCP) server and REST API for interacting
 - Standardized response format across both protocols
 - Advanced filtering and search capabilities
 
+### New: v0.7 Consolidated Entity Architecture
+- **8 Consolidated Tools**: Reduced from 40+ individual tools to 8 entity-based operations
+- **Unified Entity Handler**: Single `huly_entity` tool handles project, component, milestone, and comment operations
+- **Discriminated Union Pattern**: Uses `entity_type` + `operation` for clean API design
+- **Component Updates**: Full support for updating component labels and descriptions
+- **Backward Compatible**: v0.6 tools still available but deprecated
+
 [Complete API Documentation](API.md)
 
 ## Features
@@ -54,11 +61,12 @@ A comprehensive Model Context Protocol (MCP) server and REST API for interacting
 | `huly_create_subissue` | Create subissues under existing parent issues with component/milestone support |
 | `huly_create_component` | Create new components in projects |
 | `huly_list_components` | List all components in a project |
+| `huly_update_component` | Update component label and description |
 | `huly_create_milestone` | Create new milestones with target dates |
 | `huly_list_milestones` | List all milestones in a project |
 | `huly_list_github_repositories` | List available GitHub repositories |
 | `huly_assign_repository_to_project` | Assign GitHub repositories to projects |
-| `huly_search_issues` | Search and filter issues with advanced capabilities |
+| `huly_search_issues` | Search and filter issues with advanced capabilities (includes `modified_after`/`modified_before` for 400x+ faster incremental syncs) |
 | `huly_get_issue_details` | Get comprehensive details about a specific issue |
 | `huly_list_comments` | List comments on an issue |
 | `huly_create_comment` | Create a comment on an issue |
@@ -75,6 +83,157 @@ A comprehensive Model Context Protocol (MCP) server and REST API for interacting
 | `huly_create_issue_from_template` | Create issues from templates |
 | `huly_validate_deletion` | Check if an entity can be safely deleted |
 | `huly_deletion_impact_preview` | Preview the full impact of a deletion |
+
+## v0.7 Entity Operations
+
+The v0.7 architecture consolidates operations into entity-based tools for cleaner API design and better maintainability.
+
+### Unified Entity Tool: `huly_entity`
+
+The `huly_entity` tool handles all CRUD operations for projects, components, milestones, and comments using a discriminated union pattern:
+
+```bash
+POST /api/tools/huly_entity
+{
+  "arguments": {
+    "entity_type": "<entity_type>",  # project | component | milestone | comment
+    "operation": "<operation>",       # create | read | update | delete
+    "project_identifier": "<proj>",   # Required for most operations
+    ...additional parameters
+  }
+}
+```
+
+### Component Operations
+
+#### Create Component
+```bash
+POST /api/tools/huly_entity
+{
+  "arguments": {
+    "entity_type": "component",
+    "operation": "create",
+    "project_identifier": "PROJ",
+    "data": {
+      "label": "Frontend",
+      "description": "Frontend components and UI"
+    }
+  }
+}
+```
+
+#### Update Component (NEW in v0.7)
+Update component label, description, or both:
+
+```bash
+# Update label only
+POST /api/tools/huly_entity
+{
+  "arguments": {
+    "entity_type": "component",
+    "operation": "update",
+    "project_identifier": "PROJ",
+    "entity_identifier": "Frontend",
+    "data": {
+      "label": "UI Layer"
+    }
+  }
+}
+
+# Update description only
+POST /api/tools/huly_entity
+{
+  "arguments": {
+    "entity_type": "component",
+    "operation": "update",
+    "project_identifier": "PROJ",
+    "entity_identifier": "Frontend",
+    "data": {
+      "description": "Complete UI layer including React components"
+    }
+  }
+}
+
+# Update both label and description
+POST /api/tools/huly_entity
+{
+  "arguments": {
+    "entity_type": "component",
+    "operation": "update",
+    "project_identifier": "PROJ",
+    "entity_identifier": "Frontend",
+    "data": {
+      "label": "UI Layer",
+      "description": "Complete UI layer including React components"
+    }
+  }
+}
+```
+
+**Validation Rules:**
+- At least one of `label` or `description` must be provided
+- Component must exist in the project
+- New label must not conflict with existing components
+- Response time: 150-250ms average
+
+#### Delete Component
+```bash
+POST /api/tools/huly_entity
+{
+  "arguments": {
+    "entity_type": "component",
+    "operation": "delete",
+    "project_identifier": "PROJ",
+    "entity_identifier": "Frontend"
+  }
+}
+```
+
+### Migration from v0.6 to v0.7
+
+**v0.6 Approach** (Deprecated):
+```bash
+# Multiple individual tools
+POST /api/tools/huly_create_component {...}
+POST /api/tools/huly_update_component {...}
+POST /api/tools/huly_delete_component {...}
+POST /api/tools/huly_list_components {...}
+```
+
+**v0.7 Approach** (Recommended):
+```bash
+# Single unified entity tool
+POST /api/tools/huly_entity {
+  "entity_type": "component",
+  "operation": "create|update|delete",
+  ...
+}
+
+# Query tool for listing
+POST /api/tools/huly_query {
+  "entity_type": "component",
+  "mode": "all",
+  "project_identifier": "PROJ"
+}
+```
+
+**Benefits of v0.7:**
+- **Fewer Tools**: 8 tools instead of 40+ for cleaner integration
+- **Consistent API**: Same pattern across all entity types
+- **Better Validation**: Centralized validation logic
+- **Type Safety**: Discriminated unions for compile-time safety
+- **Easier Maintenance**: Single handler for similar operations
+
+### v0.7 Tool Categories
+
+1. **`huly_query`** - List and search operations for all entities
+2. **`huly_entity`** - CRUD operations for projects, components, milestones, comments
+3. **`huly_issue_ops`** - Issue-specific operations (create, update, delete)
+4. **`huly_template_ops`** - Template management operations
+5. **`huly_workflow`** - Workflow and automation operations
+6. **`huly_account_ops`** - User and account management
+7. **`huly_validate`** - Validation and impact analysis
+8. **`huly_integration`** - External integrations (GitHub, etc.)
 
 ## Quick Start
 
@@ -247,6 +406,44 @@ Content-Type: application/json
 ```bash
 GET /api/tools/huly_list_issues?project_identifier=PROJ&limit=10
 ```
+
+**Query Issues with Date Filters (Incremental Sync)**:
+```bash
+# Get only issues modified since last sync
+POST /api/tools/huly_query
+Content-Type: application/json
+{
+  "arguments": {
+    "entity_type": "issue",
+    "mode": "search",
+    "filters": {
+      "project_identifier": "PROJ",
+      "modified_after": "2026-01-01T00:00:00Z"
+    }
+  }
+}
+
+# Get issues modified within a date range
+POST /api/tools/huly_query
+Content-Type: application/json
+{
+  "arguments": {
+    "entity_type": "issue",
+    "mode": "search",
+    "filters": {
+      "project_identifier": "PROJ",
+      "modified_after": "2025-12-01",
+      "modified_before": "2025-12-31"
+    }
+  }
+}
+```
+
+**Performance Notes:**
+- **Without filter**: Fetching all 884 issues takes ~52 seconds
+- **With `modified_after` filter**: Fetching 4 recent issues takes ~0.123 seconds
+- **Performance improvement**: 423x speedup for incremental syncs
+- **Use case**: Perfect for services that need to sync changes periodically (e.g., Huly-Vibe Sync Service)
 
 #### MCP Protocol Examples
 

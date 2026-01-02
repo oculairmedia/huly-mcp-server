@@ -8,7 +8,7 @@
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { createHulyClient } from './src/core/index.js';
+import { createHulyClientPool } from './src/core/index.js';
 import { ServiceRegistry } from './src/services/index.js';
 import { createMCPHandler } from './src/protocol/index.js';
 import { getAllToolDefinitions } from './src/tools/index.js';
@@ -48,7 +48,8 @@ class HulyMCPServer {
 
     this.logger.info('Initializing Huly MCP Server');
 
-    this.hulyClientWrapper = createHulyClient(this.configManager.getHulyConfig());
+    // Use connection pool for better concurrency (5 parallel connections)
+    this.hulyClientWrapper = createHulyClientPool(this.configManager.getHulyConfig(), 5);
 
     const hulyConfig = this.configManager.getHulyConfig();
     this.logger.debug('Huly client configured', {

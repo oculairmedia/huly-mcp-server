@@ -121,7 +121,9 @@ export class DeletionService {
       force = false,
       dryRun = false,
       continueOnError = true,
-      batchSize = 10,
+      batchSize = 5, // Reduced from 10 for better performance
+      batchDelay = 500, // Delay between batches (ms)
+      itemDelay = 100, // Delay between items within a batch (ms)
     } = options;
 
     const results = {
@@ -131,36 +133,53 @@ export class DeletionService {
       skipped: [],
     };
 
-    // Process in batches
+    // Helper function for delays
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // Process in batches - SEQUENTIALLY within batches to avoid overwhelming transactor
     for (let i = 0; i < issueIdentifiers.length; i += batchSize) {
       const batch = issueIdentifiers.slice(i, i + batchSize);
+      const batchNum = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(issueIdentifiers.length / batchSize);
 
-      await Promise.all(
-        batch.map(async (identifier) => {
-          try {
-            const result = await this.deleteIssue(client, identifier, {
-              cascade,
-              force,
-              dryRun,
-            });
+      console.log(`[DeletionService] Processing batch ${batchNum}/${totalBatches} (${batch.length} items)`);
 
-            if (dryRun) {
-              results.skipped.push({ identifier, preview: result });
-            } else {
-              results.succeeded.push({ identifier });
-            }
-          } catch (error) {
-            results.failed.push({
-              identifier,
-              error: error.message,
-            });
+      // Process items SEQUENTIALLY within batch to prevent transactor overload
+      for (const identifier of batch) {
+        try {
+          const result = await this.deleteIssue(client, identifier, {
+            cascade,
+            force,
+            dryRun,
+          });
 
-            if (!continueOnError) {
-              throw error;
-            }
+          if (dryRun) {
+            results.skipped.push({ identifier, preview: result });
+          } else {
+            results.succeeded.push({ identifier });
           }
-        })
-      );
+        } catch (error) {
+          results.failed.push({
+            identifier,
+            error: error.message,
+          });
+
+          if (!continueOnError) {
+            throw error;
+          }
+        }
+
+        // Small delay between items to give transactor breathing room
+        if (itemDelay > 0) {
+          await delay(itemDelay);
+        }
+      }
+
+      // Delay between batches to allow transactor to process and recover
+      if (i + batchSize < issueIdentifiers.length && batchDelay > 0) {
+        console.log(`[DeletionService] Batch ${batchNum} complete, waiting ${batchDelay}ms before next batch...`);
+        await delay(batchDelay);
+      }
     }
 
     return {

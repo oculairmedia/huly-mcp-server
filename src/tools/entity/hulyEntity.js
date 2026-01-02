@@ -68,6 +68,22 @@ const ComponentCreateDataSchema = {
   additionalProperties: false,
 };
 
+const ComponentUpdateDataSchema = {
+  type: 'object',
+  properties: {
+    label: {
+      type: 'string',
+      description: 'New component label',
+    },
+    description: {
+      type: 'string',
+      description: 'New component description',
+    },
+  },
+  minProperties: 1,
+  additionalProperties: false,
+};
+
 const MilestoneCreateDataSchema = {
   type: 'object',
   properties: {
@@ -204,28 +220,30 @@ export const definition = {
         enum: ['project', 'component', 'milestone', 'comment'],
         description:
           'Entity type to target. Supported operations by entity:\n' +
-          "- project: create, read, update, archive, delete\n" +
-          "- component: create, read, delete\n" +
-          "- milestone: create, read, delete\n" +
-          "- comment: create",
+          '- project: create, read, update, archive, delete\n' +
+          '- component: create, read, update, delete\n' +
+          '- milestone: create, read, delete\n' +
+          '- comment: create',
       },
       operation: {
         type: 'string',
         enum: ['create', 'read', 'update', 'archive', 'delete'],
         description:
           'Operation to perform. Required fields vary per entity type:\n' +
-          "- project create: data\n" +
-          "- project read/archive/delete: project_identifier\n" +
-          "- project update: project_identifier, data\n" +
-          "- component create: project_identifier, data\n" +
-          "- component read/delete: project_identifier, entity_identifier\n" +
-          "- milestone create: project_identifier, data\n" +
-          "- milestone read/delete: project_identifier, entity_identifier\n" +
-          "- comment create: issue_identifier, data",
+          '- project create: data\n' +
+          '- project read/archive/delete: project_identifier\n' +
+          '- project update: project_identifier, data\n' +
+          '- component create: project_identifier, data\n' +
+          '- component read/delete: project_identifier, entity_identifier\n' +
+          '- component update: project_identifier, entity_identifier, data\n' +
+          '- milestone create: project_identifier, data\n' +
+          '- milestone read/delete: project_identifier, entity_identifier\n' +
+          '- comment create: issue_identifier, data',
       },
       project_identifier: {
         type: 'string',
-        description: 'Target project identifier (required for most component/milestone operations and project read/archive/delete).',
+        description:
+          'Target project identifier (required for most component/milestone operations and project read/archive/delete).',
       },
       entity_identifier: {
         type: 'string',
@@ -237,17 +255,18 @@ export const definition = {
       },
       data: {
         description:
-          'Payload used for create/update operations. For project create see definitions.ProjectCreateData, for project update see definitions.ProjectUpdateData, for components see definitions.ComponentCreateData, for milestones see definitions.MilestoneCreateData, for comments see definitions.CommentCreateData.',
+          'Payload used for create/update operations. For project create see definitions.ProjectCreateData, for project update see definitions.ProjectUpdateData, for components see definitions.ComponentCreateData and ComponentUpdateData, for milestones see definitions.MilestoneCreateData, for comments see definitions.CommentCreateData.',
         oneOf: [
           ProjectCreateDataSchema,
           ProjectUpdateDataSchema,
           ComponentCreateDataSchema,
+          ComponentUpdateDataSchema,
           MilestoneCreateDataSchema,
           CommentCreateDataSchema,
           {
             type: 'string',
             description:
-              'JSON string representing one of: ProjectCreateData, ProjectUpdateData, ComponentCreateData, MilestoneCreateData, CommentCreateData.',
+              'JSON string representing one of: ProjectCreateData, ProjectUpdateData, ComponentCreateData, ComponentUpdateData, MilestoneCreateData, CommentCreateData.',
           },
         ],
       },
@@ -268,6 +287,7 @@ export const definition = {
       ProjectCreateData: ProjectCreateDataSchema,
       ProjectUpdateData: ProjectUpdateDataSchema,
       ComponentCreateData: ComponentCreateDataSchema,
+      ComponentUpdateData: ComponentUpdateDataSchema,
       MilestoneCreateData: MilestoneCreateDataSchema,
       CommentCreateData: CommentCreateDataSchema,
       DeletionOptions: DeletionOptionsSchema,
@@ -335,6 +355,18 @@ const ENTITY_OPERATIONS = {
       }
 
       return formatComponent(component);
+    },
+    async update(args, context) {
+      const { client, services } = context;
+      const { projectService } = services;
+      const { label, description } = args.data;
+      return projectService.updateComponent(
+        client,
+        args.project_identifier,
+        args.entity_identifier, // current label
+        label, // new label (optional)
+        description // new description (optional)
+      );
     },
     async delete(args, context) {
       const { client, services } = context;
@@ -460,7 +492,12 @@ export function validate(args) {
     }
   };
   const requireDataField = (field, message) => {
-    if (!args.data || args.data[field] === undefined || args.data[field] === null || args.data[field] === '') {
+    if (
+      !args.data ||
+      args.data[field] === undefined ||
+      args.data[field] === null ||
+      args.data[field] === ''
+    ) {
       errors[`data.${field}`] = message;
     }
   };
@@ -474,13 +511,17 @@ export function validate(args) {
           requireDataField('name', 'name is required when creating a project');
         }
       } else if (operation === 'update') {
-        requireField('project_identifier', 'project_identifier is required when updating a project');
+        requireField(
+          'project_identifier',
+          'project_identifier is required when updating a project'
+        );
         if (!args.data) {
           errors.data = 'data is required when updating a project';
         } else {
           // At least one field must be provided
           if (!args.data.name && !args.data.description) {
-            errors.data = 'At least one of name or description must be provided when updating a project';
+            errors.data =
+              'At least one of name or description must be provided when updating a project';
           }
         }
       } else {
@@ -498,8 +539,28 @@ export function validate(args) {
         } else {
           requireDataField('label', 'label is required when creating a component');
         }
+      } else if (operation === 'update') {
+        requireField(
+          'project_identifier',
+          'project_identifier is required when updating a component'
+        );
+        requireField(
+          'entity_identifier',
+          'entity_identifier (current label) is required when updating a component'
+        );
+        if (!args.data) {
+          errors.data = 'data is required when updating a component';
+        } else {
+          if (!args.data.label && args.data.description === undefined) {
+            errors.data =
+              'At least one of label or description must be provided when updating a component';
+          }
+        }
       } else {
-        requireField('project_identifier', `${operation} requires project_identifier for components`);
+        requireField(
+          'project_identifier',
+          `${operation} requires project_identifier for components`
+        );
         requireField('entity_identifier', `${operation} requires entity_identifier for components`);
       }
       break;
@@ -516,7 +577,10 @@ export function validate(args) {
           requireDataField('target_date', 'target_date is required when creating a milestone');
         }
       } else {
-        requireField('project_identifier', `${operation} requires project_identifier for milestones`);
+        requireField(
+          'project_identifier',
+          `${operation} requires project_identifier for milestones`
+        );
         requireField('entity_identifier', `${operation} requires entity_identifier for milestones`);
       }
       break;

@@ -10,10 +10,13 @@ import { OPERATION_TIMEOUT } from '../core/constants.js';
 
 /**
  * Configuration for bulk operations
+ * NOTE: Conservative defaults to prevent overwhelming the Huly transactor
  */
 const DEFAULT_CONFIG = {
-  batchSize: 25,
-  batchDelay: 100, // ms between batches
+  batchSize: 10, // Increased - 5 transactors can handle more
+  batchDelay: 200, // ms between batches (reduced - more capacity now)
+  itemDelay: 50, // ms between items within a batch
+  parallelWithinBatch: true, // Enable parallel processing with 5 transactors
   enableProgress: true,
   enableTransactions: true,
   continueOnError: true, // Continue processing even if some items fail
@@ -173,12 +176,16 @@ export class BulkOperationService {
    */
   async _processBatch(batch, operation, operationState, options) {
     const batchResults = [];
+    const itemDelay = options?.itemDelay ?? this.config.itemDelay ?? 50;
+    const parallelWithinBatch = options?.parallelWithinBatch ?? this.config.parallelWithinBatch ?? false;
 
-    // If continueOnError is false, process sequentially to stop on first error
-    if (options && !options.continueOnError) {
-      for (const item of batch) {
+    // Sequential processing (DEFAULT - safer for transactor)
+    // Process items one at a time with optional delay between them
+    if (!parallelWithinBatch || (options && !options.continueOnError)) {
+      for (let i = 0; i < batch.length; i++) {
+        const item = batch[i];
         try {
-          const result = await operation(item, batch.indexOf(item));
+          const result = await operation(item, i);
           operationState.succeeded++;
           batchResults.push({ success: true, item, result });
         } catch (error) {
@@ -189,12 +196,23 @@ export class BulkOperationService {
             stack: error.stack,
           });
           batchResults.push({ success: false, item, error: error.message });
-          // Stop processing remaining items in batch
-          break;
+          
+          // Stop processing remaining items in batch if continueOnError is false
+          if (options && !options.continueOnError) {
+            break;
+          }
+        }
+
+        // Add delay between items (except for last item)
+        if (itemDelay > 0 && i < batch.length - 1) {
+          await this._delay(itemDelay);
         }
       }
     } else {
-      // Process items in parallel within the batch
+      // Parallel processing within batch (USE WITH CAUTION)
+      // Only use this when you know the transactor can handle the load
+      this.logger.warn('Using parallel processing within batch - this may overwhelm transactor');
+      
       const promises = batch.map(async (item, index) => {
         try {
           const result = await operation(item, index);

@@ -9,11 +9,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json ./
 
-# Copy working node_modules from the existing image
+# Copy working node_modules from the existing image (don't update dependencies)
 COPY --from=working-deps /app/node_modules ./node_modules
-
-# Update just the MCP SDK package
-RUN npm install @modelcontextprotocol/sdk@latest --no-save
 
 # Copy source code
 COPY index.js ./

@@ -22,6 +22,14 @@ const RETRY_CONFIG = {
 };
 
 /**
+ * Configuration for concurrency control
+ */
+const CONCURRENCY_CONFIG = {
+  maxConcurrent: 5, // Max concurrent requests
+  queueTimeout: 60000, // 60 second queue timeout
+};
+
+/**
  * HulyClient class for managing connections to the Huly platform
  */
 export class HulyClient {
@@ -40,6 +48,10 @@ export class HulyClient {
     this.isConnecting = false;
     this.retryCount = 0;
     this.lastConnectionError = null;
+    
+    // Concurrency control
+    this.activeRequests = 0;
+    this.requestQueue = [];
   }
 
   /**
@@ -229,29 +241,77 @@ export class HulyClient {
    * @param {number} maxRetries - Maximum number of retries
    * @returns {Promise<*>} Result of the function
    */
-  async withClient(fn, maxRetries = 1) {
-    let lastError;
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const client = await this.getClient();
-        return await fn(client);
-      } catch (error) {
-        lastError = error;
-
-        // Check if error is connection-related
-        if (this._isConnectionError(error) && attempt < maxRetries) {
-          console.log(
-            `Operation failed due to connection error, reconnecting (attempt ${attempt + 1}/${maxRetries})...`
-          );
-          await this.reconnect();
-        } else {
-          throw error;
-        }
-      }
+  /**
+   * Acquire a slot from the concurrency semaphore
+   * @private
+   */
+  async _acquireSlot() {
+    if (this.activeRequests < CONCURRENCY_CONFIG.maxConcurrent) {
+      this.activeRequests++;
+      return;
     }
 
-    throw lastError;
+    // Wait in queue for a slot
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        const idx = this.requestQueue.indexOf(resolver);
+        if (idx > -1) this.requestQueue.splice(idx, 1);
+        reject(new Error('Request queue timeout - too many concurrent requests'));
+      }, CONCURRENCY_CONFIG.queueTimeout);
+
+      const resolver = () => {
+        clearTimeout(timeout);
+        this.activeRequests++;
+        resolve();
+      };
+
+      this.requestQueue.push(resolver);
+    });
+  }
+
+  /**
+   * Release a slot back to the concurrency semaphore
+   * @private
+   */
+  _releaseSlot() {
+    this.activeRequests--;
+    if (this.requestQueue.length > 0 && this.activeRequests < CONCURRENCY_CONFIG.maxConcurrent) {
+      const next = this.requestQueue.shift();
+      next();
+    }
+  }
+
+  async withClient(fn, maxRetries = 1) {
+    // Acquire concurrency slot before executing
+    await this._acquireSlot();
+    
+    let lastError;
+
+    try {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const client = await this.getClient();
+          return await fn(client);
+        } catch (error) {
+          lastError = error;
+
+          // Check if error is connection-related
+          if (this._isConnectionError(error) && attempt < maxRetries) {
+            console.log(
+              `Operation failed due to connection error, reconnecting (attempt ${attempt + 1}/${maxRetries})...`
+            );
+            await this.reconnect();
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      throw lastError;
+    } finally {
+      // Always release the slot
+      this._releaseSlot();
+    }
   }
 
   /**

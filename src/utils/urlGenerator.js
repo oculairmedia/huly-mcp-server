@@ -4,13 +4,36 @@
  * Generates URLs for Huly entities like issues, projects, etc.
  */
 
-import { ConfigManager } from '../config/ConfigManager.js';
+import { getConfigManager } from '../config/ConfigManager.js';
 
 export class URLGenerator {
   constructor() {
-    this.config = new ConfigManager();
-    this.baseUrl = this.config.config.huly.url;
-    this.workspace = this.config.config.huly.workspace;
+    // Use the singleton ConfigManager to avoid creating multiple instances
+    this.configManager = null; // Lazy load to avoid startup issues
+  }
+
+  /**
+   * Get config lazily to avoid startup timing issues
+   */
+  _getConfig() {
+    if (!this.configManager) {
+      this.configManager = getConfigManager();
+    }
+    return this.configManager.config;
+  }
+
+  /**
+   * Get the base URL for generating user-facing links
+   */
+  get baseUrl() {
+    return this._getConfig().huly.publicUrl;
+  }
+
+  /**
+   * Get the workspace name
+   */
+  get workspace() {
+    return this._getConfig().huly.workspace;
   }
 
   /**

@@ -46,7 +46,7 @@ class IssueService {
   /**
    * List issues in a project
    */
-  async listIssues(client, projectIdentifier, limit = DEFAULTS.LIST_LIMIT) {
+  async listIssues(client, projectIdentifier, limit = DEFAULTS.LIST_LIMIT, includeDescriptions = true) {
     const project = await client.findOne(tracker.class.Project, { identifier: projectIdentifier });
 
     if (!project) {
@@ -70,6 +70,13 @@ class IssueService {
     const componentMap = new Map(components.map((c) => [c._id, c]));
     const milestoneMap = new Map(milestones.map((m) => [m._id, m]));
 
+    // Batch fetch all assignees upfront to avoid N+1 queries
+    const assigneeIds = [...new Set(issues.map((i) => i.assignee).filter(Boolean))];
+    const assignees = assigneeIds.length > 0
+      ? await client.findAll(core.class.Account, { _id: { $in: assigneeIds } })
+      : [];
+    const assigneeMap = new Map(assignees.map((a) => [a._id, a]));
+
     let result = `Found ${issues.length} issues in ${project.name}:\n\n`;
 
     for (const issue of issues) {
@@ -92,9 +99,9 @@ class IssueService {
       const priorityName = priorityNames[issue.priority] || 'Not set';
       result += `   Priority: ${priorityName}\n`;
 
-      // Resolve assignee
+      // Resolve assignee from map (already batch-fetched)
       if (issue.assignee) {
-        const assignee = await client.findOne(core.class.Account, { _id: issue.assignee });
+        const assignee = assigneeMap.get(issue.assignee);
         result += `   Assignee: ${assignee?.email || 'Unknown'}\n`;
       }
 
@@ -110,8 +117,8 @@ class IssueService {
         result += `   Milestone: ${milestone?.label || 'Unknown'}\n`;
       }
 
-      // Add description preview if available
-      if (issue.description) {
+      // Add description preview if available (only if includeDescriptions=true)
+      if (includeDescriptions && issue.description) {
         try {
           const descText = await this._extractDescription(client, issue);
           if (descText && descText.trim()) {
@@ -264,6 +271,7 @@ class IssueService {
       doneState: null,
       dueTo: null,
       attachedTo: tracker.ids.NoParent,
+      parents: [], // Empty array for top-level issues (required for OnIssueUpdate trigger)
       comments: 0,
       subIssues: 0,
       estimation: 0,
@@ -703,6 +711,20 @@ class IssueService {
       }
     }
 
+    // Build the parents array - this is required for Huly's OnIssueUpdate trigger
+    // to work correctly (updateIssueParentEstimations iterates over parents)
+    const parentInfo = {
+      parentId: parentIssue._id,
+      parentTitle: parentIssue.title,
+      space: parentIssue.space,
+      identifier: parentIssue.identifier,
+    };
+
+    // If parent has its own parents, include them in the hierarchy
+    const parentsArray = parentIssue.parents && Array.isArray(parentIssue.parents)
+      ? [...parentIssue.parents, parentInfo]
+      : [parentInfo];
+
     const issueData = {
       title,
       description: description || '', // Use provided description or empty string
@@ -717,6 +739,7 @@ class IssueService {
       doneState: null,
       dueTo: null,
       attachedTo: parentIssue._id, // Link to parent
+      parents: parentsArray, // Parent hierarchy for OnIssueUpdate trigger
       comments: 0,
       subIssues: 0,
       estimation: 0,
@@ -821,11 +844,16 @@ class IssueService {
       };
     }
 
+    const authorIds = [...new Set(comments.map((c) => c.createdBy).filter(Boolean))];
+    const authors = authorIds.length > 0
+      ? await client.findAll(core.class.Account, { _id: { $in: authorIds } })
+      : [];
+    const authorMap = new Map(authors.map((a) => [a._id, a]));
+
     let result = `Found ${comments.length} comments on issue ${issueIdentifier}:\n\n`;
 
     for (const comment of comments) {
-      // Get author information
-      const author = await client.findOne(core.class.Account, { _id: comment.createdBy });
+      const author = authorMap.get(comment.createdBy);
       const authorName = author?.email || 'Unknown';
 
       // Format timestamp
@@ -914,7 +942,7 @@ class IssueService {
   /**
    * Get detailed information about an issue
    */
-  async getIssueDetails(client, issueIdentifier) {
+  async getIssueDetails(client, issueIdentifier, includeDescriptions = true) {
     // Find the issue
     const issue = await client.findOne(tracker.class.Issue, { identifier: issueIdentifier });
 
@@ -995,9 +1023,9 @@ class IssueService {
     result += `**Comments**: ${issue.comments || 0}\n`;
     result += `**Sub-issues**: ${issue.subIssues || 0}\n`;
 
-    // Full description
+    // Full description (only if includeDescriptions=true)
     result += '\n## Description\n\n';
-    if (issue.description) {
+    if (includeDescriptions && issue.description) {
       try {
         const descText = await this._extractDescription(client, issue);
         result += descText || 'No description provided.';
@@ -1005,6 +1033,8 @@ class IssueService {
         console.error('Error extracting description:', error);
         result += 'Error loading description.';
       }
+    } else if (!includeDescriptions) {
+      result += '(Description omitted - use includeDescriptions=true to fetch full description)';
     } else {
       result += 'No description provided.';
     }
@@ -1024,8 +1054,14 @@ class IssueService {
     );
 
     if (comments.length > 0) {
+      const commentAuthorIds = [...new Set(comments.map((c) => c.createdBy).filter(Boolean))];
+      const commentAuthors = commentAuthorIds.length > 0
+        ? await client.findAll(core.class.Account, { _id: { $in: commentAuthorIds } })
+        : [];
+      const commentAuthorMap = new Map(commentAuthors.map((a) => [a._id, a]));
+
       for (const comment of comments) {
-        const author = await client.findOne(core.class.Account, { _id: comment.createdBy });
+        const author = commentAuthorMap.get(comment.createdBy);
         const timestamp = new Date(comment.createdOn).toLocaleString();
         result += `### ${author?.email || 'Unknown'} - ${timestamp}\n`;
 
@@ -1085,7 +1121,7 @@ class IssueService {
   /**
    * Search for issues with filters
    */
-  async searchIssues(client, args) {
+  async searchIssues(client, args, includeDescriptions = true) {
     // Normalize date inputs
     const normalizedArgs = {
       ...args,
@@ -1308,7 +1344,7 @@ class IssueService {
       issues = issues.filter((issue) => milestoneIds.includes(issue.milestone));
     }
 
-    // Text search in title and description
+    // Text search in title and description (only search description if includeDescriptions=true)
     if (query) {
       const queryLower = query.toLowerCase();
       const filteredIssues = [];
@@ -1320,8 +1356,8 @@ class IssueService {
           continue;
         }
 
-        // Check description
-        if (issue.description) {
+        // Check description (only if includeDescriptions=true)
+        if (includeDescriptions && issue.description) {
           try {
             const descText = await this._extractDescription(client, issue);
             if (descText && descText.toLowerCase().includes(queryLower)) {

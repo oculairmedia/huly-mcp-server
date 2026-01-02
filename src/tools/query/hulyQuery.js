@@ -32,6 +32,10 @@ const ListOptionsSchema = {
       type: 'boolean',
       description: 'Whether to include verbose entity details when available',
     },
+    include_descriptions: {
+      type: 'boolean',
+      description: 'Whether to include issue descriptions (default: true). Set to false for 80-90% token reduction.',
+    },
   },
   additionalProperties: false,
 };
@@ -230,7 +234,8 @@ const HANDLERS = {
       const { client, services } = context;
       const { issueService } = services;
       const limit = normalizeLimit(args.options);
-      return issueService.listIssues(client, args.project_identifier, limit);
+      const includeDescriptions = args.options?.include_descriptions ?? true;
+      return issueService.listIssues(client, args.project_identifier, limit, includeDescriptions);
     },
     async search(args, context) {
       const { client, services } = context;
@@ -240,12 +245,14 @@ const HANDLERS = {
       if (limit) {
         filters.limit = limit;
       }
-      return issueService.searchIssues(client, filters);
+      const includeDescriptions = args.options?.include_descriptions ?? true;
+      return issueService.searchIssues(client, filters, includeDescriptions);
     },
     async get(args, context) {
       const { client, services } = context;
       const { issueService } = services;
-      return issueService.getIssueDetails(client, args.issue_identifier);
+      const includeDescriptions = args.options?.include_descriptions ?? true;
+      return issueService.getIssueDetails(client, args.issue_identifier, includeDescriptions);
     },
   },
   template: {

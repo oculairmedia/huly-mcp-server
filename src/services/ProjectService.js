@@ -218,6 +218,73 @@ export class ProjectService {
     };
   }
 
+  async updateComponent(client, projectIdentifier, currentLabel, newLabel, newDescription) {
+    const project = await this.findProject(client, projectIdentifier);
+
+    const component = await client.findOne(tracker.class.Component, {
+      space: project._id,
+      label: currentLabel,
+    });
+
+    if (!component) {
+      throw HulyError.notFound('Component', currentLabel);
+    }
+
+    if (newLabel && newLabel !== currentLabel) {
+      const existingComponent = await client.findOne(tracker.class.Component, {
+        space: project._id,
+        label: newLabel,
+      });
+
+      if (existingComponent) {
+        throw HulyError.duplicate('Component', newLabel);
+      }
+    }
+
+    const updates = {};
+    if (newLabel && newLabel !== currentLabel) {
+      updates.label = newLabel;
+    }
+    if (newDescription !== undefined && newDescription !== component.description) {
+      updates.description = newDescription;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `ℹ️  No changes needed for component "${currentLabel}" in project ${projectIdentifier}`,
+          },
+        ],
+      };
+    }
+
+    await client.updateDoc(tracker.class.Component, component.space, component._id, updates);
+
+    let result = `✅ Updated component "${currentLabel}"`;
+    if (newLabel && newLabel !== currentLabel) {
+      result += ` → "${newLabel}"`;
+    }
+    result += ` in project ${projectIdentifier}\n\n`;
+
+    if (updates.label) {
+      result += `New label: ${updates.label}\n`;
+    }
+    if (updates.description !== undefined) {
+      result += `New description: ${updates.description || '(empty)'}\n`;
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: result,
+        },
+      ],
+    };
+  }
+
   /**
    * Create a milestone in a project
    * @param {Object} client - Huly client instance

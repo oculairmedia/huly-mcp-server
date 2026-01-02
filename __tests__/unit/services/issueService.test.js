@@ -159,7 +159,7 @@ describe('IssueService Tests', () => {
   });
 
   describe('createIssue', () => {
-    test('should create issue with default values', async () => {
+    test('should create issue with default values and empty parents array', async () => {
       const mockProject = {
         _id: 'proj1',
         identifier: 'TEST',
@@ -184,7 +184,15 @@ describe('IssueService Tests', () => {
 
       expect(result.content[0].text).toContain('TEST-6');
       expect(result.content[0].text).toContain('New Issue');
-      expect(mockClient.addCollection.getCalls().length).toBeGreaterThan(0);
+
+      const addCalls = mockClient.addCollection.getCalls();
+      expect(addCalls.length).toBeGreaterThan(0);
+
+      // Verify parents array is set to empty array for top-level issues
+      // This is critical for OnIssueUpdate trigger to work correctly
+      expect(addCalls[0][5].parents).toBeDefined();
+      expect(Array.isArray(addCalls[0][5].parents)).toBe(true);
+      expect(addCalls[0][5].parents).toHaveLength(0);
     });
 
     test('should validate priority', async () => {
@@ -249,14 +257,16 @@ describe('IssueService Tests', () => {
   });
 
   describe('createSubissue', () => {
-    test('should create subissue with parent link', async () => {
+    test('should create subissue with parent link and parents array', async () => {
       const mockParentIssue = {
         _id: 'parent-id',
         identifier: 'TEST-1',
+        title: 'Parent Issue Title',
         space: 'proj1',
         component: 'comp1',
         milestone: 'mile1',
         subIssues: 2,
+        parents: [], // Parent has no parents (top-level issue)
       };
 
       const mockProject = {
@@ -297,12 +307,80 @@ describe('IssueService Tests', () => {
       expect(addCalls[0][5].component).toBe('comp1'); // inherited from parent
       expect(addCalls[0][5].milestone).toBe('mile1'); // inherited from parent
 
+      // Verify parents array is correctly populated (critical for OnIssueUpdate trigger)
+      expect(addCalls[0][5].parents).toBeDefined();
+      expect(Array.isArray(addCalls[0][5].parents)).toBe(true);
+      expect(addCalls[0][5].parents).toHaveLength(1);
+      expect(addCalls[0][5].parents[0]).toEqual({
+        parentId: 'parent-id',
+        parentTitle: 'Parent Issue Title',
+        space: 'proj1',
+        identifier: 'TEST-1',
+      });
+
       // Verify parent's subIssues count was updated
       const updateCalls = mockClient.updateDoc.getCalls();
       expect(updateCalls.length).toBe(1);
       expect(updateCalls[0][1]).toBe('proj1');
       expect(updateCalls[0][2]).toBe('parent-id');
       expect(updateCalls[0][3]).toEqual({ subIssues: 3 });
+    });
+
+    test('should inherit parent hierarchy in parents array for nested subissues', async () => {
+      // When creating a sub-sub-issue, parents array should include entire hierarchy
+      const mockGrandparentInfo = {
+        parentId: 'grandparent-id',
+        parentTitle: 'Grandparent Issue',
+        space: 'proj1',
+        identifier: 'TEST-1',
+      };
+
+      const mockParentIssue = {
+        _id: 'parent-id',
+        identifier: 'TEST-2',
+        title: 'Parent Issue Title',
+        space: 'proj1',
+        component: 'comp1',
+        milestone: 'mile1',
+        subIssues: 0,
+        parents: [mockGrandparentInfo], // Parent already has a parent
+      };
+
+      const mockProject = {
+        _id: 'proj1',
+        identifier: 'TEST',
+        name: 'Test Project',
+      };
+
+      const mockStatus = {
+        _id: 'status-backlog',
+        name: 'Backlog',
+        space: 'proj1',
+      };
+      mockClient.findAll.mockResolvedValueOnce([mockStatus]);
+
+      mockClient.findOne
+        .mockResolvedValueOnce(mockParentIssue)
+        .mockResolvedValueOnce(mockProject)
+        .mockResolvedValueOnce({ number: 20 });
+
+      mockClient.addCollection.mockResolvedValueOnce('sub-sub-issue-id');
+      mockClient.updateDoc.mockResolvedValueOnce();
+
+      await service.createSubissue(mockClient, 'TEST-2', 'Sub-subissue Title');
+
+      const addCalls = mockClient.addCollection.getCalls();
+      const parentsArray = addCalls[0][5].parents;
+
+      // Should have both grandparent and parent in hierarchy
+      expect(parentsArray).toHaveLength(2);
+      expect(parentsArray[0]).toEqual(mockGrandparentInfo);
+      expect(parentsArray[1]).toEqual({
+        parentId: 'parent-id',
+        parentTitle: 'Parent Issue Title',
+        space: 'proj1',
+        identifier: 'TEST-2',
+      });
     });
 
     test('should create subissue with description', async () => {

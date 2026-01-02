@@ -27,6 +27,8 @@ export class ConfigManager {
       // Huly connection configuration
       huly: {
         url: process.env.HULY_URL || 'https://pm.oculair.ca',
+        // Public URL for generating user-facing links (falls back to HULY_URL if not set)
+        publicUrl: process.env.HULY_PUBLIC_URL || process.env.HULY_URL || 'https://pm.oculair.ca',
         email: process.env.HULY_EMAIL || process.env.HULY_MCP_EMAIL,
         password: process.env.HULY_PASSWORD || process.env.HULY_MCP_PASSWORD,
         workspace: process.env.HULY_WORKSPACE || process.env.HULY_MCP_WORKSPACE,

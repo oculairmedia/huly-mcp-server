@@ -811,3 +811,11 @@ export class ReleaseManagerWizard extends WizardPrompt {
 
 // Export for use in prompt registry
 export const releaseManagerWizard = new ReleaseManagerWizard();
+
+/**
+ * Register prompts for auto-loading
+ * @param {PromptRegistry} registry - The prompt registry instance
+ */
+export async function registerPrompts(registry) {
+  registry.register(releaseManagerWizard);
+}
