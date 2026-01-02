@@ -6,7 +6,8 @@
 
 import express from 'express';
 import cors from 'cors';
-import { randomUUID } from 'crypto';
+import compression from 'compression';
+import { randomUUID, createHash } from 'crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { BaseTransport } from './BaseTransport.js';
@@ -376,6 +377,49 @@ export class HttpTransport extends BaseTransport {
     this.app.options('/mcp', (req, res) => {
       res.sendStatus(204);
     });
+
+    // HULLY-234: gzip compression for responses > 1KB
+    this.app.use(
+      compression({
+        level: 6,
+        threshold: 1024,
+        filter: (req, res) => {
+          if (req.headers.accept === 'text/event-stream') return false;
+          return compression.filter(req, res);
+        },
+      })
+    );
+
+    // HULLY-246: timing headers + HULLY-237: ETag support
+    this.app.use((req, res, next) => {
+      const startTime = process.hrtime.bigint();
+      const requestId = req.headers['x-request-id'] || randomUUID();
+      req.requestId = requestId;
+
+      const originalJson = res.json.bind(res);
+
+      res.json = function (data) {
+        const endTime = process.hrtime.bigint();
+        const durationMs = Number(endTime - startTime) / 1_000_000;
+
+        res.setHeader('X-Response-Time', `${durationMs.toFixed(2)}ms`);
+        res.setHeader('X-Request-Id', requestId);
+
+        const content = JSON.stringify(data);
+        const etag = `"${createHash('md5').update(content).digest('hex')}"`;
+        res.setHeader('ETag', etag);
+
+        const ifNoneMatch = req.headers['if-none-match'];
+        if (ifNoneMatch === etag) {
+          return res.status(304).end();
+        }
+
+        return originalJson(data);
+      };
+
+      next();
+    });
+
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true }));
 

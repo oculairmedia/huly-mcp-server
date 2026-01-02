@@ -41,13 +41,76 @@ class IssueService {
   constructor(statusManager = null, sequenceService = null) {
     this.statusManager = statusManager;
     this.sequenceService = sequenceService;
+
+    // HULLY-235: Metadata cache with 5-minute TTL
+    this._metadataCache = new Map();
+    this._cacheTTLMs = 5 * 60 * 1000;
   }
 
-  /**
-   * List issues in a project
-   */
-  async listIssues(client, projectIdentifier, limit = DEFAULTS.LIST_LIMIT, includeDescriptions = true) {
-    const project = await client.findOne(tracker.class.Project, { identifier: projectIdentifier });
+  _getCacheKey(type, identifier) {
+    return `${type}:${identifier}`;
+  }
+
+  _isCacheValid(cached) {
+    return cached && Date.now() - cached.timestamp < this._cacheTTLMs;
+  }
+
+  async _getCachedProject(client, identifier) {
+    const cacheKey = this._getCacheKey('project', identifier);
+    const cached = this._metadataCache.get(cacheKey);
+
+    if (this._isCacheValid(cached)) {
+      return cached.data;
+    }
+
+    const project = await client.findOne(tracker.class.Project, { identifier });
+    if (project) {
+      this._metadataCache.set(cacheKey, { data: project, timestamp: Date.now() });
+    }
+    return project;
+  }
+
+  async _getCachedComponents(client, projectId) {
+    const cacheKey = this._getCacheKey('components', projectId);
+    const cached = this._metadataCache.get(cacheKey);
+
+    if (this._isCacheValid(cached)) {
+      return cached.data;
+    }
+
+    const components = await client.findAll(tracker.class.Component, { space: projectId });
+    this._metadataCache.set(cacheKey, { data: components, timestamp: Date.now() });
+    return components;
+  }
+
+  async _getCachedMilestones(client, projectId) {
+    const cacheKey = this._getCacheKey('milestones', projectId);
+    const cached = this._metadataCache.get(cacheKey);
+
+    if (this._isCacheValid(cached)) {
+      return cached.data;
+    }
+
+    const milestones = await client.findAll(tracker.class.Milestone, { space: projectId });
+    this._metadataCache.set(cacheKey, { data: milestones, timestamp: Date.now() });
+    return milestones;
+  }
+
+  invalidateCache(type = null, identifier = null) {
+    if (type && identifier) {
+      this._metadataCache.delete(this._getCacheKey(type, identifier));
+    } else {
+      this._metadataCache.clear();
+    }
+  }
+
+  async listIssues(
+    client,
+    projectIdentifier,
+    limit = DEFAULTS.LIST_LIMIT,
+    includeDescriptions = true
+  ) {
+    const project = await this._getCachedProject(client, projectIdentifier);
 
     if (!project) {
       throw HulyError.notFound('project', projectIdentifier);
@@ -62,20 +125,21 @@ class IssueService {
       }
     );
 
-    // Fetch all components and milestones for this project to resolve references
-    const components = await client.findAll(tracker.class.Component, { space: project._id });
-    const milestones = await client.findAll(tracker.class.Milestone, { space: project._id });
+    const components = await this._getCachedComponents(client, project._id);
+    const milestones = await this._getCachedMilestones(client, project._id);
 
-    // Create lookup maps for efficient access
     const componentMap = new Map(components.map((c) => [c._id, c]));
     const milestoneMap = new Map(milestones.map((m) => [m._id, m]));
 
     // Batch fetch all assignees upfront to avoid N+1 queries
     const assigneeIds = [...new Set(issues.map((i) => i.assignee).filter(Boolean))];
-    const assignees = assigneeIds.length > 0
-      ? await client.findAll(core.class.Account, { _id: { $in: assigneeIds } })
-      : [];
+    const assignees =
+      assigneeIds.length > 0
+        ? await client.findAll(core.class.Account, { _id: { $in: assigneeIds } })
+        : [];
     const assigneeMap = new Map(assignees.map((a) => [a._id, a]));
+
+    const descriptionMap = await this._fetchDescriptionsBatch(client, issues, includeDescriptions);
 
     let result = `Found ${issues.length} issues in ${project.name}:\n\n`;
 
@@ -86,7 +150,6 @@ class IssueService {
         result += `   🔗 ${issueUrl}\n`;
       }
 
-      // Use StatusManager to display human-readable status
       try {
         const humanStatus = this.statusManager.toHumanStatus(issue.status);
         const statusDescription = this.statusManager.getStatusDescription(issue.status);
@@ -99,34 +162,26 @@ class IssueService {
       const priorityName = priorityNames[issue.priority] || 'Not set';
       result += `   Priority: ${priorityName}\n`;
 
-      // Resolve assignee from map (already batch-fetched)
       if (issue.assignee) {
         const assignee = assigneeMap.get(issue.assignee);
         result += `   Assignee: ${assignee?.email || 'Unknown'}\n`;
       }
 
-      // Resolve component
       if (issue.component) {
         const component = componentMap.get(issue.component);
         result += `   Component: ${component?.label || 'Unknown'}\n`;
       }
 
-      // Resolve milestone
       if (issue.milestone) {
         const milestone = milestoneMap.get(issue.milestone);
         result += `   Milestone: ${milestone?.label || 'Unknown'}\n`;
       }
 
-      // Add description preview if available (only if includeDescriptions=true)
       if (includeDescriptions && issue.description) {
-        try {
-          const descText = await this._extractDescription(client, issue);
-          if (descText && descText.trim()) {
-            const preview = descText.length > 100 ? `${descText.substring(0, 100)}...` : descText;
-            result += `   Description: ${preview}\n`;
-          }
-        } catch (error) {
-          console.error('Error extracting description:', error);
+        const descText = descriptionMap.get(issue._id) || '';
+        if (descText.trim()) {
+          const preview = descText.length > 100 ? `${descText.substring(0, 100)}...` : descText;
+          result += `   Description: ${preview}\n`;
         }
       }
 
@@ -158,7 +213,7 @@ class IssueService {
     // Validate priority
     priority = validateEnum(priority, 'priority', getValidPriorities(), 'NoPriority');
 
-    const project = await client.findOne(tracker.class.Project, { identifier: projectIdentifier });
+    const project = await this._getCachedProject(client, projectIdentifier);
 
     if (!project) {
       throw HulyError.notFound('project', projectIdentifier);
@@ -213,48 +268,25 @@ class IssueService {
     }
     const identifier = `${project.identifier}-${number}`;
 
-    // Resolve component if provided
     let componentId = null;
     if (component) {
-      const components = await client.findAll(tracker.class.Component, {
-        space: project._id,
-      });
-
-      // Use fuzzy matching to find the best match
+      const components = await this._getCachedComponents(client, project._id);
       const normalizedComponent = normalizeLabel(component, components);
-
-      // Find component by normalized label
-      const foundComponent = await client.findOne(tracker.class.Component, {
-        space: project._id,
-        label: normalizedComponent,
-      });
-
+      const foundComponent = components.find((c) => c.label === normalizedComponent);
       if (foundComponent) {
         componentId = foundComponent._id;
       }
-      // If not found, componentId remains null
     }
 
-    // Resolve milestone if provided
     let milestoneId = null;
     if (milestone) {
-      const milestones = await client.findAll(tracker.class.Milestone, {
-        space: project._id,
-      });
+      const milestones = await this._getCachedMilestones(client, project._id);
 
-      // Use fuzzy matching to find the best match
       const normalizedMilestone = normalizeLabel(milestone, milestones);
-
-      // Find milestone by normalized label
-      const foundMilestone = await client.findOne(tracker.class.Milestone, {
-        space: project._id,
-        label: normalizedMilestone,
-      });
-
+      const foundMilestone = milestones.find((m) => m.label === normalizedMilestone);
       if (foundMilestone) {
         milestoneId = foundMilestone._id;
       }
-      // If not found, milestoneId remains null
     }
 
     const issueData = {
@@ -721,9 +753,10 @@ class IssueService {
     };
 
     // If parent has its own parents, include them in the hierarchy
-    const parentsArray = parentIssue.parents && Array.isArray(parentIssue.parents)
-      ? [...parentIssue.parents, parentInfo]
-      : [parentInfo];
+    const parentsArray =
+      parentIssue.parents && Array.isArray(parentIssue.parents)
+        ? [...parentIssue.parents, parentInfo]
+        : [parentInfo];
 
     const issueData = {
       title,
@@ -845,9 +878,10 @@ class IssueService {
     }
 
     const authorIds = [...new Set(comments.map((c) => c.createdBy).filter(Boolean))];
-    const authors = authorIds.length > 0
-      ? await client.findAll(core.class.Account, { _id: { $in: authorIds } })
-      : [];
+    const authors =
+      authorIds.length > 0
+        ? await client.findAll(core.class.Account, { _id: { $in: authorIds } })
+        : [];
     const authorMap = new Map(authors.map((a) => [a._id, a]));
 
     let result = `Found ${comments.length} comments on issue ${issueIdentifier}:\n\n`;
@@ -1055,9 +1089,10 @@ class IssueService {
 
     if (comments.length > 0) {
       const commentAuthorIds = [...new Set(comments.map((c) => c.createdBy).filter(Boolean))];
-      const commentAuthors = commentAuthorIds.length > 0
-        ? await client.findAll(core.class.Account, { _id: { $in: commentAuthorIds } })
-        : [];
+      const commentAuthors =
+        commentAuthorIds.length > 0
+          ? await client.findAll(core.class.Account, { _id: { $in: commentAuthorIds } })
+          : [];
       const commentAuthorMap = new Map(commentAuthors.map((a) => [a._id, a]));
 
       for (const comment of comments) {
@@ -1344,32 +1379,28 @@ class IssueService {
       issues = issues.filter((issue) => milestoneIds.includes(issue.milestone));
     }
 
-    // Text search in title and description (only search description if includeDescriptions=true)
     if (query) {
       const queryLower = query.toLowerCase();
-      const filteredIssues = [];
 
-      for (const issue of issues) {
-        // Check title
-        if (issue.title.toLowerCase().includes(queryLower)) {
-          filteredIssues.push(issue);
-          continue;
-        }
+      const titleMatches = issues.filter((issue) => issue.title.toLowerCase().includes(queryLower));
 
-        // Check description (only if includeDescriptions=true)
-        if (includeDescriptions && issue.description) {
-          try {
-            const descText = await this._extractDescription(client, issue);
-            if (descText && descText.toLowerCase().includes(queryLower)) {
-              filteredIssues.push(issue);
-            }
-          } catch {
-            // Skip if description extraction fails
-          }
-        }
-      }
+      const titleMatchIds = new Set(titleMatches.map((i) => i._id));
+      const descriptionCandidates = includeDescriptions
+        ? issues.filter((issue) => !titleMatchIds.has(issue._id) && issue.description)
+        : [];
 
-      issues = filteredIssues;
+      const descriptionMap = await this._fetchDescriptionsBatch(
+        client,
+        descriptionCandidates,
+        includeDescriptions
+      );
+
+      const descriptionMatches = descriptionCandidates.filter((issue) => {
+        const descText = descriptionMap.get(issue._id) || '';
+        return descText.toLowerCase().includes(queryLower);
+      });
+
+      issues = [...titleMatches, ...descriptionMatches];
     }
 
     // Limit results
@@ -1511,10 +1542,32 @@ class IssueService {
     return typeof issue.description === 'string' ? issue.description : '';
   }
 
-  /**
-   * Normalize status value for better matching
-   * @private
-   */
+  // HULLY-236: Batch fetch descriptions in parallel for performance
+  async _fetchDescriptionsBatch(client, issues, includeDescriptions = true) {
+    if (!includeDescriptions) {
+      return new Map();
+    }
+
+    const issuesWithDescriptions = issues.filter((issue) => issue.description);
+
+    if (issuesWithDescriptions.length === 0) {
+      return new Map();
+    }
+
+    const descriptionPromises = issuesWithDescriptions.map(async (issue) => {
+      try {
+        const descText = await this._extractDescription(client, issue);
+        return { id: issue._id, desc: descText };
+      } catch (error) {
+        console.error(`Error fetching description for ${issue.identifier}:`, error.message);
+        return { id: issue._id, desc: '' };
+      }
+    });
+
+    const results = await Promise.all(descriptionPromises);
+    return new Map(results.map((r) => [r.id, r.desc]));
+  }
+
   _normalizeStatusValue(value) {
     if (!value) return '';
 
