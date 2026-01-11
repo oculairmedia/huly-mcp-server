@@ -1379,21 +1379,21 @@ class IssueService {
       issues = issues.filter((issue) => milestoneIds.includes(issue.milestone));
     }
 
+    // Text search (in-memory filtering on title and description)
     if (query) {
       const queryLower = query.toLowerCase();
 
+      // First filter by title matches
       const titleMatches = issues.filter((issue) => issue.title.toLowerCase().includes(queryLower));
 
+      // For issues that didn't match by title, check descriptions
       const titleMatchIds = new Set(titleMatches.map((i) => i._id));
-      const descriptionCandidates = includeDescriptions
-        ? issues.filter((issue) => !titleMatchIds.has(issue._id) && issue.description)
-        : [];
-
-      const descriptionMap = await this._fetchDescriptionsBatch(
-        client,
-        descriptionCandidates,
-        includeDescriptions
+      const descriptionCandidates = issues.filter(
+        (issue) => !titleMatchIds.has(issue._id) && issue.description
       );
+
+      // Fetch descriptions for candidates and filter
+      const descriptionMap = await this._fetchDescriptionsBatch(client, descriptionCandidates, true);
 
       const descriptionMatches = descriptionCandidates.filter((issue) => {
         const descText = descriptionMap.get(issue._id) || '';
