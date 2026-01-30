@@ -1,14 +1,15 @@
 /**
  * HulyClientPool - Connection pool for Huly platform
- * 
+ *
  * Maintains multiple HulyClient connections to handle concurrent requests
  * without overwhelming a single WebSocket connection
  */
 
 import { HulyClient } from './HulyClient.js';
 
-const DEFAULT_POOL_SIZE = 5;
-const REQUEST_TIMEOUT = 30000; // 30 seconds
+const DEFAULT_POOL_SIZE = parseInt(process.env.HULY_POOL_SIZE || '2', 10);
+const REQUEST_TIMEOUT = 30000;
+const POOL_INIT_TIMEOUT = parseInt(process.env.HULY_POOL_INIT_TIMEOUT_MS || '20000', 10);
 
 export class HulyClientPool {
   constructor(config, poolSize = DEFAULT_POOL_SIZE) {
@@ -35,24 +36,38 @@ export class HulyClientPool {
 
   async _initializePool() {
     console.log(`Initializing Huly client pool with ${this.poolSize} connections...`);
-    
+
     const initPromises = [];
     for (let i = 0; i < this.poolSize; i++) {
       const client = new HulyClient(this.config);
       this.clients.push(client);
       this.clientStatus.push({ busy: false, requestCount: 0 });
       initPromises.push(
-        client.connect().catch(err => {
+        client.connect().catch((err) => {
           console.error(`Failed to initialize client ${i}:`, err.message);
           return null;
         })
       );
     }
 
-    await Promise.all(initPromises);
-    
-    const connectedCount = this.clients.filter((c, i) => c.isConnected()).length;
-    console.log(`Huly client pool initialized: ${connectedCount}/${this.poolSize} connections ready`);
+    try {
+      await Promise.race([
+        Promise.all(initPromises),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Pool initialization timeout after ${POOL_INIT_TIMEOUT}ms`)),
+            POOL_INIT_TIMEOUT
+          )
+        ),
+      ]);
+    } catch (err) {
+      console.error(`Pool initialization failed: ${err.message}`);
+    }
+
+    const connectedCount = this.clients.filter((c) => c.isConnected()).length;
+    console.log(
+      `Huly client pool initialized: ${connectedCount}/${this.poolSize} connections ready`
+    );
   }
 
   /**
@@ -87,6 +102,12 @@ export class HulyClientPool {
   async withClient(fn) {
     await this.initialize();
 
+    if (!this.isConnected()) {
+      throw new Error(
+        'No Huly client connections available. The platform may be unreachable or the SDK version is incompatible.'
+      );
+    }
+
     const clientIndex = this._getAvailableClientIndex();
     const client = this.clients[clientIndex];
     const status = this.clientStatus[clientIndex];
@@ -98,9 +119,9 @@ export class HulyClientPool {
       const hulyClient = await client.getClient();
       const result = await Promise.race([
         fn(hulyClient),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Request timeout')), REQUEST_TIMEOUT)
-        )
+        ),
       ]);
       return result;
     } catch (error) {
@@ -144,11 +165,11 @@ export class HulyClientPool {
   _isConnectionError(error) {
     const keywords = ['connection', 'disconnect', 'timeout', 'socket', 'websocket', 'network'];
     const msg = error.message?.toLowerCase() || '';
-    return keywords.some(k => msg.includes(k));
+    return keywords.some((k) => msg.includes(k));
   }
 
   _sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -157,6 +178,13 @@ export class HulyClientPool {
    */
   async getClient() {
     await this.initialize();
+
+    if (!this.isConnected()) {
+      throw new Error(
+        'No Huly client connections available. The platform may be unreachable or the SDK version is incompatible.'
+      );
+    }
+
     const clientIndex = this._getAvailableClientIndex();
     const client = this.clients[clientIndex];
     return client.getClient();
@@ -166,7 +194,7 @@ export class HulyClientPool {
    * Check if any client is connected
    */
   isConnected() {
-    return this.clients.some(c => c.isConnected());
+    return this.clients.some((c) => c.isConnected());
   }
 
   /**
@@ -180,8 +208,8 @@ export class HulyClientPool {
         index: i,
         connected: this.clients[i]?.isConnected() || false,
         busy: status.busy,
-        requestCount: status.requestCount
-      }))
+        requestCount: status.requestCount,
+      })),
     };
   }
 
@@ -190,7 +218,7 @@ export class HulyClientPool {
    */
   async disconnect() {
     console.log('Disconnecting Huly client pool...');
-    await Promise.all(this.clients.map(c => c.disconnect().catch(() => {})));
+    await Promise.all(this.clients.map((c) => c.disconnect().catch(() => {})));
     this.clients = [];
     this.clientStatus = [];
     this.initialized = false;

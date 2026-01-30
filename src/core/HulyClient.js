@@ -15,10 +15,11 @@ const { connect } = apiClient;
  * Configuration for connection retries
  */
 const RETRY_CONFIG = {
-  maxAttempts: 3,
-  initialDelay: 1000, // 1 second
-  maxDelay: 10000, // 10 seconds
+  maxAttempts: parseInt(process.env.HULY_CONNECTION_MAX_ATTEMPTS || '1', 10),
+  initialDelay: 500,
+  maxDelay: 3000,
   backoffFactor: 2,
+  connectionTimeout: parseInt(process.env.HULY_CONNECTION_TIMEOUT_MS || '15000', 10),
 };
 
 /**
@@ -48,7 +49,7 @@ export class HulyClient {
     this.isConnecting = false;
     this.retryCount = 0;
     this.lastConnectionError = null;
-    
+
     // Concurrency control
     this.activeRequests = 0;
     this.requestQueue = [];
@@ -126,15 +127,33 @@ export class HulyClient {
    * @returns {Promise<Object>} Connected client instance
    */
   async _attemptConnection() {
-    try {
-      const client = await connect(this.config.url, {
-        email: this.config.email,
-        password: this.config.password,
-        workspace: this.config.workspace,
-        socketFactory: (url) => new WebSocket(url),
-      });
+    const timeoutMs = RETRY_CONFIG.connectionTimeout;
+    const transactorUrl = process.env.HULY_TRANSACTOR_URL;
+    const publicUrl = process.env.HULY_PUBLIC_URL || this.config.url;
 
-      // Verify connection is working
+    try {
+      const client = await Promise.race([
+        connect(this.config.url, {
+          email: this.config.email,
+          password: this.config.password,
+          workspace: this.config.workspace,
+          socketFactory: (url) => {
+            if (transactorUrl && publicUrl) {
+              const publicWs = publicUrl.replace(/^http/, 'ws') + '/_transactor';
+              const rewritten = url.replace(publicWs, transactorUrl);
+              if (rewritten !== url) {
+                console.log(`[HulyClient] Rewriting WS URL to internal: ${transactorUrl}`);
+                return new WebSocket(rewritten);
+              }
+            }
+            return new WebSocket(url);
+          },
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Connection timeout after ${timeoutMs}ms`)), timeoutMs)
+        ),
+      ]);
+
       await this._verifyConnection(client);
 
       return client;
@@ -284,7 +303,7 @@ export class HulyClient {
   async withClient(fn, maxRetries = 1) {
     // Acquire concurrency slot before executing
     await this._acquireSlot();
-    
+
     let lastError;
 
     try {
