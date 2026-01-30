@@ -21,7 +21,7 @@ export class RestApiHandler {
     this.logger.debug('RestApiHandler initialized with services:', {
       serviceKeys: Object.keys(this.services),
       hasHulyClient: !!this.hulyClientWrapper,
-      registrySize: this.toolRegistry.size
+      registrySize: this.toolRegistry.size,
     });
   }
 
@@ -41,7 +41,9 @@ export class RestApiHandler {
         await initializeTools();
         existingDefinitions = getAllToolDefinitions();
       } else {
-        this.logger.debug(`Found ${existingDefinitions.length} existing tools in registry, skipping initialization`);
+        this.logger.debug(
+          `Found ${existingDefinitions.length} existing tools in registry, skipping initialization`
+        );
       }
 
       // Get the tool definitions from the global registry
@@ -68,7 +70,7 @@ export class RestApiHandler {
       await this.initializeTools();
 
       const { category, search } = filters;
-      let tools = this.toolDefinitions.map(tool => ({
+      let tools = this.toolDefinitions.map((tool) => ({
         name: tool.name,
         description: tool.description,
         category: this.getToolCategory(tool.name),
@@ -78,24 +80,23 @@ export class RestApiHandler {
 
       // Apply category filter
       if (category) {
-        tools = tools.filter(tool =>
-          tool.category.toLowerCase() === category.toLowerCase()
-        );
+        tools = tools.filter((tool) => tool.category.toLowerCase() === category.toLowerCase());
       }
 
       // Apply search filter
       if (search) {
         const searchLower = search.toLowerCase();
-        tools = tools.filter(tool =>
-          tool.name.toLowerCase().includes(searchLower) ||
-          tool.description.toLowerCase().includes(searchLower)
+        tools = tools.filter(
+          (tool) =>
+            tool.name.toLowerCase().includes(searchLower) ||
+            tool.description.toLowerCase().includes(searchLower)
         );
       }
 
       // Get unique categories
-      const categories = [...new Set(this.toolDefinitions.map(tool =>
-        this.getToolCategory(tool.name)
-      ))].sort();
+      const categories = [
+        ...new Set(this.toolDefinitions.map((tool) => this.getToolCategory(tool.name))),
+      ].sort();
 
       return {
         tools,
@@ -130,7 +131,7 @@ export class RestApiHandler {
         error.code = 'TOOL_NOT_FOUND';
         error.statusCode = 404;
         error.details = {
-          availableTools: this.toolDefinitions.map(t => t.name).slice(0, 10),
+          availableTools: this.toolDefinitions.map((t) => t.name).slice(0, 10),
         };
         throw error;
       }
@@ -153,7 +154,7 @@ export class RestApiHandler {
         contextKeys: Object.keys(context),
         hasHulyClient: !!context.hulyClientWrapper,
         hasStatusManager: !!context.statusManager,
-        hasIssueService: !!context.issueService
+        hasIssueService: !!context.issueService,
       });
 
       // Execute the tool
@@ -162,7 +163,6 @@ export class RestApiHandler {
 
       // Transform result to REST format
       return this.formatToolResult(result);
-
     } catch (error) {
       this.logger.error(`Error executing tool ${toolName}:`, {
         error: error.message,
@@ -173,7 +173,7 @@ export class RestApiHandler {
         serviceKeys: Object.keys(this.services),
         hasHulyClient: !!this.hulyClientWrapper,
         registrySize: this.toolRegistry.size,
-        initialized: this.initialized
+        initialized: this.initialized,
       });
 
       // Re-throw known errors
@@ -190,7 +190,7 @@ export class RestApiHandler {
           suggestion: 'The server may still be starting up. Please try again in a moment.',
           hasServices: !!this.services,
           serviceKeys: Object.keys(this.services),
-          toolInitialized: this.initialized
+          toolInitialized: this.initialized,
         };
         throw initError;
       }
@@ -201,7 +201,7 @@ export class RestApiHandler {
         hulyError.code = 'HULY_API_ERROR';
         hulyError.statusCode = 502;
         hulyError.details = {
-          suggestion: 'Check Huly server connectivity and authentication credentials.'
+          suggestion: 'Check Huly server connectivity and authentication credentials.',
         };
         throw hulyError;
       }
@@ -220,7 +220,7 @@ export class RestApiHandler {
       serverError.statusCode = 500;
       serverError.details = {
         originalError: error.message,
-        suggestion: 'Please check server logs for more details.'
+        suggestion: 'Please check server logs for more details.',
       };
       throw serverError;
     }
@@ -232,7 +232,7 @@ export class RestApiHandler {
    * @param {Object} args - Arguments to validate
    */
   validateToolArguments(toolName, args) {
-    const toolDef = this.toolDefinitions.find(t => t.name === toolName);
+    const toolDef = this.toolDefinitions.find((t) => t.name === toolName);
     if (!toolDef?.inputSchema?.properties) {
       return; // No schema to validate against
     }
@@ -326,5 +326,9 @@ export class RestApiHandler {
    */
   getToolRegistry() {
     return this.toolRegistry;
+  }
+
+  isReady() {
+    return this.initialized && !!this.hulyClientWrapper;
   }
 }

@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+worktrees
+docs
+*.md
+__tests__
+coverage
+.eslintrc*
+.prettierrc*
+.husky
+scripts
