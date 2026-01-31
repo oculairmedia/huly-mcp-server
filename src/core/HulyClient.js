@@ -194,7 +194,15 @@ export class HulyClient {
     if (!this.client) return false;
 
     try {
-      // Check if we can still access the hierarchy
+      // Check actual WebSocket state via SDK internals:
+      // PlatformClientImpl.connection → Client → .getConnection() → ClientConnection.isConnected()
+      // ClientConnection.isConnected() checks websocket.readyState === OPEN && helloReceived
+      const conn = this.client.connection?.getConnection?.();
+      if (conn && typeof conn.isConnected === 'function') {
+        return conn.isConnected();
+      }
+
+      // Fallback: check cached hierarchy (weaker - doesn't detect dead websocket)
       const hierarchy = this.client.getHierarchy();
       return hierarchy !== null && hierarchy !== undefined;
     } catch {

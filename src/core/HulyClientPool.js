@@ -10,6 +10,8 @@ import { HulyClient } from './HulyClient.js';
 const DEFAULT_POOL_SIZE = parseInt(process.env.HULY_POOL_SIZE || '2', 10);
 const REQUEST_TIMEOUT = 30000;
 const POOL_INIT_TIMEOUT = parseInt(process.env.HULY_POOL_INIT_TIMEOUT_MS || '20000', 10);
+const HEALTH_CHECK_INTERVAL = parseInt(process.env.HULY_HEALTH_CHECK_INTERVAL_MS || '30000', 10);
+const RECONNECT_BACKOFF_MS = 5000;
 
 export class HulyClientPool {
   constructor(config, poolSize = DEFAULT_POOL_SIZE) {
@@ -20,6 +22,8 @@ export class HulyClientPool {
     this.requestQueue = [];
     this.initialized = false;
     this.initPromise = null;
+    this._healthCheckInterval = null;
+    this._reconnecting = false;
   }
 
   /**
@@ -68,6 +72,64 @@ export class HulyClientPool {
     console.log(
       `Huly client pool initialized: ${connectedCount}/${this.poolSize} connections ready`
     );
+
+    // Start background health check loop
+    this._startHealthCheck();
+  }
+
+  /**
+   * Background health check loop - detects dead clients and reconnects them.
+   * This is THE critical self-healing mechanism that prevents permanent pool death
+   * after transient infrastructure failures (CRDB stalls, transactor restarts, etc.)
+   */
+  _startHealthCheck() {
+    if (this._healthCheckInterval) return;
+
+    this._healthCheckInterval = setInterval(async () => {
+      if (this._reconnecting) return; // Prevent overlapping reconnection attempts
+
+      const deadClients = [];
+      for (let i = 0; i < this.clients.length; i++) {
+        if (!this.clients[i].isConnected()) {
+          deadClients.push(i);
+        }
+      }
+
+      if (deadClients.length === 0) return;
+
+      this._reconnecting = true;
+      const aliveCount = this.clients.length - deadClients.length;
+      console.log(
+        `[HulyClientPool] Health check: ${deadClients.length} dead client(s) detected ` +
+          `(${aliveCount}/${this.clients.length} alive). Attempting reconnection...`
+      );
+
+      for (const idx of deadClients) {
+        try {
+          await this.clients[idx].reconnect();
+          console.log(`[HulyClientPool] ✅ Client ${idx} reconnected successfully`);
+        } catch (err) {
+          console.error(`[HulyClientPool] ❌ Client ${idx} reconnection failed: ${err.message}`);
+        }
+        // Brief pause between reconnection attempts to avoid thundering herd
+        await this._sleep(RECONNECT_BACKOFF_MS);
+      }
+
+      const nowAlive = this.clients.filter((c) => c.isConnected()).length;
+      console.log(
+        `[HulyClientPool] Health check complete: ${nowAlive}/${this.clients.length} alive`
+      );
+      this._reconnecting = false;
+    }, HEALTH_CHECK_INTERVAL);
+
+    // Ensure the interval doesn't prevent process exit
+    if (this._healthCheckInterval.unref) {
+      this._healthCheckInterval.unref();
+    }
+
+    console.log(
+      `[HulyClientPool] Background health check started (every ${HEALTH_CHECK_INTERVAL / 1000}s)`
+    );
   }
 
   /**
@@ -103,9 +165,14 @@ export class HulyClientPool {
     await this.initialize();
 
     if (!this.isConnected()) {
-      throw new Error(
-        'No Huly client connections available. The platform may be unreachable or the SDK version is incompatible.'
-      );
+      console.log('[HulyClientPool] No connected clients, attempting emergency reconnection...');
+      await this._reconnectAll();
+
+      if (!this.isConnected()) {
+        throw new Error(
+          'No Huly client connections available after reconnection attempt. The platform may be unreachable.'
+        );
+      }
     }
 
     const clientIndex = this._getAvailableClientIndex();
@@ -162,6 +229,21 @@ export class HulyClientPool {
     throw lastError;
   }
 
+  async _reconnectAll() {
+    for (let i = 0; i < this.clients.length; i++) {
+      if (this.clients[i].isConnected()) continue;
+      try {
+        await this.clients[i].reconnect();
+        console.log(`[HulyClientPool] ✅ Emergency reconnect: client ${i} recovered`);
+        return; // One live client is enough to unblock
+      } catch (err) {
+        console.error(
+          `[HulyClientPool] ❌ Emergency reconnect: client ${i} failed: ${err.message}`
+        );
+      }
+    }
+  }
+
   _isConnectionError(error) {
     const keywords = ['connection', 'disconnect', 'timeout', 'socket', 'websocket', 'network'];
     const msg = error.message?.toLowerCase() || '';
@@ -180,9 +262,16 @@ export class HulyClientPool {
     await this.initialize();
 
     if (!this.isConnected()) {
-      throw new Error(
-        'No Huly client connections available. The platform may be unreachable or the SDK version is incompatible.'
+      console.log(
+        '[HulyClientPool] No connected clients in getClient(), attempting emergency reconnection...'
       );
+      await this._reconnectAll();
+
+      if (!this.isConnected()) {
+        throw new Error(
+          'No Huly client connections available after reconnection attempt. The platform may be unreachable.'
+        );
+      }
     }
 
     const clientIndex = this._getAvailableClientIndex();
@@ -218,6 +307,11 @@ export class HulyClientPool {
    */
   async disconnect() {
     console.log('Disconnecting Huly client pool...');
+    if (this._healthCheckInterval) {
+      clearInterval(this._healthCheckInterval);
+      this._healthCheckInterval = null;
+      console.log('[HulyClientPool] Background health check stopped');
+    }
     await Promise.all(this.clients.map((c) => c.disconnect().catch(() => {})));
     this.clients = [];
     this.clientStatus = [];
