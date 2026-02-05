@@ -7,23 +7,45 @@
 
 import { HulyClient } from './HulyClient.js';
 
-const DEFAULT_POOL_SIZE = parseInt(process.env.HULY_POOL_SIZE || '2', 10);
 const REQUEST_TIMEOUT = 30000;
 const POOL_INIT_TIMEOUT = parseInt(process.env.HULY_POOL_INIT_TIMEOUT_MS || '20000', 10);
 const HEALTH_CHECK_INTERVAL = parseInt(process.env.HULY_HEALTH_CHECK_INTERVAL_MS || '30000', 10);
 const RECONNECT_BACKOFF_MS = 5000;
+const PRIMARY_PROBE_INTERVAL = 3; // Every N health checks, try migrating back to primary
+
+function parseTransactorUrls() {
+  const urlsEnv = process.env.HULY_TRANSACTOR_URLS;
+  if (urlsEnv) {
+    const urls = urlsEnv
+      .split(';')
+      .map((u) => u.trim())
+      .filter(Boolean);
+    if (urls.length > 0) return urls;
+  }
+  const singleUrl = process.env.HULY_TRANSACTOR_URL;
+  return singleUrl ? [singleUrl] : [];
+}
+
+function getDefaultPoolSize() {
+  const explicit = process.env.HULY_POOL_SIZE;
+  if (explicit) return parseInt(explicit, 10);
+  const urls = parseTransactorUrls();
+  return urls.length > 0 ? urls.length : 2;
+}
 
 export class HulyClientPool {
-  constructor(config, poolSize = DEFAULT_POOL_SIZE) {
+  constructor(config, poolSize) {
     this.config = config;
-    this.poolSize = poolSize;
+    this.transactorUrls = parseTransactorUrls();
+    this.poolSize = poolSize || getDefaultPoolSize();
     this.clients = [];
-    this.clientStatus = []; // Track which clients are busy
+    this.clientStatus = [];
     this.requestQueue = [];
     this.initialized = false;
     this.initPromise = null;
     this._healthCheckInterval = null;
     this._reconnecting = false;
+    this._healthCheckCount = 0;
   }
 
   /**
@@ -39,13 +61,31 @@ export class HulyClientPool {
   }
 
   async _initializePool() {
-    console.log(`Initializing Huly client pool with ${this.poolSize} connections...`);
+    const hasMultipleTransactors = this.transactorUrls.length > 1;
+    console.log(
+      `Initializing Huly client pool: ${this.poolSize} clients across ${this.transactorUrls.length} transactor(s)`
+    );
 
     const initPromises = [];
     for (let i = 0; i < this.poolSize; i++) {
-      const client = new HulyClient(this.config);
+      const primaryUrl =
+        this.transactorUrls.length > 0 ? this.transactorUrls[i % this.transactorUrls.length] : null;
+
+      const clientConfig = { ...this.config, transactorUrl: primaryUrl };
+      const client = new HulyClient(clientConfig);
       this.clients.push(client);
-      this.clientStatus.push({ busy: false, requestCount: 0 });
+      this.clientStatus.push({
+        busy: false,
+        requestCount: 0,
+        primaryUrl,
+        currentUrl: primaryUrl,
+        onFailover: false,
+      });
+
+      if (hasMultipleTransactors) {
+        console.log(`  Client ${i} → ${primaryUrl}`);
+      }
+
       initPromises.push(
         client.connect().catch((err) => {
           console.error(`Failed to initialize client ${i}:`, err.message);
@@ -73,7 +113,6 @@ export class HulyClientPool {
       `Huly client pool initialized: ${connectedCount}/${this.poolSize} connections ready`
     );
 
-    // Start background health check loop
     this._startHealthCheck();
   }
 
@@ -82,11 +121,84 @@ export class HulyClientPool {
    * This is THE critical self-healing mechanism that prevents permanent pool death
    * after transient infrastructure failures (CRDB stalls, transactor restarts, etc.)
    */
+  async _reconnectClient(idx, reason) {
+    const status = this.clientStatus[idx];
+    const urlsToTry = [];
+
+    if (status.primaryUrl) {
+      urlsToTry.push(status.primaryUrl);
+    }
+
+    if (status.currentUrl && status.currentUrl !== status.primaryUrl) {
+      urlsToTry.push(status.currentUrl);
+    }
+
+    for (const url of this.transactorUrls) {
+      if (!urlsToTry.includes(url)) urlsToTry.push(url);
+    }
+
+    for (const url of urlsToTry) {
+      try {
+        this.clients[idx].setTransactorUrl(url);
+        await this.clients[idx].reconnect();
+        status.currentUrl = url;
+        status.onFailover = Boolean(status.primaryUrl && url !== status.primaryUrl);
+        console.log(`[HulyClientPool] ✅ Client ${idx} reconnected (${reason}) → ${url}`);
+        return true;
+      } catch (err) {
+        console.error(
+          `[HulyClientPool] ❌ Client ${idx} reconnect failed (${reason}) → ${url}: ${err.message}`
+        );
+      }
+      await this._sleep(RECONNECT_BACKOFF_MS);
+    }
+
+    return false;
+  }
+
+  async _migrateBackToPrimary(idx) {
+    const status = this.clientStatus[idx];
+    if (!status.primaryUrl || status.currentUrl === status.primaryUrl) return false;
+
+    const previousUrl = status.currentUrl;
+
+    try {
+      this.clients[idx].setTransactorUrl(status.primaryUrl);
+      await this.clients[idx].reconnect();
+      status.currentUrl = status.primaryUrl;
+      status.onFailover = false;
+      console.log(
+        `[HulyClientPool] ✅ Client ${idx} migrated back to primary → ${status.primaryUrl}`
+      );
+      return true;
+    } catch (err) {
+      console.error(
+        `[HulyClientPool] ❌ Client ${idx} migrate-back failed → ${status.primaryUrl}: ${err.message}`
+      );
+      try {
+        this.clients[idx].setTransactorUrl(previousUrl);
+        await this.clients[idx].reconnect();
+        status.currentUrl = previousUrl;
+        status.onFailover = true;
+      } catch (fallbackErr) {
+        console.error(
+          `[HulyClientPool] ❌ Client ${idx} failed to restore failover → ${previousUrl}: ${fallbackErr.message}`
+        );
+      }
+    }
+
+    return false;
+  }
+
   _startHealthCheck() {
     if (this._healthCheckInterval) return;
 
     this._healthCheckInterval = setInterval(async () => {
-      if (this._reconnecting) return; // Prevent overlapping reconnection attempts
+      if (this._reconnecting) return;
+
+      this._healthCheckCount++;
+      const shouldProbePrimary =
+        this.transactorUrls.length > 1 && this._healthCheckCount % PRIMARY_PROBE_INTERVAL === 0;
 
       const deadClients = [];
       for (let i = 0; i < this.clients.length; i++) {
@@ -95,24 +207,28 @@ export class HulyClientPool {
         }
       }
 
-      if (deadClients.length === 0) return;
+      if (deadClients.length === 0 && !shouldProbePrimary) return;
 
       this._reconnecting = true;
-      const aliveCount = this.clients.length - deadClients.length;
-      console.log(
-        `[HulyClientPool] Health check: ${deadClients.length} dead client(s) detected ` +
-          `(${aliveCount}/${this.clients.length} alive). Attempting reconnection...`
-      );
 
-      for (const idx of deadClients) {
-        try {
-          await this.clients[idx].reconnect();
-          console.log(`[HulyClientPool] ✅ Client ${idx} reconnected successfully`);
-        } catch (err) {
-          console.error(`[HulyClientPool] ❌ Client ${idx} reconnection failed: ${err.message}`);
+      if (deadClients.length > 0) {
+        const aliveCount = this.clients.length - deadClients.length;
+        console.log(
+          `[HulyClientPool] Health check: ${deadClients.length} dead client(s) detected ` +
+            `(${aliveCount}/${this.clients.length} alive). Attempting reconnection...`
+        );
+
+        for (const idx of deadClients) {
+          await this._reconnectClient(idx, 'health-check');
         }
-        // Brief pause between reconnection attempts to avoid thundering herd
-        await this._sleep(RECONNECT_BACKOFF_MS);
+      }
+
+      if (shouldProbePrimary) {
+        for (let i = 0; i < this.clients.length; i++) {
+          if (this.clientStatus[i].onFailover) {
+            await this._migrateBackToPrimary(i);
+          }
+        }
       }
 
       const nowAlive = this.clients.filter((c) => c.isConnected()).length;
@@ -233,9 +349,8 @@ export class HulyClientPool {
     for (let i = 0; i < this.clients.length; i++) {
       if (this.clients[i].isConnected()) continue;
       try {
-        await this.clients[i].reconnect();
-        console.log(`[HulyClientPool] ✅ Emergency reconnect: client ${i} recovered`);
-        return; // One live client is enough to unblock
+        const recovered = await this._reconnectClient(i, 'emergency');
+        if (recovered) return;
       } catch (err) {
         console.error(
           `[HulyClientPool] ❌ Emergency reconnect: client ${i} failed: ${err.message}`
@@ -298,6 +413,9 @@ export class HulyClientPool {
         connected: this.clients[i]?.isConnected() || false,
         busy: status.busy,
         requestCount: status.requestCount,
+        primaryUrl: status.primaryUrl || null,
+        currentUrl: status.currentUrl || null,
+        onFailover: status.onFailover,
       })),
     };
   }
@@ -340,6 +458,6 @@ export function resetHulyClientPool() {
 /**
  * Create a new pool instance (factory function)
  */
-export function createHulyClientPool(config, poolSize = DEFAULT_POOL_SIZE) {
+export function createHulyClientPool(config, poolSize = getDefaultPoolSize()) {
   return new HulyClientPool(config, poolSize);
 }

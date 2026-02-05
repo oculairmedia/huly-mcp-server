@@ -536,6 +536,10 @@ export class HttpTransport extends BaseTransport {
   setupRoutes() {
     // Health check endpoint
     this.app.get('/health', (req, res) => {
+      const poolStatus =
+        this.hulyClientWrapper && typeof this.hulyClientWrapper.getStatus === 'function'
+          ? this.hulyClientWrapper.getStatus()
+          : null;
       res.json({
         status: 'healthy',
         service: 'huly-mcp-server',
@@ -544,6 +548,7 @@ export class HttpTransport extends BaseTransport {
         sessions: this.getTransportCount(),
         uptime: process.uptime(),
         timestamp: new Date().toISOString(),
+        pool: poolStatus,
         security: {
           origin_validation: true,
           localhost_binding: true,

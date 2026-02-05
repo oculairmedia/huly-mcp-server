@@ -44,13 +44,13 @@ export class HulyClient {
    */
   constructor(config) {
     this.config = config;
+    this.transactorUrl = config.transactorUrl || process.env.HULY_TRANSACTOR_URL || null;
     this.client = null;
     this.connectionPromise = null;
     this.isConnecting = false;
     this.retryCount = 0;
     this.lastConnectionError = null;
 
-    // Concurrency control
     this.activeRequests = 0;
     this.requestQueue = [];
   }
@@ -128,7 +128,7 @@ export class HulyClient {
    */
   async _attemptConnection() {
     const timeoutMs = RETRY_CONFIG.connectionTimeout;
-    const transactorUrl = process.env.HULY_TRANSACTOR_URL;
+    const transactorUrl = this.transactorUrl;
     const publicUrl = process.env.HULY_PUBLIC_URL || this.config.url;
 
     try {
@@ -374,6 +374,14 @@ export class HulyClient {
   }
 
   /**
+   * Update the transactor URL (used for failover and migrate-back)
+   * @param {string} url - New transactor WebSocket URL
+   */
+  setTransactorUrl(url) {
+    this.transactorUrl = url;
+  }
+
+  /**
    * Get connection status information
    * @returns {Object} Status information
    */
@@ -383,6 +391,7 @@ export class HulyClient {
       connecting: this.isConnecting,
       retryCount: this.retryCount,
       lastError: this.lastConnectionError?.message || null,
+      transactorUrl: this.transactorUrl || null,
       config: {
         url: this.config.url,
         email: this.config.email,

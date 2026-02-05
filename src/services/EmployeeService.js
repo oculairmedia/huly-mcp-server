@@ -23,7 +23,7 @@ export class EmployeeService {
     this.Person = contactModule.contactPlugin.class.Person;
     this.Employee = contactModule.contactPlugin.mixin.Employee;
     this.PersonAccount = contactModule.contactPlugin.class.PersonAccount;
-    this.Account = core.class.Account;
+    this.Account = core?.class?.Account || null;
   }
 
   /**
@@ -355,6 +355,13 @@ export class EmployeeService {
    */
   async _linkEmployeeToAccount(client, personId, email) {
     try {
+      if (!this.Account) {
+        logger.debug('Account domain unavailable; skipping employee account link', {
+          personId,
+          email,
+        });
+        return;
+      }
       // Find account by email
       const account = await client.findOne(this.Account, { email });
       if (account) {

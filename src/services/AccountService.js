@@ -19,7 +19,7 @@ const core = coreModule.default || coreModule;
 export class AccountService {
   constructor() {
     // Get class and mixin references from core and contact modules
-    this.Account = core.class.Account;
+    this.Account = core?.class?.Account || null;
     this.PersonAccount = contactModule.contactPlugin.class.PersonAccount;
     this.Person = contactModule.contactPlugin.class.Person;
     this.Contact = contactModule.contactPlugin.class.Contact;
@@ -37,6 +37,8 @@ export class AccountService {
   async getCurrentAccount(client) {
     try {
       logger.debug('Getting current account');
+
+      this._ensureAccountClass();
 
       // Get current account from client context
       // Note: This may need adjustment based on how client provides current account info
@@ -86,6 +88,8 @@ export class AccountService {
   async createAccount(client, accountData) {
     try {
       logger.debug('Creating account', { accountData: { ...accountData, password: '[REDACTED]' } });
+
+      this._ensureAccountClass();
 
       // Validate account data
       this._validateAccountData(accountData);
@@ -139,6 +143,8 @@ export class AccountService {
   async updateAccountSettings(client, accountId, settings) {
     try {
       logger.debug('Updating account settings', { accountId, settings });
+
+      this._ensureAccountClass();
 
       // Verify account exists
       const account = await client.findOne(this.Account, { _id: accountId });
@@ -197,6 +203,8 @@ export class AccountService {
   async listWorkspaceMembers(client, workspaceId = null, options = {}) {
     try {
       logger.debug('Listing workspace members', { workspaceId, options });
+
+      this._ensureAccountClass();
 
       const { limit = 50, role = null, confirmed = null } = options;
 
@@ -269,6 +277,8 @@ export class AccountService {
   async getAccountByEmail(client, email) {
     try {
       logger.debug('Getting account by email', { email });
+
+      this._ensureAccountClass();
 
       const account = await client.findOne(this.Account, { email });
       if (!account) {
@@ -392,6 +402,15 @@ export class AccountService {
     }
 
     return result;
+  }
+
+  _ensureAccountClass() {
+    if (!this.Account) {
+      throw new HulyError(
+        'ACCOUNT_DOMAIN_UNAVAILABLE',
+        'Account domain unavailable in this environment'
+      );
+    }
   }
 }
 

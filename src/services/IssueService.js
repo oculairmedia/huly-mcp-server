@@ -134,7 +134,7 @@ class IssueService {
     // Batch fetch all assignees upfront to avoid N+1 queries
     const assigneeIds = [...new Set(issues.map((i) => i.assignee).filter(Boolean))];
     const assignees =
-      assigneeIds.length > 0
+      assigneeIds.length > 0 && core?.class?.Account
         ? await client.findAll(core.class.Account, { _id: { $in: assigneeIds } })
         : [];
     const assigneeMap = new Map(assignees.map((a) => [a._id, a]));
@@ -879,7 +879,7 @@ class IssueService {
 
     const authorIds = [...new Set(comments.map((c) => c.createdBy).filter(Boolean))];
     const authors =
-      authorIds.length > 0
+      authorIds.length > 0 && core?.class?.Account
         ? await client.findAll(core.class.Account, { _id: { $in: authorIds } })
         : [];
     const authorMap = new Map(authors.map((a) => [a._id, a]));
@@ -1022,8 +1022,12 @@ class IssueService {
 
     // Assignee
     if (issue.assignee) {
-      const assignee = await client.findOne(core.class.Account, { _id: issue.assignee });
-      result += `**Assignee**: ${assignee?.email || 'Unknown'}\n`;
+      if (core?.class?.Account) {
+        const assignee = await client.findOne(core.class.Account, { _id: issue.assignee });
+        result += `**Assignee**: ${assignee?.email || 'Unknown'}\n`;
+      } else {
+        result += '**Assignee**: Unknown\n';
+      }
     }
 
     // Component
@@ -1073,51 +1077,53 @@ class IssueService {
       result += 'No description provided.';
     }
 
-    // Recent comments
     result += '\n\n## Recent Comments\n\n';
-    const comments = await client.findAll(
-      chunter.class.ChatMessage,
-      {
-        attachedTo: issue._id,
-        attachedToClass: tracker.class.Issue,
-      },
-      {
-        sort: { createdOn: -1 },
-        limit: 5,
-      }
-    );
+    const canLoadComments = Boolean(chunter?.class?.ChatMessage);
+    if (canLoadComments) {
+      const comments = await client.findAll(
+        chunter.class.ChatMessage,
+        {
+          attachedTo: issue._id,
+          attachedToClass: tracker.class.Issue,
+        },
+        {
+          sort: { createdOn: -1 },
+          limit: 5,
+        }
+      );
 
-    if (comments.length > 0) {
-      const commentAuthorIds = [...new Set(comments.map((c) => c.createdBy).filter(Boolean))];
-      const commentAuthors =
-        commentAuthorIds.length > 0
-          ? await client.findAll(core.class.Account, { _id: { $in: commentAuthorIds } })
-          : [];
-      const commentAuthorMap = new Map(commentAuthors.map((a) => [a._id, a]));
+      if (comments.length > 0) {
+        const commentAuthorIds = [...new Set(comments.map((c) => c.createdBy).filter(Boolean))];
+        const commentAuthors =
+          commentAuthorIds.length > 0 && core?.class?.Account
+            ? await client.findAll(core.class.Account, { _id: { $in: commentAuthorIds } })
+            : [];
+        const commentAuthorMap = new Map(commentAuthors.map((a) => [a._id, a]));
 
-      for (const comment of comments) {
-        const author = commentAuthorMap.get(comment.createdBy);
-        const timestamp = new Date(comment.createdOn).toLocaleString();
-        result += `### ${author?.email || 'Unknown'} - ${timestamp}\n`;
+        for (const comment of comments) {
+          const author = commentAuthorMap.get(comment.createdBy);
+          const timestamp = new Date(comment.createdOn).toLocaleString();
+          result += `### ${author?.email || 'Unknown'} - ${timestamp}\n`;
 
-        // Extract comment text
-        let commentText = '';
-        if (comment.message) {
-          // Comments can be plain strings or markup objects
-          if (typeof comment.message === 'string') {
-            commentText = comment.message;
-          } else {
-            try {
-              commentText = await extractTextFromMarkup(comment.message);
-            } catch {
-              commentText = 'Unable to display comment';
+          let commentText = '';
+          if (comment.message) {
+            if (typeof comment.message === 'string') {
+              commentText = comment.message;
+            } else {
+              try {
+                commentText = await extractTextFromMarkup(comment.message);
+              } catch {
+                commentText = 'Unable to display comment';
+              }
             }
           }
+          result += `${commentText}\n\n`;
         }
-        result += `${commentText}\n\n`;
+      } else {
+        result += 'No comments yet.\n';
       }
     } else {
-      result += 'No comments yet.\n';
+      result += 'Comments unavailable in this environment.\n';
     }
 
     // Sub-issues
@@ -1314,12 +1320,15 @@ class IssueService {
 
     // Client-side filtering for complex criteria
     if (assignee) {
-      // Find account by email
-      const account = await client.findOne(core.class.Account, { email: assignee });
-      if (account) {
-        issues = issues.filter((issue) => issue.assignee === account._id);
+      if (!core?.class?.Account) {
+        issues = [];
       } else {
-        issues = []; // No matching assignee
+        const account = await client.findOne(core.class.Account, { email: assignee });
+        if (account) {
+          issues = issues.filter((issue) => issue.assignee === account._id);
+        } else {
+          issues = [];
+        }
       }
     }
 
@@ -1393,7 +1402,11 @@ class IssueService {
       );
 
       // Fetch descriptions for candidates and filter
-      const descriptionMap = await this._fetchDescriptionsBatch(client, descriptionCandidates, true);
+      const descriptionMap = await this._fetchDescriptionsBatch(
+        client,
+        descriptionCandidates,
+        true
+      );
 
       const descriptionMatches = descriptionCandidates.filter((issue) => {
         const descText = descriptionMap.get(issue._id) || '';

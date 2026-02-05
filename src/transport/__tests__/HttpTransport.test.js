@@ -264,12 +264,22 @@ describe('HttpTransport', () => {
 
         routes.get['/health'](mockReq, mockRes);
 
-        expect(mockRes.json).toHaveBeenCalledWith({
-          status: 'healthy',
-          server: 'huly-mcp-server',
-          transport: 'http',
-          uptime: expect.any(Number),
-        });
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: 'healthy',
+            service: 'huly-mcp-server',
+            transport: 'streamable_http',
+            protocol_version: '2025-06-18',
+            sessions: expect.any(Number),
+            uptime: expect.any(Number),
+            timestamp: expect.any(String),
+            pool: null,
+            security: {
+              origin_validation: true,
+              localhost_binding: true,
+            },
+          })
+        );
       });
     });
 

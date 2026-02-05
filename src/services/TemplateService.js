@@ -63,7 +63,7 @@ class TemplateService {
     };
 
     // Handle assignee
-    if (templateData.assignee) {
+    if (templateData.assignee && core?.class?.Account) {
       const person = await client.findOne(core.class.Account, { email: templateData.assignee });
       if (person) {
         template.assignee = person._id;
@@ -196,8 +196,12 @@ class TemplateService {
 
     // Assignee
     if (template.assignee) {
-      const assignee = await client.findOne(core.class.Account, { _id: template.assignee });
-      result += `**Default Assignee**: ${assignee?.email || 'Unknown'}\n`;
+      if (core?.class?.Account) {
+        const assignee = await client.findOne(core.class.Account, { _id: template.assignee });
+        result += `**Default Assignee**: ${assignee?.email || 'Unknown'}\n`;
+      } else {
+        result += '**Default Assignee**: Unknown\n';
+      }
     }
 
     // Component
@@ -237,8 +241,12 @@ class TemplateService {
         result += `   Estimation: ${child.estimation || 0} hours\n`;
 
         if (child.assignee) {
-          const childAssignee = await client.findOne(core.class.Account, { _id: child.assignee });
-          result += `   Assignee: ${childAssignee?.email || 'Unknown'}\n`;
+          if (core?.class?.Account) {
+            const childAssignee = await client.findOne(core.class.Account, { _id: child.assignee });
+            result += `   Assignee: ${childAssignee?.email || 'Unknown'}\n`;
+          } else {
+            result += '   Assignee: Unknown\n';
+          }
         }
 
         if (child.description) {
@@ -322,6 +330,12 @@ class TemplateService {
           updateData.assignee = null;
           displayValue = 'None';
         } else {
+          if (!core?.class?.Account) {
+            throw new HulyError(
+              'ACCOUNT_DOMAIN_UNAVAILABLE',
+              'Account domain unavailable in this environment'
+            );
+          }
           const person = await client.findOne(core.class.Account, { email: value });
           if (!person) {
             throw HulyError.notFound('assignee', value);
@@ -722,7 +736,7 @@ class TemplateService {
     };
 
     // Handle assignee
-    if (childData.assignee) {
+    if (childData.assignee && core?.class?.Account) {
       const person = await client.findOne(core.class.Account, { email: childData.assignee });
       if (person) {
         childTemplate.assignee = person._id;
@@ -801,6 +815,7 @@ class TemplateService {
 
   async _resolveAssignee(client, email) {
     if (!email) return null;
+    if (!core?.class?.Account) return null;
     const person = await client.findOne(core.class.Account, { email });
     return person?._id || null;
   }

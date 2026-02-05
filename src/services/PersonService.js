@@ -23,7 +23,7 @@ export class PersonService {
     this.Person = contactModule.contactPlugin.class.Person;
     this.PersonAccount = contactModule.contactPlugin.class.PersonAccount;
     this.Employee = contactModule.contactPlugin.mixin.Employee;
-    this.Account = core.class.Account;
+    this.Account = core?.class?.Account || null;
   }
 
   /**
@@ -179,6 +179,10 @@ ${this._formatPersonDetails(updatedPerson)}`,
   async findPersonByEmail(client, email) {
     try {
       logger.debug('Finding person by email', { email });
+
+      if (!this.Account) {
+        return null;
+      }
 
       // Find account by email first
       const account = await client.findOne(this.Account, { email });
@@ -456,6 +460,13 @@ ${employeeData.position ? `**Position**: ${employeeData.position}\n` : ''}${empl
    */
   async _linkPersonToAccount(client, personId, email) {
     try {
+      if (!this.Account) {
+        logger.debug('Account domain unavailable; skipping person account link', {
+          personId,
+          email,
+        });
+        return;
+      }
       // Find account by email
       const account = await client.findOne(this.Account, { email });
       if (!account) {
