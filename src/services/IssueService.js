@@ -30,9 +30,16 @@ import coreModule from '@hcengineering/core';
 import chunterModule from '@hcengineering/chunter';
 import activityModule from '@hcengineering/activity';
 import taskModule from '@hcengineering/task';
+import textModule from '@hcengineering/text';
+import textMarkdownModule from '@hcengineering/text-markdown';
 
 const tracker = trackerModule.default || trackerModule;
 const core = coreModule.default || coreModule;
+const textPkg = textModule.default || textModule;
+const textMdPkg = textMarkdownModule.default || textMarkdownModule;
+const { jsonToMarkup } = textPkg;
+const { markdownToMarkup } = textMdPkg;
+const { makeCollabId } = coreModule;
 const chunter = chunterModule.default || chunterModule;
 const _activity = activityModule.default || activityModule;
 const _task = taskModule.default || taskModule;
@@ -398,13 +405,12 @@ class IssueService {
         break;
 
       case 'description': {
-        // Create new description markup
         let descriptionRef = '';
         if (value && value.trim()) {
           try {
-            descriptionRef = await this._createDescriptionMarkup(client, issue._id, value);
+            descriptionRef = await this._updateDescriptionMarkup(client, issue, value);
           } catch (error) {
-            console.error('Error creating description:', error);
+            console.error('[IssueService] Failed to update description markup:', error.message);
             throw HulyError.operationFailed('Failed to update description', {
               error: error.message,
             });
@@ -1479,30 +1485,59 @@ class IssueService {
   }
 
   /**
-   * Helper method to create description markup
+   * Create description markup for NEW issues (no existing description).
    * @private
    */
   async _createDescriptionMarkup(client, issueId, text) {
     if (!text || text.trim() === '') {
-      return ''; // Return empty string for empty descriptions
-    }
-
-    try {
-      // Use the client's uploadMarkup method to properly store the content
-      const markupRef = await client.uploadMarkup(
-        tracker.class.Issue,
-        issueId,
-        'description',
-        text.trim(),
-        'markdown' // Use markdown format for plain text
-      );
-
-      return markupRef;
-    } catch (error) {
-      console.error('Failed to create markup:', error);
-      // Fallback to empty string if markup creation fails
       return '';
     }
+
+    const markupRef = await client.uploadMarkup(
+      tracker.class.Issue,
+      issueId,
+      'description',
+      text.trim(),
+      'markdown'
+    );
+
+    return markupRef;
+  }
+
+  /**
+   * Update description markup for EXISTING issues.
+   *
+   * HULLY-259: uploadMarkup always calls collaborator's `createContent` RPC, which
+   * throws "Document already exists" for issues that already have a description.
+   * For updates we must use `updateContent` RPC via collaborator client directly.
+   * @private
+   */
+  async _updateDescriptionMarkup(client, issue, text) {
+    if (!text || text.trim() === '') {
+      return '';
+    }
+
+    // PlatformClient.markup → MarkupOperationsImpl → .collaborator (CollaboratorClient)
+    const markupOps = client.markup;
+
+    if (!markupOps || !markupOps.collaborator) {
+      console.warn(
+        '[IssueService] Cannot access collaborator client, falling back to uploadMarkup'
+      );
+      return await this._createDescriptionMarkup(client, issue._id, text);
+    }
+
+    const markup = jsonToMarkup(
+      markdownToMarkup(text.trim(), {
+        refUrl: markupOps.refUrl || '',
+        imageUrl: markupOps.imageUrl || '',
+      })
+    );
+
+    const collabId = makeCollabId(tracker.class.Issue, issue._id, 'description');
+    await markupOps.collaborator.updateMarkup(collabId, markup);
+
+    return issue.description || '';
   }
 
   /**
